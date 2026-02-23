@@ -19,7 +19,7 @@ export default function ChatPage() {
 
   const transport = useMemo(() => {
     return new DefaultChatTransport({
-      api: "/api/chat",
+      api: "/api/chat/stream",
       prepareSendMessagesRequest: ({ id, messages }) => ({
         body: {
           messages,
@@ -37,7 +37,6 @@ export default function ChatPage() {
 
   const isLoading = status === "streaming" || status === "submitted"
 
-  // Auto-scroll to bottom
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
@@ -48,7 +47,6 @@ export default function ChatPage() {
     }
   }, [messages, isLoading])
 
-  
   const handleAddKnowledge = useCallback(
     (item: Omit<KnowledgeItem, "id" | "createdAt">) => {
       const genId = () =>
@@ -69,7 +67,7 @@ export default function ChatPage() {
     setKnowledgeItems((prev) => prev.filter((item) => item.id !== id))
   }, [])
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async() => {
     if (!input.trim() || isLoading) return
     sendMessage({ text: input })
     setInput("")
@@ -86,10 +84,8 @@ export default function ChatPage() {
   const hasKnowledge = knowledgeItems.length > 0
   const hasMessages = messages.length > 0
 
-
   return (
     <div className="flex h-dvh overflow-hidden">
-      {/* Knowledge Panel */}
       <KnowledgePanel
         items={knowledgeItems}
         onAdd={handleAddKnowledge}
@@ -98,9 +94,7 @@ export default function ChatPage() {
         onToggle={() => setPanelCollapsed((p) => !p)}
       />
 
-      {/* Main Chat Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header */}
         <header className="flex items-center justify-between border-b border-border px-6 py-3">
           <div className="flex items-center gap-3">
             <h1 className="text-sm font-semibold text-foreground">AskBase</h1>
@@ -116,7 +110,6 @@ export default function ChatPage() {
           )}
         </header>
 
-        {/* Messages */}
         {hasMessages ? (
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
             <div className="mx-auto max-w-3xl">
@@ -130,7 +123,6 @@ export default function ChatPage() {
           />
         )}
 
-        {/* Input */}
         <ChatInput
           input={input}
           onChange={setInput}

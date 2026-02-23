@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-
+  // Validate that body has a 'message' property of type string
   const message =
     typeof body === 'object' && body !== null && 'message' in body
       ? (body as { message?: unknown }).message
@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
 
       try {
         send('meta', { requestId });
-
         // TODO: Replace with actual LLM/RAG logic
         const reply = `Received: "${message}" - RAG/LLM not yet implemented`;
         const tokens = reply.split(' ');
@@ -59,10 +58,8 @@ export async function POST(request: NextRequest) {
           if (request.signal.aborted) {
             break;
           }
-
           const delta = index === 0 ? tokens[index] : ` ${tokens[index]}`;
           send('token', { delta });
-
           // Slight delay to simulate streaming chunks.
           await new Promise((resolve) => setTimeout(resolve, 10));
         }
