@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react"
-import { useChat } from "@ai-sdk/react"
-import { DefaultChatTransport } from "ai"
+import { useState, useRef, useEffect, useCallback } from "react"
+import type { UIMessage } from "ai"
 import {
   KnowledgePanel,
   type KnowledgeItem,
@@ -11,31 +10,104 @@ import { ChatMessages } from "@/components/chat-messages"
 import { ChatInput } from "@/components/chat-input"
 import { EmptyState } from "@/components/empty-state"
 
+type ParsedSseEvent = {
+  event: string
+  data: unknown
+}
+
+function createTextMessage(
+  role: "user" | "assistant",
+  text: string,
+  id = crypto.randomUUID()
+): UIMessage {
+  return {
+    id,
+    role,
+    parts: [{ type: "text", text }],
+  }
+}
+
+function getMessageText(message: UIMessage): string {
+  return message.parts
+    .filter((part): part is { type: "text"; text: string } => part.type === "text")
+    .map((part) => part.text)
+    .join("")
+}
+
+function parseSseEvent(rawEvent: string): ParsedSseEvent | null {
+  const lines = rawEvent.split("\n")
+  let event = "message"
+  const dataLines: string[] = []
+
+  for (const line of lines) {
+    if (line.startsWith("event:")) {
+      event = line.slice(6).trim()
+      continue
+    }
+    if (line.startsWith("data:")) {
+      dataLines.push(line.slice(5).trimStart())
+    }
+  }
+
+  if (dataLines.length === 0) return null
+
+  const rawData = dataLines.join("\n")
+  try {
+    return { event, data: JSON.parse(rawData) }
+  } catch {
+    return { event, data: rawData }
+  }
+}
+
+async function readSseStream(
+  stream: ReadableStream<Uint8Array>,
+  onEvent: (event: ParsedSseEvent) => void
+) {
+  const reader = stream.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+
+  while (true) {
+    const { done, value } = await reader.read()
+     console.log('done', done, 'value', value);
+    if (done) break
+    if (!value) continue
+
+    buffer += decoder.decode(value, { stream: true })
+    buffer = buffer.replace(/\r\n/g, "\n")
+
+    let boundary = buffer.indexOf("\n\n")
+    while (boundary !== -1) {
+      const rawEvent = buffer.slice(0, boundary).trim()
+      buffer = buffer.slice(boundary + 2)
+
+      if (rawEvent.length > 0) {
+        const parsed = parseSseEvent(rawEvent)
+        if (parsed) {
+          onEvent(parsed)
+        }
+      }
+
+      boundary = buffer.indexOf("\n\n")
+    }
+  }
+
+  const lastEvent = buffer.trim()
+  if (lastEvent.length > 0) {
+    const parsed = parseSseEvent(lastEvent)
+    if (parsed) {
+      onEvent(parsed)
+    }
+  }
+}
+
 export default function ChatPage() {
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItem[]>([])
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   const [input, setInput] = useState("")
+  const [messages, setMessages] = useState<UIMessage[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
-
-  const transport = useMemo(() => {
-    return new DefaultChatTransport({
-      api: "/api/chat/stream",
-      prepareSendMessagesRequest: ({ id, messages }) => ({
-        body: {
-          messages,
-          id,
-          knowledge: knowledgeItems.map((item) => ({
-            title: item.title,
-            content: item.content,
-          })),
-        },
-      }),
-    })
-  }, [knowledgeItems])
-
-  const { messages, sendMessage, status } = useChat({ transport })
-
-  const isLoading = status === "streaming" || status === "submitted"
 
   useEffect(() => {
     const el = scrollRef.current
@@ -67,16 +139,120 @@ export default function ChatPage() {
     setKnowledgeItems((prev) => prev.filter((item) => item.id !== id))
   }, [])
 
-  const handleSubmit = useCallback(async() => {
+  const appendAssistantDelta = useCallback((assistantId: string, delta: string) => {
+    setMessages((prev) => {
+      const next = [...prev]
+      const assistantIndex = next.findIndex((message) => message.id === assistantId)
+      if (assistantIndex === -1) return next
+
+      const current = next[assistantIndex]
+      const mergedText = `${getMessageText(current)}${delta}`
+      next[assistantIndex] = createTextMessage("assistant", mergedText, assistantId)
+      return next
+    })
+  }, [])
+
+  const sendMessage = useCallback(async (text: string) => {
+    const trimmedText = text.trim()
+    if (!trimmedText || isLoading) return
+
+    const userMessage = createTextMessage("user", trimmedText)
+    const assistantId = crypto.randomUUID()
+    const assistantMessage = createTextMessage("assistant", "", assistantId)
+
+    setMessages((prev) => [...prev, userMessage, assistantMessage])
+    setIsLoading(true)
+
+    try {
+      const clientMessageId = crypto.randomUUID()
+      const response = await fetch("/api/chat/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: trimmedText,
+          clientMessageId,
+          knowledge: knowledgeItems.map((item) => ({
+            title: item.title,
+            content: item.content,
+          })),
+        }),
+      })
+
+      if (!response.ok) {
+        const payload = await response
+          .json()
+          .catch(() => ({ error: "Request failed" }))
+        const message =
+          payload &&
+          typeof payload === "object" &&
+          "error" in payload &&
+          typeof payload.error === "string"
+            ? payload.error
+            : response.statusText
+        throw new Error(message)
+      }
+
+      if (!response.body) {
+        throw new Error("Empty stream response")
+      }
+
+      await readSseStream(
+        response.body as ReadableStream<Uint8Array>,
+        ({ event, data }) => {
+          if (event === "token") {
+            const delta =
+              data &&
+              typeof data === "object" &&
+              "delta" in data &&
+              typeof data.delta === "string"
+                ? data.delta
+                : ""
+            if (delta.length > 0) {
+              appendAssistantDelta(assistantId, delta)
+            }
+          }
+
+          if (event === "error") {
+            const errorMessage =
+              data &&
+              typeof data === "object" &&
+              "message" in data &&
+              typeof data.message === "string"
+                ? data.message
+                : "Stream error"
+            throw new Error(errorMessage)
+          }
+        }
+      )
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Stream error"
+      setMessages((prev) =>
+        prev.map((message) => {
+          if (message.id !== assistantId) return message
+          const fallbackText = getMessageText(message)
+          const nextText =
+            fallbackText.length > 0
+              ? `${fallbackText}\n\n[Error] ${errorMessage}`
+              : `[Error] ${errorMessage}`
+          return createTextMessage("assistant", nextText, assistantId)
+        })
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }, [appendAssistantDelta, isLoading, knowledgeItems])
+
+  const handleSubmit = useCallback(() => {
     if (!input.trim() || isLoading) return
-    sendMessage({ text: input })
+    const nextInput = input
     setInput("")
+    void sendMessage(nextInput)
   }, [input, isLoading, sendMessage])
 
   const handleSuggestionClick = useCallback(
     (text: string) => {
       if (isLoading) return
-      sendMessage({ text })
+      void sendMessage(text)
     },
     [isLoading, sendMessage]
   )
