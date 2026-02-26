@@ -69,7 +69,6 @@ async function readSseStream(
 
   while (true) {
     const { done, value } = await reader.read()
-     console.log('done', done, 'value', value);
     if (done) break
     if (!value) continue
 
@@ -108,6 +107,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<UIMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     const el = scrollRef.current
@@ -119,10 +119,17 @@ export default function ChatPage() {
     }
   }, [messages, isLoading])
 
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const handleStop = useCallback(() => {
+    if (!isLoading) return
+    abortRef.current?.abort()
+  }, [isLoading])
+
   const handleAddKnowledge = useCallback(
     (item: Omit<KnowledgeItem, "id" | "createdAt">) => {
       const genId = () =>
-      (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`)
+        (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`)
       setKnowledgeItems((prev) => [
         ...prev,
         {
@@ -155,6 +162,9 @@ export default function ChatPage() {
   const sendMessage = useCallback(async (text: string) => {
     const trimmedText = text.trim()
     if (!trimmedText || isLoading) return
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
 
     const userMessage = createTextMessage("user", trimmedText)
     const assistantId = crypto.randomUUID()
@@ -165,17 +175,37 @@ export default function ChatPage() {
 
     try {
       const clientMessageId = crypto.randomUUID()
+      const shouldDebugStream =
+        process.env.NODE_ENV === "development" &&
+        typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).get("debugStream") === "1"
+      const payload: {
+        message: string
+        clientMessageId: string
+        knowledge: { title: string; content: string }[]
+        debug?: { delayMs: number; repeat: number; chunkBy: "char" | "word" }
+      } = {
+        message: trimmedText,
+        clientMessageId,
+        knowledge: knowledgeItems.map((item) => ({
+          title: item.title,
+          content: item.content,
+        })),
+      }
+
+      if (shouldDebugStream) {
+        payload.debug = {
+          delayMs: 120,
+          repeat: 200,
+          chunkBy: "char",
+        }
+      }
+
       const response = await fetch("/api/chat/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: trimmedText,
-          clientMessageId,
-          knowledge: knowledgeItems.map((item) => ({
-            title: item.title,
-            content: item.content,
-          })),
-        }),
+        body: JSON.stringify(payload),
+        signal: controller.signal,
       })
 
       if (!response.ok) {
@@ -184,9 +214,9 @@ export default function ChatPage() {
           .catch(() => ({ error: "Request failed" }))
         const message =
           payload &&
-          typeof payload === "object" &&
-          "error" in payload &&
-          typeof payload.error === "string"
+            typeof payload === "object" &&
+            "error" in payload &&
+            typeof payload.error === "string"
             ? payload.error
             : response.statusText
         throw new Error(message)
@@ -196,15 +226,25 @@ export default function ChatPage() {
         throw new Error("Empty stream response")
       }
 
+      let streamError: string | null = null
+      let requestId: string | undefined
+
       await readSseStream(
         response.body as ReadableStream<Uint8Array>,
         ({ event, data }) => {
+          if (event === "meta") {
+            requestId =
+              data && typeof data === "object" && "requestId" in data && typeof data.requestId === "string"
+                ? data.requestId
+                : undefined
+            return
+          }
           if (event === "token") {
             const delta =
               data &&
-              typeof data === "object" &&
-              "delta" in data &&
-              typeof data.delta === "string"
+                typeof data === "object" &&
+                "delta" in data &&
+                typeof data.delta === "string"
                 ? data.delta
                 : ""
             if (delta.length > 0) {
@@ -213,31 +253,45 @@ export default function ChatPage() {
           }
 
           if (event === "error") {
-            const errorMessage =
-              data &&
-              typeof data === "object" &&
-              "message" in data &&
-              typeof data.message === "string"
+            streamError =
+              data && typeof data === "object" && "message" in data && typeof data.message === "string"
                 ? data.message
                 : "Stream error"
-            throw new Error(errorMessage)
           }
         }
       )
+      if (streamError) {
+          const prefix = requestId ? `[${requestId}] ` : ""
+          throw new Error(prefix + streamError)
+      }
+
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Stream error"
-      setMessages((prev) =>
-        prev.map((message) => {
-          if (message.id !== assistantId) return message
-          const fallbackText = getMessageText(message)
-          const nextText =
-            fallbackText.length > 0
-              ? `${fallbackText}\n\n[Error] ${errorMessage}`
-              : `[Error] ${errorMessage}`
-          return createTextMessage("assistant", nextText, assistantId)
-        })
-      )
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? createTextMessage("assistant", `${getMessageText(m)}\n\n[Stopped]`, assistantId)
+              : m
+          )
+        )
+      } else {
+        const errorMessage = err instanceof Error ? err.message : "Stream error"
+        setMessages((prev) =>
+          prev.map((message) => {
+            if (message.id !== assistantId) return message
+            const fallbackText = getMessageText(message)
+            const nextText =
+              fallbackText.length > 0
+                ? `${fallbackText}\n\n[Error] ${errorMessage}`
+                : `[Error] ${errorMessage}`
+            return createTextMessage("assistant", nextText, assistantId)
+          })
+        )
+      }
     } finally {
+      if (abortRef.current === controller) {
+        abortRef.current = null
+      }
       setIsLoading(false)
     }
   }, [appendAssistantDelta, isLoading, knowledgeItems])
@@ -303,6 +357,7 @@ export default function ChatPage() {
           input={input}
           onChange={setInput}
           onSubmit={handleSubmit}
+          onStop={handleStop}
           isLoading={isLoading}
           hasKnowledge={hasKnowledge}
         />
