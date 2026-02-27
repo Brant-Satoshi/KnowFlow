@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+  console.log(body);
   // Validate that body has a 'message' property of type string
   const message =
     typeof body === 'object' && body !== null && 'message' in body
