@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { FileDoc } from '@/lib/types';
+import { deleteChunksByFileId } from './chunks';
 
 const DB_DIR = join(process.cwd(), 'data');
 const FILES_DB = join(DB_DIR, 'files.json');
@@ -50,5 +51,19 @@ export async function deleteFile(id: string): Promise<boolean> {
   if (index === -1) return false;
   files.splice(index, 1);
   await writeFilesDb(files);
+  await deleteChunksByFileId(id);
   return true;
+}
+
+export async function updateFileStatus(
+  id: string,
+  status: FileDoc['status'],
+): Promise<FileDoc | undefined> {
+  const files = await readFilesDb();
+  const index = files.findIndex((f) => f.id === id);
+  if (index === -1) return undefined;
+
+  files[index] = { ...files[index], status };
+  await writeFilesDb(files);
+  return files[index];
 }

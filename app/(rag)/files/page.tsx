@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Upload, FileText, Trash2 } from 'lucide-react';
+import { Upload, FileText, Trash2, FileCode } from 'lucide-react';
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -36,6 +36,7 @@ export default function FilesPage() {
   const [files, setFiles] = useState<FileDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [parsingIds, setParsingIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -106,6 +107,28 @@ export default function FilesPage() {
     }
   }, []);
 
+  const handleParse = useCallback(async (id: string) => {
+    setParsingIds(prev => new Set(prev).add(id));
+    setError(null);
+    try {
+      const res = await fetch(`/api/files/${id}/parse`, { method: 'POST' });
+      const json = await res.json();
+      if (json.ok) {
+        setFiles(prev => prev.map(f => f.id === id ? json.data.file : f));
+      } else {
+        setError(json.error);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Parse failed');
+    } finally {
+      setParsingIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  }, []);
+
   return (
     <div className="container mx-auto py-8 max-w-5xl">
       <Card>
@@ -170,7 +193,18 @@ export default function FilesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{formatDate(file.createdAt)}</td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right space-x-1">
+                        {file.status === 'uploaded' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleParse(file.id)}
+                            disabled={parsingIds.has(file.id)}
+                            title="Parse file"
+                          >
+                            <FileCode className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
