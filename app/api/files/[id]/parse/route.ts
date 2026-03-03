@@ -4,7 +4,7 @@ import { chunkText } from '@/lib/rag/chunks';
 import { parseFile } from '@/lib/rag/parse';
 import { readFile } from 'fs/promises';
 import { NextRequest } from 'next/server';
-import { join } from 'path';
+import { extname, join } from 'path';
 
 export const runtime = "nodejs";
 
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         await updateFileStatus(id, 'parsing');
 
-        const filePath = join(process.cwd(), 'data', 'uploads', `${id}_${file.name}`);
+        const filePath = join(process.cwd(), 'data', 'uploads', `${id}${extname(file.name)}`);
         const buffer = await readFile(filePath);
 
         const text = clean(await parseFile(file, buffer));
@@ -43,9 +43,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     }
 
-    catch {
+    catch (e) {
         if (id) {
             await updateFileStatus(id, 'failed');
+            console.log('error', e)
         }
         return Response.json({
             requestId: crypto.randomUUID(),

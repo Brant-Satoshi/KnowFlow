@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { FileDoc } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/use-toast';
 import {
   Card,
   CardContent,
@@ -116,10 +117,12 @@ export default function FilesPage() {
       if (json.ok) {
         setFiles(prev => prev.map(f => f.id === id ? json.data.file : f));
       } else {
-        setError(json.error);
+        toast({ variant: 'destructive', description: json.error || 'Parse failed' });
+        fetchFiles();
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Parse failed');
+      toast({ variant: 'destructive', description: e instanceof Error ? e.message : 'Parse failed' });
+      fetchFiles();
     } finally {
       setParsingIds(prev => {
         const next = new Set(prev);
@@ -127,7 +130,7 @@ export default function FilesPage() {
         return next;
       });
     }
-  }, []);
+  }, [fetchFiles]);
 
   return (
     <div className="container mx-auto py-8 max-w-5xl">
