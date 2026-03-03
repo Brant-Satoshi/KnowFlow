@@ -1,69 +1,53 @@
-import { promises as fs } from 'fs';
-import { join } from 'path';
 import { FileDoc } from '@/lib/types';
 import { deleteChunksByFileId } from './chunks';
-
-const DB_DIR = join(process.cwd(), 'data');
-const FILES_DB = join(DB_DIR, 'files.json');
-
-async function ensureDbDir() {
-  try {
-    await fs.mkdir(DB_DIR, { recursive: true });
-  } catch {
-    // dir exists
-  }
-}
-
-async function readFilesDb(): Promise<FileDoc[]> {
-  try {
-    await ensureDbDir();
-    const data = await fs.readFile(FILES_DB, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
-}
-
-async function writeFilesDb(files: FileDoc[]): Promise<void> {
-  await ensureDbDir();
-  await fs.writeFile(FILES_DB, JSON.stringify(files, null, 2));
-}
+import { query } from './pg';
 
 export async function getFiles(): Promise<FileDoc[]> {
-  return readFilesDb();
+  return query<FileDoc>('SELECT id::text, name, type, size, status, created_at AS "createdAt" FROM files ORDER BY created_at DESC;');
 }
 
-export async function getFile(id: string): Promise<FileDoc | undefined> {
-  const files = await readFilesDb();
-  return files.find(f => f.id === id);
+export async function getFileById(id: string): Promise<FileDoc | undefined> {
+  const rows = await query<FileDoc>(
+    'SELECT id::text, name, type, size, status, created_at AS "createdAt" FROM files WHERE id = $1::uuid LIMIT 1;',
+    [id]
+  );
+  return rows[0];
 }
 
 export async function addFile(file: FileDoc): Promise<FileDoc> {
-  const files = await readFilesDb();
-  files.push(file);
-  await writeFilesDb(files);
-  return file;
+   const rows = await query<FileDoc>(
+    `
+    INSERT INTO files (id, name, type, size, status, created_at)
+    VALUES ($1::uuid, $2, $3, $4, $5, $6)
+    RETURNING id::text, name, type, size, status, created_at AS "createdAt";
+    `,
+    [file.id, file.name, file.type, file.size, file.status, file.createdAt]
+  );
+  return rows[0];
 }
 
 export async function deleteFile(id: string): Promise<boolean> {
-  const files = await readFilesDb();
-  const index = files.findIndex(f => f.id === id);
-  if (index === -1) return false;
-  files.splice(index, 1);
-  await writeFilesDb(files);
+
   await deleteChunksByFileId(id);
-  return true;
+  const rows = await query<{ id: string }>(
+    `DELETE FROM files WHERE id = $1::uuid RETURNING id::text AS "id";`,
+    [id]
+  );
+  return rows.length > 0;
 }
 
 export async function updateFileStatus(
   id: string,
   status: FileDoc['status'],
 ): Promise<FileDoc | undefined> {
-  const files = await readFilesDb();
-  const index = files.findIndex((f) => f.id === id);
-  if (index === -1) return undefined;
-
-  files[index] = { ...files[index], status };
-  await writeFilesDb(files);
-  return files[index];
+  const rows = await query<FileDoc>(
+    `
+    UPDATE files
+    SET status = $2
+    WHERE id = $1::uuid
+    RETURNING id::text, name, type, size, status, created_at AS "createdAt";
+    `,
+    [id, status]
+  );
+  return rows[0];
 }

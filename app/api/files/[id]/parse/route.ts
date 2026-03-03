@@ -1,5 +1,6 @@
 import { replaceFileChunks } from '@/lib/db/chunks';
-import { getFile, updateFileStatus } from '@/lib/db/files';
+import { getFileById, updateFileStatus } from '@/lib/db/files';
+import { chunkText } from '@/lib/rag/chunks';
 import { parseFile } from '@/lib/rag/parse';
 import { readFile } from 'fs/promises';
 import { NextRequest } from 'next/server';
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     let id = '';
     try {
         id = (await params)?.id;
-        const file = await getFile(id);
+        const file = await getFileById(id);
         if (!file) {
             return Response.json({
                 requestId: crypto.randomUUID(),
@@ -22,20 +23,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         }
 
         await updateFileStatus(id, 'parsing');
+
         const filePath = join(process.cwd(), 'data', 'uploads', `${id}_${file.name}`);
         const buffer = await readFile(filePath);
 
-        let text = "";
-
-        text = await parseFile(file, buffer);
-        text = clean(text);
-        const chunkDocs = chunkText(text).map((c, idx) => ({
-            id: `${id}-${idx}`,
-            fileId: id,
-            idx,
-            text: c,
-            meta: {},
-        }));
+        const text = clean(await parseFile(file, buffer));
+        const chunkDocs = chunkText(text, id)
 
         await replaceFileChunks(id, chunkDocs);
         const updatedFile = await updateFileStatus(id, 'indexed');
@@ -68,20 +61,4 @@ function clean(text: string) {
         .replace(/[ \t]+/g, " ")
         .replace(/Page \d+/g, "")
         .trim();
-}
-
-function chunkText(text: string, size = 500, overlap = 100) {
-    if (size > 0 && overlap >= 0 && size > overlap) {
-        const chunks: string[] = [];
-        let start = 0;
-
-        while (start < text.length) {
-            chunks.push(text.slice(start, start + size));
-            start += size - overlap;
-        }
-        return chunks;
-    } else {
-        throw new Error("Invalid chunk size or overlap");
-    }
-
 }

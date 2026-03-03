@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
-import { getFile, deleteFile } from '@/lib/db/files';
+import { getFileById, deleteFile } from '@/lib/db/files';
 import { deleteFile as deleteStorageFile } from '@/lib/db/storage';
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const file = await getFile(id);
+    const file = await getFileById(id);
 
     if (!file) {
       return Response.json(error('File not found'), { status: 404 });

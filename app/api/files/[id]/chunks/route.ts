@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
-import { getFile } from '@/lib/db/files';
+import { getFileById } from '@/lib/db/files';
 import { getChunks } from '@/lib/db/chunks';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const file = await getFile(id);
+    const file = await getFileById(id);
 
     if (!file) {
       return Response.json(error('File not found'), { status: 404 });

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { writeFile } from 'fs/promises';
-import { join } from 'path';
+import { extname, join } from 'path';
 import { FileDoc } from '@/lib/types';
 import { success, error } from '@/lib/api/response';
 import { addFile } from '@/lib/db/files';
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(bytes);
 
     await ensureUploadDir();
-    const filename = `${id}_${file.name}`;
+    const filename = `${id}${extname(file.name)}`;
     const filepath = join(process.cwd(), 'data', 'uploads', filename);
     await writeFile(filepath, buffer);
 

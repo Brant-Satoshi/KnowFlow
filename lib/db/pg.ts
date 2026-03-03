@@ -18,6 +18,15 @@ export async function query<T>(text: string, params?: unknown[]): Promise<T[]> {
   return result.rows as T[];
 }
 
+export async function execute(
+  text: string,
+  params?: unknown[],
+): Promise<number> {
+  const result = await getPool().query(text, params);
+  return result.rowCount ?? 0;
+}
+
+
 export async function closePool(): Promise<void> {
   if (pool) {
     await pool.end();

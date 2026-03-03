@@ -44,6 +44,7 @@ export interface Chunk {
   idx: number;
   text: string;
   meta: ChunkMeta;
+  embedding?: number[];
 }
 
 export interface Citation {
