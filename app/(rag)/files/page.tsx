@@ -114,9 +114,9 @@ export default function FilesPage() {
     try {
       const res = await fetch(`/api/files/${id}/parse`, { method: 'POST' });
       const json = await res.json();
-      if (json.ok) {
+      if (json.ok && json.data?.file) {
         setFiles(prev => prev.map(f => f.id === id ? json.data.file : f));
-      } else {
+      } else if (!json.ok) {
         toast({ variant: 'destructive', description: json.error || 'Parse failed' });
         fetchFiles();
       }
@@ -141,7 +141,7 @@ export default function FilesPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".md,.txt"
+              accept=".md,.txt,.pdf"
               onChange={handleFileSelect}
               disabled={uploading}
               className="hidden"

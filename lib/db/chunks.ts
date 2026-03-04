@@ -21,9 +21,12 @@ export async function replaceFileChunks(
     await client.query('BEGIN');
     await client.query('DELETE FROM chunks WHERE file_id = $1', [fileId]);
     for (const chunk of nextChunks) {
+      const vector = chunk.embedding
+        ? `[${chunk.embedding.join(',')}]`
+        : null;
       await client.query(
-        'INSERT INTO chunks (id, file_id, idx, text, meta) VALUES ($1, $2, $3, $4, $5)',
-        [chunk.id, fileId, chunk.idx, chunk.text, JSON.stringify(chunk.meta)]
+        'INSERT INTO chunks (id, file_id, idx, text, meta, embedding) VALUES ($1, $2, $3, $4, $5, $6::vector)',
+        [chunk.id, fileId, chunk.idx, chunk.text, JSON.stringify(chunk.meta), vector]
       );
     }
     await client.query('COMMIT');

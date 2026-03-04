@@ -1,8 +1,49 @@
-import { Chunk, ChunkMeta } from '@/lib/types';
+import { Chunk } from '@/lib/types';
 
 export interface ChunkOptions {
   chunkSize?: number;    // 默认 500
   overlap?: number;      // 默认 50
+}
+
+const SENTENCE_BREAK_RE = /[.!?。！？;；]/;
+
+function normalizeOptions(options: ChunkOptions): { chunkSize: number; overlap: number } {
+  const chunkSize = Math.max(1, Math.trunc(options.chunkSize ?? 500));
+  const overlap = Math.max(0, Math.min(Math.trunc(options.overlap ?? 50), chunkSize - 1));
+  return { chunkSize, overlap };
+}
+
+function countLeadingWhitespace(value: string): number {
+  const match = value.match(/^\s+/);
+  return match ? match[0].length : 0;
+}
+
+function countTrailingWhitespace(value: string): number {
+  const match = value.match(/\s+$/);
+  return match ? match[0].length : 0;
+}
+
+function findChunkEnd(text: string, start: number, targetEnd: number): number {
+  if (targetEnd >= text.length) {
+    return text.length;
+  }
+
+  const minEnd = start + Math.floor((targetEnd - start) * 0.6);
+
+  for (let i = targetEnd; i > minEnd; i -= 1) {
+    const ch = text[i - 1];
+    if (ch === '\n' || ch === '\r' || SENTENCE_BREAK_RE.test(ch)) {
+      return i;
+    }
+  }
+
+  for (let i = targetEnd; i > minEnd; i -= 1) {
+    if (/\s/.test(text[i - 1])) {
+      return i;
+    }
+  }
+
+  return targetEnd;
 }
 
 export function chunkText(
@@ -10,41 +51,48 @@ export function chunkText(
   fileId: string,
   options: ChunkOptions = {}
 ): Chunk[] {
-  const { chunkSize = 500, overlap = 50 } = options;
+  const { chunkSize, overlap } = normalizeOptions(options);
   const chunks: Chunk[] = [];
-  
-  // 简单按段落或句子分割
-  const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
-  
-  let currentText = '';
+
+  if (!text) {
+    return chunks;
+  }
+
   let idx = 0;
-  
-  for (const para of paragraphs) {
-    if (currentText.length + para.length > chunkSize && currentText) {
+  let start = 0;
+  const totalLength = text.length;
+
+  while (start < totalLength) {
+    const targetEnd = Math.min(start + chunkSize, totalLength);
+    const end = findChunkEnd(text, start, targetEnd);
+    const rawChunk = text.slice(start, end);
+    const leadingWs = countLeadingWhitespace(rawChunk);
+    const trailingWs = countTrailingWhitespace(rawChunk);
+
+    const trimmedStart = start + leadingWs;
+    const trimmedEnd = end - trailingWs;
+
+    if (trimmedEnd > trimmedStart) {
       chunks.push({
         id: `${fileId}-${idx}`,
         fileId,
-        idx: idx++,
-        text: currentText.trim(),
-        meta: { start: 0, end: currentText.length }
+        idx,
+        text: text.slice(trimmedStart, trimmedEnd),
+        meta: { start: trimmedStart, end: trimmedEnd },
       });
-      // 保留 overlap 字符
-      currentText = currentText.slice(-overlap) + para;
-    } else {
-      currentText += '\n\n' + para;
+      idx += 1;
     }
+
+    if (end >= totalLength) {
+      break;
+    }
+
+    let nextStart = end - overlap;
+    if (nextStart <= start) {
+      nextStart = start + 1;
+    }
+    start = nextStart;
   }
-  
-  // 处理最后一块
-  if (currentText.trim()) {
-    chunks.push({
-      id: `${fileId}-${idx}`,
-      fileId,
-      idx: idx,
-      text: currentText.trim(),
-      meta: { start: 0, end: currentText.length }
-    });
-  }
-  
+
   return chunks;
 }

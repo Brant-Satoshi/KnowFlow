@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     const allowedExtensions = ['.md', '.txt', '.pdf'];
     const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
     if (!allowedExtensions.includes(ext)) {
-      return Response.json(error('Only .md and .txt files are allowed'), { status: 400 });
+      return Response.json(error('Only .pdf, .md, .txt files are allowed'), { status: 400 });
     }
 
     const id = crypto.randomUUID();

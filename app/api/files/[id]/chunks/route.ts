@@ -2,10 +2,16 @@ import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
 import { getFileById } from '@/lib/db/files';
 import { getChunks } from '@/lib/db/chunks';
+import { isValidUuid } from '@/lib/validation';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+
+    if (!isValidUuid(id)) {
+      return Response.json(error('Invalid file ID'), { status: 400 });
+    }
+
     const file = await getFileById(id);
 
     if (!file) {

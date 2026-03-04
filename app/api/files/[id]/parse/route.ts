@@ -5,6 +5,8 @@ import { parseFile } from '@/lib/rag/parse';
 import { readFile } from 'fs/promises';
 import { NextRequest } from 'next/server';
 import { extname, join } from 'path';
+import { isValidUuid } from '@/lib/validation';
+import { embedChunk } from '@/lib/rag/embedings';
 
 export const runtime = "nodejs";
 
@@ -13,6 +15,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     let id = '';
     try {
         id = (await params)?.id;
+
+        if (!isValidUuid(id ?? '')) {
+            return Response.json({
+                requestId: crypto.randomUUID(),
+                ok: false,
+                error: 'Invalid file ID',
+            }, { status: 400 });
+        }
+
         const file = await getFileById(id);
         if (!file) {
             return Response.json({
@@ -28,9 +39,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const buffer = await readFile(filePath);
 
         const text = clean(await parseFile(file, buffer));
-        const chunkDocs = chunkText(text, id)
+
+        let chunkDocs = chunkText(text, id)
+
+        chunkDocs = await embedChunk(chunkDocs);
 
         await replaceFileChunks(id, chunkDocs);
+
+
         const updatedFile = await updateFileStatus(id, 'indexed');
         return Response.json({
             requestId: crypto.randomUUID(),
