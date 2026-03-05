@@ -38,12 +38,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const queryEmbedding = await embedText(message);
-  const chunks = await searchChunks(queryEmbedding, 5, 0.4);
+  try {
+    const queryEmbedding = await embedText(message);
+    const chunks = await searchChunks(queryEmbedding, 5, 0.4);
+    const prompt = buildPrompt(message, chunks);
+    const stream = await streamAnswer(prompt, request.signal, requestId);
 
-  const prompt = buildPrompt(message, chunks);
-  
-  const stream = await streamAnswer(prompt, request.signal, requestId, message);
-
-  return new Response(stream, { headers: sseHeaders() });
+    return new Response(stream, { headers: sseHeaders() });
+  } catch (e) {
+    console.error(`[${requestId}] chat error:`, e);
+    return Response.json(
+      { requestId, ok: false, error: e instanceof Error ? e.message : 'Chat failed' },
+      { status: 500 },
+    );
+  }
 }

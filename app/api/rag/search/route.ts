@@ -13,6 +13,14 @@ export async function POST(req: NextRequest) {
       return Response.json(error('Missing query'), { status: 400 });
     }
 
+    // Validate and bound topK and maxScore
+    if (typeof topK !== 'number' || topK < 1 || topK > 20) {
+      return Response.json(error('topK must be between 1 and 20'), { status: 400 });
+    }
+    if (typeof maxScore !== 'number' || maxScore < 0 || maxScore > 1) {
+      return Response.json(error('maxScore must be between 0 and 1'), { status: 400 });
+    }
+
     if (fileId && !isValidUuid(fileId)) {
       return Response.json(error('Invalid fileId'), { status: 400 });
     }

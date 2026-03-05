@@ -27,7 +27,7 @@ export function buildPrompt(question: string, chunks: Chunk[]) {
         `;
 }
 
-export async function streamAnswer(prompt: string, signal: AbortSignal, requestId: string, message: string) {
+export async function streamAnswer(prompt: string, signal: AbortSignal, requestId: string) {
   const response = await fetch(
     "https://api.minimax.chat/v1/text/chatcompletion_v2",
     {
@@ -49,6 +49,25 @@ export async function streamAnswer(prompt: string, signal: AbortSignal, requestI
       }),
     }
   );
+
+  // Check for HTTP errors before processing the stream
+  if (!response.ok) {
+    const encoder = new TextEncoder();
+    let errorData: unknown = null;
+    try {
+      errorData = await response.json();
+    } catch {
+      errorData = await response.text();
+    }
+    const errorStream = new ReadableStream<Uint8Array>({
+      start: (controller) => {
+        controller.enqueue(encoder.encode(formatSse('meta', { requestId })));
+        controller.enqueue(encoder.encode(formatSse('error', { requestId, status: response.status, error: errorData })));
+        controller.close();
+      },
+    });
+    return errorStream;
+  }
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -64,9 +83,13 @@ export async function streamAnswer(prompt: string, signal: AbortSignal, requestI
       send('meta', { requestId });
 
       let buffer = '';
-      while (true) {
+      let streamDone = false;
+      while (!streamDone) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          streamDone = true;
+          break;
+        }
 
         buffer += decoder.decode(value, { stream: true });
 
@@ -79,8 +102,8 @@ export async function streamAnswer(prompt: string, signal: AbortSignal, requestI
           const jsonStr = line.slice(6);
 
           if (jsonStr === '[DONE]') {
-            send('done', { requestId });
-            continue;
+            streamDone = true;
+            break;
           }
 
           try {
