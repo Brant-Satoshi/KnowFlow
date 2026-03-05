@@ -35,6 +35,31 @@ type MiniMaxEmbeddingResponse = {
   };
 };
 
+export async function embedText(text: string): Promise<number[]> {
+  const res = await fetch(getEmbeddingUrl(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getApiKey()}`,
+    },
+    body: JSON.stringify({
+      model: MINIMAX_EMBEDDING_MODEL,
+      texts: [text],
+      type: MINIMAX_EMBEDDING_TYPE,
+    }),
+  });
+
+  const payload = (await res.json()) as MiniMaxEmbeddingResponse;
+  const vector = payload?.vectors?.[0];
+  if (!res.ok || !vector) {
+    const code = payload?.base_resp?.status_code ?? res.status;
+    const msg = payload?.base_resp?.status_msg ?? 'invalid response';
+    throw new Error(`MiniMax embedding failed (${code}): ${msg}`);
+  }
+
+  return vector;
+}
+
 export async function embedChunk(chunks: Chunk[]): Promise<Chunk[]> {
   const texts = chunks.map(c => c.text);
   const res = await fetch(getEmbeddingUrl(), {

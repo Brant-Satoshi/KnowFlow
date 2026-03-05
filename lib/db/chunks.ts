@@ -41,3 +41,27 @@ export async function replaceFileChunks(
 export async function deleteChunksByFileId(fileId: string): Promise<number> {
   return execute('DELETE FROM chunks WHERE file_id = $1', [fileId]);
 }
+
+export async function searchChunks(
+  queryEmbedding: number[],
+  topK: number = 5,
+  maxScore: number = 0.4,
+  fileId?: string,
+): Promise<Chunk[]> {
+  const vectorStr = `[${queryEmbedding.join(',')}]`;
+  
+  return query<Chunk>(
+    `
+    SELECT id::text, file_id AS "fileId", idx, text, meta
+    FROM chunks
+    WHERE embedding IS NOT NULL
+    AND embedding <=> $1::vector < $2
+    ${fileId ? 'AND file_id = $3' : ''}
+    ORDER BY embedding <=> $1::vector
+    LIMIT ${fileId ? '$4' : '$3'}
+    `,
+    fileId
+      ? [vectorStr, maxScore, fileId, topK]
+      : [vectorStr, maxScore, topK]
+  );
+}
