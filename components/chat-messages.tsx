@@ -1,7 +1,7 @@
 "use client"
 
 import type { UIMessage } from "ai"
-import { User, Bot, Sparkles } from "lucide-react"
+import { User, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 function getUIMessageText(msg: UIMessage): string {
