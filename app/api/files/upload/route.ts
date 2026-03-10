@@ -1,10 +1,9 @@
 import { NextRequest } from 'next/server';
-import { writeFile } from 'fs/promises';
-import { extname, join } from 'path';
+import { extname } from 'path';
 import { FileDoc } from '@/lib/types';
 import { success, error } from '@/lib/api/response';
 import { addFile } from '@/lib/db/files';
-import { ensureUploadDir } from '@/lib/db/storage';
+import { supabase, STORAGE_BUCKET } from '@/lib/db/supabase';
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,10 +24,19 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    await ensureUploadDir();
     const filename = `${id}${extname(file.name)}`;
-    const filepath = join(process.cwd(), 'data', 'uploads', filename);
-    await writeFile(filepath, buffer);
+
+    const { error: uploadError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(filename, buffer, {
+        contentType: file.type || 'application/octet-stream',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error('Supabase upload error:', uploadError);
+      return Response.json(error(`Failed to upload file: ${uploadError.message}`), { status: 500 });
+    }
 
     const fileDoc: FileDoc = {
       id,
