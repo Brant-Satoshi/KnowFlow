@@ -60,7 +60,7 @@ export function ChatInput({
           {isLoading ? (
             <button
               onClick={onStop}
-              className="m-1.5 flex h-8 shrink-0 items-center justify-center rounded-lg bg-secondary px-3 text-xs font-medium text-foreground transition-all hover:bg-secondary/80"
+              className="m-1.5 flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-secondary px-3 text-xs font-medium text-foreground transition-all hover:bg-secondary/80"
               aria-label="Stop generating"
             >
               Stop
@@ -70,7 +70,7 @@ export function ChatInput({
               onClick={onSubmit}
               disabled={!input.trim()}
               className={cn(
-                "m-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all",
+                "m-1.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-all",
                 input.trim()
                   ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "bg-secondary text-muted-foreground"

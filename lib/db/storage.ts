@@ -15,3 +15,13 @@ export async function deleteFile(id: string, name: string): Promise<boolean> {
 
   return true;
 }
+
+export async function readFileFromStorage(filePath: string) {
+  const { data, error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .download(filePath); 
+  if (error) throw new Error(error.message);
+
+  const buffer = Buffer.from(await data.arrayBuffer());
+  return buffer;
+}

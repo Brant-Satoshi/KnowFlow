@@ -2,11 +2,11 @@ import { replaceFileChunks } from '@/lib/db/chunks';
 import { getFileById, updateFileStatus } from '@/lib/db/files';
 import { chunkText } from '@/lib/rag/chunks';
 import { parseFile } from '@/lib/rag/parse';
-import { readFile } from 'fs/promises';
 import { NextRequest } from 'next/server';
-import { extname, join } from 'path';
+import { extname } from 'path';
 import { isValidUuid } from '@/lib/validation';
 import { embedChunk } from '@/lib/rag/embedings';
+import { readFileFromStorage } from '@/lib/db/storage';
 
 export const runtime = "nodejs";
 
@@ -35,8 +35,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         await updateFileStatus(id, 'parsing');
 
-        const filePath = join(process.cwd(), 'data', 'uploads', `${id}${extname(file.name)}`);
-        const buffer = await readFile(filePath);
+        const filePath = `${id}${extname(file.name)}`;
+
+        const buffer = await readFileFromStorage(filePath);
 
         const text = clean(await parseFile(file, buffer));
 
@@ -45,8 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         chunkDocs = await embedChunk(chunkDocs);
 
         await replaceFileChunks(id, chunkDocs);
-
-
+        
         const updatedFile = await updateFileStatus(id, 'indexed');
         return Response.json({
             requestId: crypto.randomUUID(),

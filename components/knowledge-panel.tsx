@@ -100,7 +100,7 @@ export function KnowledgePanel({
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+          className="h-7 w-7 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
           onClick={onToggle}
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -186,7 +186,7 @@ export function KnowledgePanel({
                           <button
                             onClick={() => onParse(file.id)}
                             disabled={isParsing}
-                            className="rounded p-1 text-muted-foreground hover:text-primary disabled:pointer-events-none"
+                            className="rounded cursor-pointer p-1 text-muted-foreground hover:text-primary disabled:pointer-events-none"
                             title="Parse file"
                           >
                             {isParsing ? (
@@ -198,7 +198,7 @@ export function KnowledgePanel({
                         )}
                         <button
                           onClick={() => onDelete(file.id)}
-                          className="rounded p-1 text-muted-foreground hover:text-destructive"
+                          className="rounded cursor-pointer p-1 text-muted-foreground hover:text-destructive"
                           title="Delete file"
                         >
                           <Trash2 className="h-3.5 w-3.5" />

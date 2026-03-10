@@ -53,7 +53,7 @@ export function EmptyState({
               <button
                 key={suggestion.text}
                 onClick={() => onSuggestionClick(suggestion.text)}
-                className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-all hover:border-primary/30 hover:bg-card/80"
+                className="group flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-all hover:border-primary/30 hover:bg-card/80"
               >
                 <suggestion.icon className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
                 <div>
