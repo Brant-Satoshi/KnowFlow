@@ -68,14 +68,17 @@
     --sidebar-accent-foreground: 0 0% 20%;
     --sidebar-border: 0 0% 88%;
     --sidebar-ring: 199 89% 48%;
-    --theme-user-msg-text: 211 100% 17%;
+    --theme-user-msg-bg: 208 100% 95%;
+    --theme-user-msg-text: 210 100% 17%;
+    --chat-surface-border: 0 0% 90%;
+    --chat-page-bg: #edeffa;
   }
 
   @media (prefers-color-scheme: dark) {
     :root {
       --background: 0 0% 4%;
       --foreground: 0 0% 93%;
-      --card: 0 0% 7%;
+      --card: 213 12% 15%;
       --card-foreground: 0 0% 93%;
       --popover: 0 0% 7%;
       --popover-foreground: 0 0% 93%;
@@ -101,7 +104,10 @@
       --sidebar-accent-foreground: 0 0% 90%;
       --sidebar-border: 0 0% 16%;
       --sidebar-ring: 199 89% 48%;
-      --theme-user-msg-text: 211 100% 17%;
+      --theme-user-msg-bg: 209 100% 24%;
+      --theme-user-msg-text: 210 100% 98%;
+      --chat-surface-border: 225 4% 22%;
+      --chat-page-bg: #1a1d22;
     }
   }
 
@@ -116,6 +122,18 @@
 }
 
 @layer utilities {
+  .theme-user-msg-bg {
+    background-color: hsl(var(--theme-user-msg-bg));
+  }
+
+  .theme-user-msg-text {
+    color: hsl(var(--theme-user-msg-text));
+  }
+
+  .chat-surface-border {
+    border-color: hsl(var(--chat-surface-border));
+  }
+
   .text-balance {
     text-wrap: balance;
   }

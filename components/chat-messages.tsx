@@ -81,7 +81,7 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
                 className={cn(
                   "inline-block rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                   isUser
-                    ? "bg-[#e5f3ff] theme-user-msg-text"
+                    ? "theme-user-msg-bg theme-user-msg-text"
                     : "bg-card text-card-foreground"
                 )}
               >
