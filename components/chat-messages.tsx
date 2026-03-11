@@ -1,7 +1,7 @@
 "use client"
 
 import type { UIMessage } from "ai"
-import { User, Sparkles } from "lucide-react"
+import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils"
 
 function getUIMessageText(msg: UIMessage): string {
@@ -50,11 +50,18 @@ interface ChatMessagesProps {
 }
 
 export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
+  const latestMessageId = messages[messages.length - 1]?.id
+
   return (
     <div className="flex flex-col gap-6">
       {messages.map((message) => {
         const text = getUIMessageText(message)
         const isUser = message.role === "user"
+        const isAssistantLoading =
+          isLoading &&
+          !isUser &&
+          message.id === latestMessageId &&
+          text.trim().length === 0
         const { cleanText, sources } = isUser
           ? { cleanText: text, sources: [] }
           : parseSourcesFromText(text)
@@ -64,23 +71,6 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
             key={message.id}
             className={cn("flex gap-3", isUser && "flex-row-reverse")}
           >
-            {/* Avatar */}
-            <div
-              className={cn(
-                "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-                isUser
-                  ? "bg-secondary text-secondary-foreground"
-                  : "bg-primary/15 text-primary"
-              )}
-            >
-              {isUser ? (
-                <User className="h-3.5 w-3.5" />
-              ) : (
-                <Sparkles className="h-3.5 w-3.5" />
-              )}
-            </div>
-
-            {/* Content */}
             <div
               className={cn(
                 "max-w-[75%] space-y-2",
@@ -91,14 +81,21 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
                 className={cn(
                   "inline-block rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                   isUser
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-[#e5f3ff] theme-user-msg-text"
                     : "bg-card text-card-foreground"
                 )}
               >
-                <p className="whitespace-pre-wrap">{cleanText}</p>
+                {isAssistantLoading ? (
+                  <div className="flex h-6 items-center" role="status" aria-label="Generating response">
+                    <span className="loading-dot-breathe h-2 w-2 rounded-full bg-primary/70" />
+                  </div>
+                ) : (
+                  <div className="prose prose-sm max-w-none">
+                    <ReactMarkdown>{cleanText}</ReactMarkdown>
+                  </div>
+                )}
               </div>
 
-              {/* Sources */}
               {sources.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 px-1">
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -117,22 +114,6 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
           </div>
         )
       })}
-
-      {/* Loading indicator */}
-      {isLoading &&
-        messages.length > 0 &&
-        messages[messages.length - 1].role === "user" && (
-          <div className="flex gap-3">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
-            </div>
-            <div className="flex items-center gap-1 rounded-2xl bg-card px-4 py-3">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/60" />
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/60 [animation-delay:0.2s]" />
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary/60 [animation-delay:0.4s]" />
-            </div>
-          </div>
-        )}
     </div>
   )
 }

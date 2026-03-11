@@ -5,6 +5,7 @@ import React from "react"
 import { useRef, useEffect } from "react"
 import { ArrowUp } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Textarea } from "@/components/ui/textarea"
 
 interface ChatInputProps {
   input: string
@@ -28,7 +29,7 @@ export function ChatInput({
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto"
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 220)}px`
     }
   }, [input])
 
@@ -40,10 +41,10 @@ export function ChatInput({
   }
 
   return (
-    <div className="border-t border-border bg-background px-4 py-3">
+    <div className="px-8 py-3">
       <div className="mx-auto max-w-3xl">
-        <div className="relative flex items-end rounded-xl border border-border bg-card transition-colors focus-within:border-primary/50">
-          <textarea
+        <div className="relative flex items-end rounded-2xl border border-border bg-card transition-colors focus-within:border-primary/50 shadow-[0_4px_4px_rgba(0,0,0,0.1)]">
+          <Textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => onChange(e.target.value)}
@@ -54,7 +55,7 @@ export function ChatInput({
                 : "Add documents first, then ask questions..."
             }
             rows={1}
-            className="max-h-40 min-h-[44px] flex-1 resize-none bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className="h-auto w-auto max-h-[30svh] min-h-[56px] flex-1 resize-none border-0 bg-transparent px-4 py-4 text-base md:text-base leading-6 text-foreground shadow-none placeholder:text-base placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
             disabled={isLoading}
           />
           {isLoading ? (
@@ -70,7 +71,7 @@ export function ChatInput({
               onClick={onSubmit}
               disabled={!input.trim()}
               className={cn(
-                "m-1.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-all",
+                "mx-1.5 mb-3 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-all",
                 input.trim()
                   ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "bg-secondary text-muted-foreground"

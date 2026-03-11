@@ -6,6 +6,7 @@ import { KnowledgePanel } from "@/components/knowledge-panel"
 import { ChatMessages } from "@/components/chat-messages"
 import { ChatInput } from "@/components/chat-input"
 import { EmptyState } from "@/components/empty-state"
+import { Skeleton } from "@/components/ui/skeleton"
 import { FileDoc } from "@/lib/types"
 import { toast } from "@/components/ui/use-toast"
 
@@ -99,18 +100,49 @@ async function readSseStream(
   }
 }
 
+function ChatMessagesSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex justify-start">
+        <div className="max-w-[70%] rounded-2xl bg-card px-4 py-3.5">
+          <Skeleton className="h-3.5 w-56" />
+          <Skeleton className="mt-2 h-3.5 w-40" />
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <div className="max-w-[65%] rounded-2xl bg-primary/10 px-4 py-3.5">
+          <Skeleton className="h-3.5 w-36 bg-primary/20" />
+        </div>
+      </div>
+      <div className="flex justify-start">
+        <div className="max-w-[72%] rounded-2xl bg-card px-4 py-3.5">
+          <Skeleton className="h-3.5 w-60" />
+          <Skeleton className="mt-2 h-3.5 w-48" />
+          <Skeleton className="mt-2 h-3.5 w-32" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ChatPage() {
   const [files, setFiles] = useState<FileDoc[]>([])
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   const [input, setInput] = useState("")
   const [messages, setMessages] = useState<UIMessage[]>([])
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [parsingIds, setParsingIds] = useState<Set<string>>(new Set())
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  // Fetch files on mount
+  const scrollToBottom = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+  }, [])
+
   useEffect(() => {
     const fetchFiles = async () => {
       try {
@@ -121,20 +153,16 @@ export default function ChatPage() {
         }
       } catch (e) {
         console.error("Failed to fetch files:", e)
+      } finally {
+        setIsInitialLoading(false)
       }
     }
     fetchFiles()
   }, [])
 
   useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120
-    if (nearBottom) {
-      el.scrollTop = el.scrollHeight
-    }
-  }, [messages, isLoading])
+    scrollToBottom()
+  }, [messages, isLoading, scrollToBottom])
 
   useEffect(() => () => abortRef.current?.abort(), [])
 
@@ -177,7 +205,6 @@ export default function ChatPage() {
         setFiles((prev) => prev.map((f) => (f.id === id ? json.data.file : f)))
       } else {
         toast({ variant: "destructive", description: json.error || "Parse failed" })
-        // Refresh files
         const refreshRes = await fetch("/api/files")
         const refreshJson = await refreshRes.json()
         if (refreshJson.ok) {
@@ -388,7 +415,7 @@ export default function ChatPage() {
   const hasMessages = messages.length > 0
 
   return (
-    <div className="flex h-dvh overflow-hidden">
+    <div className="flex h-dvh overflow-hidden px-6 py-9 bg-[#edeffa]">
       <KnowledgePanel
         files={files}
         onUpload={handleUpload}
@@ -397,14 +424,15 @@ export default function ChatPage() {
         parsingIds={parsingIds}
         uploading={uploading}
         collapsed={panelCollapsed}
+        initialLoading={isInitialLoading}
         onToggle={() => setPanelCollapsed((p) => !p)}
       />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden bg-card my-4 ml-6 rounded-2xl border border-border">
         <header className="flex items-center justify-between border-b border-border px-6 py-3">
           <div className="flex items-center gap-3">
-            <h1 className="text-sm font-semibold text-foreground">AskBase</h1>
-            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-primary">
+            <h1 className="text-lg font-semibold text-foreground">AskBase</h1>
+            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[12px] font-medium uppercase tracking-wider text-primary">
               RAG
             </span>
           </div>
@@ -415,9 +443,15 @@ export default function ChatPage() {
           )}
         </header>
 
-        {hasMessages ? (
+        {isInitialLoading && !hasMessages ? (
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
             <div className="mx-auto max-w-3xl">
+              <ChatMessagesSkeleton />
+            </div>
+          </div>
+        ) : hasMessages ? (
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
+            <div className="mx-auto max-w-4xl">
               <ChatMessages messages={messages} isLoading={isLoading} />
             </div>
           </div>

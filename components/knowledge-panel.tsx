@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect } from "react"
+import { useState, useRef, useCallback } from "react"
 import { FileText, ChevronLeft, ChevronRight, Upload, Trash2, FileCode, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { FileDoc } from "@/lib/types"
 
@@ -14,6 +15,7 @@ interface KnowledgePanelProps {
   parsingIds: Set<string>
   uploading: boolean
   collapsed: boolean
+  initialLoading?: boolean
   onToggle: () => void
 }
 
@@ -38,6 +40,7 @@ export function KnowledgePanel({
   parsingIds,
   uploading,
   collapsed,
+  initialLoading = false,
   onToggle,
 }: KnowledgePanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -82,11 +85,10 @@ export function KnowledgePanel({
   return (
     <div
       className={cn(
-        "flex flex-col border-r border-border bg-card transition-all duration-300 ease-in-out",
+        "flex flex-col border-r border-border bg-card transition-all duration-300 ease-in-out my-4 rounded-2xl flex-[0_1_25%]",
         collapsed ? "w-12" : "w-80"
       )}
     >
-      {/* Header */}
       <div className="flex items-center justify-between border-b border-border p-3">
         {!collapsed && (
           <div className="flex items-center gap-2">
@@ -109,107 +111,128 @@ export function KnowledgePanel({
 
       {collapsed ? null : (
         <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Upload Button */}
-          <div className="border-b border-border p-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".md,.txt,.pdf"
-              onChange={handleFileSelect}
-              disabled={uploading}
-              className="hidden"
-              id="panel-file-upload"
-            />
-            <label
-              htmlFor="panel-file-upload"
-              className={cn(
-                "flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary",
-                isDragOver && "border-primary bg-primary/5",
-                uploading && "pointer-events-none opacity-50"
-              )}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              {uploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Uploading...</span>
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4" />
-                  <span>Upload File</span>
-                </>
-              )}
-            </label>
-            <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-              Supports .md, .txt, .pdf
-            </p>
-          </div>
-
-          {/* File List */}
-          <div className="flex-1 overflow-y-auto p-2">
-            {files.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <FileText className="mb-2 h-8 w-8 text-muted-foreground/40" />
-                <p className="text-xs text-muted-foreground">No files uploaded yet</p>
-                <p className="mt-1 text-xs text-muted-foreground/60">
-                  Upload files to build your knowledge base
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {files.map((file) => {
-                  const isParsing = parsingIds.has(file.id)
-                  return (
-                    <div
-                      key={file.id}
-                      className="group flex items-start gap-2 rounded-lg border border-border p-2 transition-colors hover:bg-secondary"
-                    >
-                      <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/60" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground" title={file.name}>
-                          {file.name}
-                        </p>
-                        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{formatSize(file.size)}</span>
-                          <span
-                            className={cn("rounded-full px-1.5 py-0.5", statusColors[file.status])}
-                          >
-                            {file.status}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                        {file.status === "uploaded" && (
-                          <button
-                            onClick={() => onParse(file.id)}
-                            disabled={isParsing}
-                            className="rounded cursor-pointer p-1 text-muted-foreground hover:text-primary disabled:pointer-events-none"
-                            title="Parse file"
-                          >
-                            {isParsing ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <FileCode className="h-3.5 w-3.5" />
-                            )}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => onDelete(file.id)}
-                          className="rounded cursor-pointer p-1 text-muted-foreground hover:text-destructive"
-                          title="Delete file"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+          {initialLoading ? (
+            <div className="flex flex-1 flex-col overflow-hidden p-3">
+              <Skeleton className="h-14 w-full rounded-md" />
+              <div className="mt-3 flex-1 space-y-2 overflow-y-auto">
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <div key={`panel-skeleton-${idx}`} className="rounded-lg border border-border p-2">
+                    <div className="flex items-start gap-2">
+                      <Skeleton className="mt-0.5 h-3.5 w-3.5 rounded-sm" />
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <Skeleton className="h-3 w-4/5" />
+                        <Skeleton className="h-2.5 w-2/3" />
                       </div>
                     </div>
-                  )
-                })}
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <>
+              {/* Upload Button */}
+              <div className="border-b border-border p-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".md,.txt,.pdf"
+                  onChange={handleFileSelect}
+                  disabled={uploading}
+                  className="hidden"
+                  id="panel-file-upload"
+                />
+                <label
+                  htmlFor="panel-file-upload"
+                  className={cn(
+                    "flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary",
+                    isDragOver && "border-primary bg-primary/5",
+                    uploading && "pointer-events-none opacity-50"
+                  )}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Uploading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" />
+                      <span>Upload File</span>
+                    </>
+                  )}
+                </label>
+                <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
+                  Supports .md, .txt, .pdf
+                </p>
+              </div>
+
+              {/* File List */}
+              <div className="flex-1 overflow-y-auto p-2">
+                {files.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <FileText className="mb-2 h-8 w-8 text-muted-foreground/40" />
+                    <p className="text-xs text-muted-foreground">No files uploaded yet</p>
+                    <p className="mt-1 text-xs text-muted-foreground/60">
+                      Upload files to build your knowledge base
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1">
+                    {files.map((file) => {
+                      const isParsing = parsingIds.has(file.id)
+                      return (
+                        <div
+                          key={file.id}
+                          className="group flex items-start gap-2 rounded-lg border border-border p-2 transition-colors hover:bg-secondary"
+                        >
+                          <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/60" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-foreground" title={file.name}>
+                              {file.name}
+                            </p>
+                            <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{formatSize(file.size)}</span>
+                              <span
+                                className={cn("rounded-full px-1.5 py-0.5", statusColors[file.status])}
+                              >
+                                {file.status}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                            {file.status === "uploaded" && (
+                              <button
+                                onClick={() => onParse(file.id)}
+                                disabled={isParsing}
+                                className="rounded cursor-pointer p-1 text-muted-foreground hover:text-primary disabled:pointer-events-none"
+                                title="Parse file"
+                              >
+                                {isParsing ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <FileCode className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => onDelete(file.id)}
+                              className="rounded cursor-pointer p-1 text-muted-foreground hover:text-destructive"
+                              title="Delete file"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

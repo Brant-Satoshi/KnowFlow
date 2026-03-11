@@ -68,6 +68,7 @@
     --sidebar-accent-foreground: 0 0% 20%;
     --sidebar-border: 0 0% 88%;
     --sidebar-ring: 199 89% 48%;
+    --theme-user-msg-text: 211 100% 17%;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -100,6 +101,7 @@
       --sidebar-accent-foreground: 0 0% 90%;
       --sidebar-border: 0 0% 16%;
       --sidebar-ring: 199 89% 48%;
+      --theme-user-msg-text: 211 100% 17%;
     }
   }
 
