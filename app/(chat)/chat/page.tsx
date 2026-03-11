@@ -6,8 +6,10 @@ import { KnowledgePanel } from "@/components/knowledge-panel"
 import { ChatMessages } from "@/components/chat-messages"
 import { ChatInput } from "@/components/chat-input"
 import { EmptyState } from "@/components/empty-state"
+import { LanguageSwitcher } from "@/components/language-switcher"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FileDoc } from "@/lib/types"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { toast } from "@/components/ui/use-toast"
 
 type ParsedSseEvent = {
@@ -136,6 +138,7 @@ export default function ChatPage() {
   const [parsingIds, setParsingIds] = useState<Set<string>>(new Set())
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const { t } = useLanguage()
 
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current
@@ -415,7 +418,7 @@ export default function ChatPage() {
   const hasMessages = messages.length > 0
 
   return (
-    <div className="flex h-dvh overflow-hidden px-6 py-9 bg-[#edeffa]">
+    <div className="flex h-dvh overflow-hidden bg-[var(--chat-page-bg)] px-6 py-9">
       <KnowledgePanel
         files={files}
         onUpload={handleUpload}
@@ -429,18 +432,21 @@ export default function ChatPage() {
       />
 
       <div className="flex flex-1 flex-col overflow-hidden bg-card my-4 ml-6 rounded-2xl border border-border">
-        <header className="flex items-center justify-between border-b border-border px-6 py-3">
+        <header className="flex items-center justify-between border-b chat-surface-border px-6 py-3">
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold text-foreground">AskBase</h1>
+            <h1 className="text-lg font-semibold text-foreground">{t.title}</h1>
             <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[12px] font-medium uppercase tracking-wider text-primary">
               RAG
             </span>
           </div>
-          {hasFiles && (
-            <span className="text-xs text-muted-foreground">
-              {indexedFilesCount} / {files.length} files indexed
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {hasFiles && (
+              <span className="text-xs text-muted-foreground">
+                {indexedFilesCount} / {files.length} {t.filesIndexed}
+              </span>
+            )}
+            <LanguageSwitcher />
+          </div>
         </header>
 
         {isInitialLoading && !hasMessages ? (

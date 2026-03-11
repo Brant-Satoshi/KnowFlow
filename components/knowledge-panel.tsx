@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { FileDoc } from "@/lib/types"
+import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 interface KnowledgePanelProps {
   files: FileDoc[]
@@ -45,6 +46,7 @@ export function KnowledgePanel({
 }: KnowledgePanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const { t } = useLanguage()
 
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,6 +84,10 @@ export function KnowledgePanel({
     [onUpload]
   )
 
+  const getStatusText = (status: string): string => {
+    return t.status[status as keyof typeof t.status] || status
+  }
+
   return (
     <div
       className={cn(
@@ -89,11 +95,11 @@ export function KnowledgePanel({
         collapsed ? "w-12" : "w-80"
       )}
     >
-      <div className="flex items-center justify-between border-b border-border p-3">
+      <div className="flex items-center justify-between border-b chat-surface-border p-3">
         {!collapsed && (
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">Knowledge Base</span>
+            <span className="text-sm font-medium text-foreground">{t.knowledgePanel}</span>
             <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
               {files.length}
             </span>
@@ -116,7 +122,7 @@ export function KnowledgePanel({
               <Skeleton className="h-14 w-full rounded-md" />
               <div className="mt-3 flex-1 space-y-2 overflow-y-auto">
                 {Array.from({ length: 6 }).map((_, idx) => (
-                  <div key={`panel-skeleton-${idx}`} className="rounded-lg border border-border p-2">
+                  <div key={`panel-skeleton-${idx}`} className="rounded-lg border chat-surface-border p-2">
                     <div className="flex items-start gap-2">
                       <Skeleton className="mt-0.5 h-3.5 w-3.5 rounded-sm" />
                       <div className="min-w-0 flex-1 space-y-1.5">
@@ -144,7 +150,7 @@ export function KnowledgePanel({
                 <label
                   htmlFor="panel-file-upload"
                   className={cn(
-                    "flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary",
+                    "flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed chat-surface-border p-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary",
                     isDragOver && "border-primary bg-primary/5",
                     uploading && "pointer-events-none opacity-50"
                   )}
@@ -155,17 +161,17 @@ export function KnowledgePanel({
                   {uploading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Uploading...</span>
+                      <span>{t.uploading}</span>
                     </>
                   ) : (
                     <>
                       <Upload className="h-4 w-4" />
-                      <span>Upload File</span>
+                      <span>{t.uploadFile}</span>
                     </>
                   )}
                 </label>
                 <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-                  Supports .md, .txt, .pdf
+                  {t.supportedFormats}
                 </p>
               </div>
 
@@ -174,9 +180,9 @@ export function KnowledgePanel({
                 {files.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <FileText className="mb-2 h-8 w-8 text-muted-foreground/40" />
-                    <p className="text-xs text-muted-foreground">No files uploaded yet</p>
+                    <p className="text-xs text-muted-foreground">{t.noFiles}</p>
                     <p className="mt-1 text-xs text-muted-foreground/60">
-                      Upload files to build your knowledge base
+                      {t.noFilesHint}
                     </p>
                   </div>
                 ) : (
@@ -186,7 +192,7 @@ export function KnowledgePanel({
                       return (
                         <div
                           key={file.id}
-                          className="group flex items-start gap-2 rounded-lg border border-border p-2 transition-colors hover:bg-secondary"
+                          className="group flex items-start gap-2 rounded-lg border chat-surface-border p-2 transition-colors hover:bg-secondary"
                         >
                           <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/60" />
                           <div className="min-w-0 flex-1">
@@ -198,7 +204,7 @@ export function KnowledgePanel({
                               <span
                                 className={cn("rounded-full px-1.5 py-0.5", statusColors[file.status])}
                               >
-                                {file.status}
+                                {getStatusText(file.status)}
                               </span>
                             </div>
                           </div>
@@ -208,7 +214,7 @@ export function KnowledgePanel({
                                 onClick={() => onParse(file.id)}
                                 disabled={isParsing}
                                 className="rounded cursor-pointer p-1 text-muted-foreground hover:text-primary disabled:pointer-events-none"
-                                title="Parse file"
+                                title={t.parseFile}
                               >
                                 {isParsing ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -220,7 +226,7 @@ export function KnowledgePanel({
                             <button
                               onClick={() => onDelete(file.id)}
                               className="rounded cursor-pointer p-1 text-muted-foreground hover:text-destructive"
-                              title="Delete file"
+                              title={t.deleteFile}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
