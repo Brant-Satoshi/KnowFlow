@@ -1,9 +1,18 @@
+import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
 import { getFiles } from '@/lib/db/files';
+import { isValidUuid } from '@/lib/validation';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const files = await getFiles();
+    const { searchParams } = new URL(req.url);
+    const knowledgeBaseId = searchParams.get('knowledgeBaseId');
+
+    if (knowledgeBaseId && !isValidUuid(knowledgeBaseId)) {
+      return Response.json(error('Invalid knowledgeBaseId'), { status: 400 });
+    }
+
+    const files = await getFiles(knowledgeBaseId || undefined);
     return Response.json(success({ files }));
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to get files';

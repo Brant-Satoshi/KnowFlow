@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { FileText, ChevronLeft, ChevronRight, Upload, Trash2, FileCode, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -18,6 +18,7 @@ interface KnowledgePanelProps {
   collapsed: boolean
   initialLoading?: boolean
   onToggle: () => void
+  fullWidth?: boolean
 }
 
 function formatSize(bytes: number): string {
@@ -33,6 +34,8 @@ const statusColors: Record<string, string> = {
   failed: "bg-red-500/10 text-red-700 dark:text-red-400",
 }
 
+const PANEL_WIDTH_TRANSITION_MS = 300
+
 export function KnowledgePanel({
   files,
   onUpload,
@@ -43,10 +46,28 @@ export function KnowledgePanel({
   collapsed,
   initialLoading = false,
   onToggle,
+  fullWidth = false,
 }: KnowledgePanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [showExpandedContent, setShowExpandedContent] = useState(!collapsed)
   const { t } = useLanguage()
+
+  useEffect(() => {
+    if (collapsed) {
+      const hideTimer = window.setTimeout(() => {
+        setShowExpandedContent(false)
+      }, 0)
+
+      return () => window.clearTimeout(hideTimer)
+    }
+
+    const timer = window.setTimeout(() => {
+      setShowExpandedContent(true)
+    }, PANEL_WIDTH_TRANSITION_MS)
+
+    return () => window.clearTimeout(timer)
+  }, [collapsed])
 
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,7 +75,7 @@ export function KnowledgePanel({
       if (file) {
         onUpload(file)
       }
-      // Reset input
+
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
       }
@@ -88,15 +109,23 @@ export function KnowledgePanel({
     return t.status[status as keyof typeof t.status] || status
   }
 
+  const widthClass = fullWidth ? "w-full" : collapsed ? "w-14" : "w-80"
+
   return (
     <div
       className={cn(
-        "flex flex-col border-r border-border bg-card transition-all duration-300 ease-in-out my-4 rounded-2xl flex-[0_1_25%]",
-        collapsed ? "w-12" : "w-80"
+        "flex flex-col overflow-hidden bg-card transition-[width] duration-300 ease-in-out",
+        fullWidth ? "h-full rounded-none border-0" : "my-4 rounded-2xl border-r border-border",
+        widthClass
       )}
     >
-      <div className="flex items-center justify-between border-b chat-surface-border p-3">
-        {!collapsed && (
+      <div
+        className={cn(
+          "flex items-center border-b chat-surface-border",
+          collapsed ? "justify-center px-2 py-3" : "justify-between p-3"
+        )}
+      >
+        {!collapsed && showExpandedContent && (
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-foreground">{t.knowledgePanel}</span>
@@ -105,17 +134,20 @@ export function KnowledgePanel({
             </span>
           </div>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
-          onClick={onToggle}
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </Button>
+        {!fullWidth && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
+            onClick={onToggle}
+            aria-label={collapsed ? "Expand knowledge panel" : "Collapse knowledge panel"}
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
+        )}
       </div>
 
-      {collapsed ? null : (
+      {!collapsed && showExpandedContent ? (
         <div className="flex flex-1 flex-col overflow-hidden">
           {initialLoading ? (
             <div className="flex flex-1 flex-col overflow-hidden p-3">
@@ -136,12 +168,11 @@ export function KnowledgePanel({
             </div>
           ) : (
             <>
-              {/* Upload Button */}
               <div className="border-b border-border p-3">
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".md,.txt,.pdf"
+                  accept=".md,.txt,.pdf,.doc,.docx"
                   onChange={handleFileSelect}
                   disabled={uploading}
                   className="hidden"
@@ -240,7 +271,7 @@ export function KnowledgePanel({
             </>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

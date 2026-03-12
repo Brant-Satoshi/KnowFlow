@@ -5,7 +5,8 @@
 - 使用 PostgreSQL + pgvector 进行向量存储
 
 ## Routes
-- `/chat` - 聊天页面
+- `/` - 首页（Knowledge Base 列表）
+- `/knowledge-bases/:id/chat` - 聊天页面
 - `/files` - 文件管理页面
 - `/eval` - 评估页面
 
@@ -26,7 +27,7 @@
 ```
 
 ## Constraints
-- Do NOT add extra pages beyond /chat, /files, /eval
+- Do NOT add extra pages beyond /, /knowledge-bases/:id/chat, /files, /eval
 - Keep changes minimal and runnable
 - Use standard API response shape
 

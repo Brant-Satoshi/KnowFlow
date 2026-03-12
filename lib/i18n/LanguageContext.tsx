@@ -9,10 +9,13 @@ import {
 } from "react"
 import { translations, type Language, type TranslationKeys } from "./translations"
 
+type HomeTranslationKeys = typeof translations.en.home
+
 interface LanguageContextType {
   language: Language
   setLanguage: (lang: Language) => void
   t: TranslationKeys
+  home: HomeTranslationKeys
   isMounted: boolean
 }
 
@@ -47,9 +50,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }
 
   const t = translations[language].chat
+  const home = translations[language].home
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t, isMounted: mounted }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t, home, isMounted: mounted }}>
       {children}
     </LanguageContext.Provider>
   )

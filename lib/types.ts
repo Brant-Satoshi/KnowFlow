@@ -20,6 +20,15 @@ export interface Conversation {
   updatedAt: ISODateString;
 }
 
+// Knowledge Base
+export interface KnowledgeBase {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
+}
+
 // Files / RAG
 export type FileDocStatus = 'uploaded' | 'parsing' | 'indexed' | 'failed';
 
@@ -30,6 +39,7 @@ export interface FileDoc {
   size: number; // bytes
   status: FileDocStatus;
   createdAt: ISODateString;
+  knowledgeBaseId?: string; // 关联的知识库 ID
 }
 
 export interface ChunkMeta {

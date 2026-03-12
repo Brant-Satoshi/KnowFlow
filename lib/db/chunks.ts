@@ -47,9 +47,27 @@ export async function searchChunks(
   topK: number = 5,
   maxScore: number = 0.4,
   fileId?: string,
+  knowledgeBaseId?: string,
 ): Promise<Chunk[]> {
   const vectorStr = `[${queryEmbedding.join(',')}]`;
-  
+
+  // If knowledgeBaseId is provided, join with files to filter by knowledge base
+  if (knowledgeBaseId) {
+    return query<Chunk>(
+      `
+      SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text, c.meta
+      FROM chunks c
+      JOIN files f ON c.file_id = f.id::uuid
+      WHERE c.embedding IS NOT NULL
+      AND c.embedding <=> $1::vector < $2
+      AND f.knowledge_base_id = $3::uuid
+      ORDER BY c.embedding <=> $1::vector
+      LIMIT $4
+      `,
+      [vectorStr, maxScore, knowledgeBaseId, topK]
+    );
+  }
+
   return query<Chunk>(
     `
     SELECT id::text, file_id AS "fileId", idx, text, meta

@@ -4,20 +4,26 @@ import { FileDoc } from '@/lib/types';
 import { success, error } from '@/lib/api/response';
 import { addFile } from '@/lib/db/files';
 import { supabase, STORAGE_BUCKET } from '@/lib/db/supabase';
+import { isValidUuid } from '@/lib/validation';
 
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
+    const knowledgeBaseId = formData.get('knowledgeBaseId') as string | null;
 
     if (!file) {
       return Response.json(error('No file provided'), { status: 400 });
     }
 
-    const allowedExtensions = ['.md', '.txt', '.pdf'];
+    if (!knowledgeBaseId || !isValidUuid(knowledgeBaseId)) {
+      return Response.json(error('Valid knowledgeBaseId is required'), { status: 400 });
+    }
+
+    const allowedExtensions = ['.md', '.txt', '.pdf', '.doc', '.docx'];
     const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
     if (!allowedExtensions.includes(ext)) {
-      return Response.json(error('Only .pdf, .md, .txt files are allowed'), { status: 400 });
+      return Response.json(error('Only .pdf, .md, .txt, .doc, and .docx files are allowed'), { status: 400 });
     }
 
     const id = crypto.randomUUID();
@@ -47,7 +53,7 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    await addFile(fileDoc);
+    await addFile(fileDoc, knowledgeBaseId);
 
     return Response.json(success({ file: fileDoc }));
   } catch (e) {

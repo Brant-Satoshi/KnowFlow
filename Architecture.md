@@ -25,7 +25,7 @@
 
 ```
 [Browser/Client]
-  ├─ /chat      (RAG Chat UI, Streaming, Abort/Retry, Citations)
+  ├─ /knowledge-bases/:id/chat      (RAG Chat UI, Streaming, Abort/Retry, Citations)
   ├─ /files     (Upload, List, Parse/Index status)
   └─ /eval      (Dataset runner, metrics dashboard)
 
@@ -359,7 +359,7 @@ interface Citation {
 
 ## 11. MVP 验收（对齐工程交付）
 
-* `/chat` 支持 SSE 流式 + 中断/重试（幂等）
+* `/knowledge-bases/:id/chat` 支持 SSE 流式 + 中断/重试（幂等）
 * `/files` 支持上传、解析、索引状态可见
 * `/eval` 支持题集跑分与指标汇总
 * 每次请求都有 `requestId`，可追踪耗时拆分与 token 统计

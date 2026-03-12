@@ -2,6 +2,7 @@ import { searchChunks } from '@/lib/db/chunks';
 import { buildPrompt, streamAnswer } from '@/lib/llm/chat';
 import { embedText } from '@/lib/rag/embedings';
 import { NextRequest } from 'next/server';
+import { isValidUuid } from '@/lib/validation';
 
 function sseHeaders(): HeadersInit {
   return {
@@ -38,9 +39,35 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // knowledgeBaseId is optional but must be valid if provided
+  const knowledgeBaseId =
+    typeof body === 'object' && body !== null && 'knowledgeBaseId' in body
+      ? (body as { knowledgeBaseId?: unknown }).knowledgeBaseId
+      : undefined;
+
+  if (knowledgeBaseId !== undefined && knowledgeBaseId !== null && typeof knowledgeBaseId !== 'string') {
+    return Response.json(
+      { requestId, ok: false, error: 'knowledgeBaseId must be a string' },
+      { status: 400 },
+    );
+  }
+
+  if (typeof knowledgeBaseId === 'string' && !isValidUuid(knowledgeBaseId)) {
+    return Response.json(
+      { requestId, ok: false, error: 'Invalid knowledgeBaseId' },
+      { status: 400 },
+    );
+  }
+
   try {
     const queryEmbedding = await embedText(message);
-    const chunks = await searchChunks(queryEmbedding, 5, 0.4);
+    const chunks = await searchChunks(
+      queryEmbedding,
+      5,
+      0.4,
+      undefined,
+      typeof knowledgeBaseId === 'string' ? knowledgeBaseId : undefined
+    );
     const prompt = buildPrompt(message, chunks);
     const stream = await streamAnswer(prompt, request.signal, requestId);
 

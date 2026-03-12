@@ -41,6 +41,8 @@ export function ChatInput({
     }
   }
 
+  const isDisabled = isLoading || !hasKnowledge
+
   return (
     <div className="px-8 py-3">
       <div className="mx-auto max-w-3xl">
@@ -56,8 +58,8 @@ export function ChatInput({
                 : t.placeholderNoKnowledge
             }
             rows={1}
-            className="h-auto w-auto max-h-[30svh] min-h-[56px] flex-1 resize-none border-0 bg-transparent px-4 py-4 text-base md:text-base leading-6 text-foreground shadow-none placeholder:text-base placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
-            disabled={isLoading}
+            className="h-auto w-auto max-h-[30svh] min-h-[56px] flex-1 resize-none border-0 bg-transparent px-4 py-4 text-base md:text-base leading-6 text-foreground shadow-none placeholder:text-base placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
+            disabled={isDisabled}
           />
           {isLoading ? (
             <button
@@ -70,10 +72,10 @@ export function ChatInput({
           ) : (
             <button
               onClick={onSubmit}
-              disabled={!input.trim()}
+              disabled={!input.trim() || !hasKnowledge}
               className={cn(
                 "mx-1.5 mb-3 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-all",
-                input.trim()
+                input.trim() && hasKnowledge
                   ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "bg-secondary text-muted-foreground"
               )}

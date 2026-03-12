@@ -1,16 +1,22 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
+import { useParams, useRouter } from "next/navigation"
 import type { UIMessage } from "ai"
 import { KnowledgePanel } from "@/components/knowledge-panel"
 import { ChatMessages } from "@/components/chat-messages"
 import { ChatInput } from "@/components/chat-input"
 import { EmptyState } from "@/components/empty-state"
 import { LanguageSwitcher } from "@/components/language-switcher"
-import { Skeleton } from "@/components/ui/skeleton"
-import { FileDoc } from "@/lib/types"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { toast } from "@/components/ui/use-toast"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useIsMobile } from "@/components/ui/use-mobile"
+import { FileDoc, KnowledgeBase } from "@/lib/types"
+import { Button } from "@/components/ui/button"
+import { ArrowLeft, Database } from "lucide-react"
+import Link from "next/link"
 
 type ParsedSseEvent = {
   event: string
@@ -102,32 +108,12 @@ async function readSseStream(
   }
 }
 
-function ChatMessagesSkeleton() {
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex justify-start">
-        <div className="max-w-[70%] rounded-2xl bg-card px-4 py-3.5">
-          <Skeleton className="h-3.5 w-56" />
-          <Skeleton className="mt-2 h-3.5 w-40" />
-        </div>
-      </div>
-      <div className="flex justify-end">
-        <div className="max-w-[65%] rounded-2xl bg-primary/10 px-4 py-3.5">
-          <Skeleton className="h-3.5 w-36 bg-primary/20" />
-        </div>
-      </div>
-      <div className="flex justify-start">
-        <div className="max-w-[72%] rounded-2xl bg-card px-4 py-3.5">
-          <Skeleton className="h-3.5 w-60" />
-          <Skeleton className="mt-2 h-3.5 w-48" />
-          <Skeleton className="mt-2 h-3.5 w-32" />
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function ChatPage() {
+  const params = useParams()
+  const router = useRouter()
+  const knowledgeBaseId = params.id as string
+
+  const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBase | null>(null)
   const [files, setFiles] = useState<FileDoc[]>([])
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   const [input, setInput] = useState("")
@@ -136,9 +122,38 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [parsingIds, setParsingIds] = useState<Set<string>>(new Set())
+  const [mobileTab, setMobileTab] = useState<"knowledge" | "ask">("ask")
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const { t } = useLanguage()
+  const isMobile = useIsMobile()
+
+  // Fetch knowledge base details
+  useEffect(() => {
+    if (!knowledgeBaseId) {
+      setIsInitialLoading(false)
+      return
+    }
+
+    const fetchKnowledgeBase = async () => {
+      try {
+        const res = await fetch(`/api/knowledge-bases?id=${knowledgeBaseId}`)
+        const json = await res.json()
+        if (json.ok && json.data.knowledgeBase) {
+          setKnowledgeBase(json.data.knowledgeBase)
+        } else {
+          toast({ variant: "destructive", description: "Knowledge base not found" })
+          router.push("/")
+        }
+      } catch (e) {
+        console.error("Failed to fetch knowledge base:", e)
+        toast({ variant: "destructive", description: "Failed to load knowledge base" })
+        router.push("/")
+      }
+    }
+
+    fetchKnowledgeBase()
+  }, [knowledgeBaseId, router])
 
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current
@@ -146,22 +161,30 @@ export default function ChatPage() {
     el.scrollTop = el.scrollHeight
   }, [])
 
-  useEffect(() => {
-    const fetchFiles = async () => {
-      try {
-        const res = await fetch("/api/files")
-        const json = await res.json()
-        if (json.ok) {
-          setFiles(json.data.files)
-        }
-      } catch (e) {
-        console.error("Failed to fetch files:", e)
-      } finally {
-        setIsInitialLoading(false)
-      }
+  // Fetch files for the current knowledge base
+  const fetchFiles = useCallback(async () => {
+    if (!knowledgeBaseId) {
+      setIsInitialLoading(false)
+      return
     }
+
+    try {
+      const url = `/api/files?knowledgeBaseId=${encodeURIComponent(knowledgeBaseId)}`
+      const res = await fetch(url)
+      const json = await res.json()
+      if (json.ok) {
+        setFiles(json.data.files)
+      }
+    } catch (e) {
+      console.error("Failed to fetch files:", e)
+    } finally {
+      setIsInitialLoading(false)
+    }
+  }, [knowledgeBaseId])
+
+  useEffect(() => {
     fetchFiles()
-  }, [])
+  }, [fetchFiles])
 
   useEffect(() => {
     scrollToBottom()
@@ -175,10 +198,17 @@ export default function ChatPage() {
   }, [isLoading])
 
   const handleUpload = useCallback(async (file: File) => {
+    if (!knowledgeBaseId) {
+      toast({ variant: "destructive", description: "No knowledge base selected" })
+      return
+    }
+
     setUploading(true)
     try {
       const formData = new FormData()
       formData.append("file", file)
+      formData.append("knowledgeBaseId", knowledgeBaseId)
+
       const res = await fetch("/api/files/upload", {
         method: "POST",
         body: formData,
@@ -197,7 +227,7 @@ export default function ChatPage() {
     } finally {
       setUploading(false)
     }
-  }, [])
+  }, [knowledgeBaseId])
 
   const handleParse = useCallback(async (id: string) => {
     setParsingIds((prev) => new Set(prev).add(id))
@@ -208,7 +238,9 @@ export default function ChatPage() {
         setFiles((prev) => prev.map((f) => (f.id === id ? json.data.file : f)))
       } else {
         toast({ variant: "destructive", description: json.error || "Parse failed" })
-        const refreshRes = await fetch("/api/files")
+        // Refresh files
+        const url = `/api/files?knowledgeBaseId=${encodeURIComponent(knowledgeBaseId || "")}`
+        const refreshRes = await fetch(url)
         const refreshJson = await refreshRes.json()
         if (refreshJson.ok) {
           setFiles(refreshJson.data.files)
@@ -220,10 +252,13 @@ export default function ChatPage() {
         description: e instanceof Error ? e.message : "Parse failed",
       })
       // Refresh files
-      const res = await fetch("/api/files")
-      const json = await res.json()
-      if (json.ok) {
-        setFiles(json.data.files)
+      if (knowledgeBaseId) {
+        const url = `/api/files?knowledgeBaseId=${encodeURIComponent(knowledgeBaseId)}`
+        const res = await fetch(url)
+        const json = await res.json()
+        if (json.ok) {
+          setFiles(json.data.files)
+        }
       }
     } finally {
       setParsingIds((prev) => {
@@ -232,7 +267,7 @@ export default function ChatPage() {
         return next
       })
     }
-  }, [])
+  }, [knowledgeBaseId])
 
   const handleDelete = useCallback(async (id: string) => {
     try {
@@ -288,10 +323,15 @@ export default function ChatPage() {
         const payload: {
           message: string
           clientMessageId: string
+          knowledgeBaseId?: string
           debug?: { delayMs: number; repeat: number; chunkBy: "char" | "word" }
         } = {
           message: trimmedText,
           clientMessageId,
+        }
+
+        if (knowledgeBaseId) {
+          payload.knowledgeBaseId = knowledgeBaseId
         }
 
         if (shouldDebugStream) {
@@ -395,7 +435,7 @@ export default function ChatPage() {
         setIsLoading(false)
       }
     },
-    [appendAssistantDelta, isLoading]
+    [appendAssistantDelta, isLoading, knowledgeBaseId]
   )
 
   const handleSubmit = useCallback(() => {
@@ -414,9 +454,115 @@ export default function ChatPage() {
   )
 
   const hasFiles = files.length > 0
+  const isParsingOrUploading = uploading || parsingIds.size > 0
+  const hasKnowledge = hasFiles && !isParsingOrUploading
   const indexedFilesCount = files.filter((f) => f.status === "indexed").length
   const hasMessages = messages.length > 0
 
+  // No knowledge base selected
+  if (!knowledgeBaseId) {
+    return (
+      <div className="flex h-dvh flex-col items-center justify-center bg-[var(--chat-page-bg)] px-6">
+        <div className="text-center">
+          <Database className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
+          <h2 className="text-xl font-semibold text-foreground">Select a Knowledge Base</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Please select a knowledge base from the home page to start chatting
+          </p>
+          <Link href="/">
+            <Button className="mt-4">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Go to Home
+            </Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  // Loading state
+  if (isInitialLoading) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-[var(--chat-page-bg)]">
+        <div className="flex flex-col items-center gap-2">
+          <Skeleton className="h-8 w-8 rounded-full" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+      </div>
+    )
+  }
+
+  // Mobile layout with tabs
+  if (isMobile) {
+    return (
+      <div className="flex h-dvh flex-col overflow-hidden bg-[var(--chat-page-bg)]">
+        <Tabs
+          value={mobileTab}
+          onValueChange={(v) => setMobileTab(v as "knowledge" | "ask")}
+          className="flex flex-1 flex-col"
+        >
+          <TabsList className="w-full justify-start rounded-none border-b bg-card px-4 pt-2">
+            <TabsTrigger value="knowledge" className="flex-1">
+              {t.knowledge}
+            </TabsTrigger>
+            <TabsTrigger value="ask" className="flex-1">
+              {t.ask}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="knowledge" className="flex-1 mt-0 overflow-hidden p-4">
+            <KnowledgePanel
+              files={files}
+              onUpload={handleUpload}
+              onParse={handleParse}
+              onDelete={handleDelete}
+              parsingIds={parsingIds}
+              uploading={uploading}
+              collapsed={false}
+              initialLoading={isInitialLoading}
+              onToggle={() => {}}
+              fullWidth={true}
+            />
+          </TabsContent>
+
+          <TabsContent value="ask" className="flex-1 mt-0 flex flex-col overflow-hidden">
+            <div className="flex flex-1 flex-col overflow-hidden bg-card rounded-t-2xl mt-2 border border-border">
+              <header className="flex items-center justify-between border-b chat-surface-border px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base font-semibold text-foreground">{knowledgeBase?.name || t.title}</h1>
+                  <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-primary">
+                    RAG
+                  </span>
+                </div>
+                <LanguageSwitcher />
+              </header>
+
+              {hasMessages ? (
+                <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
+                  <div className="mx-auto max-w-4xl">
+                    <ChatMessages messages={messages} isLoading={isLoading} />
+                  </div>
+                </div>
+              ) : (
+                <EmptyState hasKnowledge={hasKnowledge} onSuggestionClick={handleSuggestionClick} />
+              )}
+
+              <ChatInput
+                input={input}
+                onChange={setInput}
+                onSubmit={handleSubmit}
+                onStop={handleStop}
+                isLoading={isLoading}
+                hasKnowledge={hasKnowledge}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    )
+  }
+
+  // Desktop layout
   return (
     <div className="flex h-dvh overflow-hidden bg-[var(--chat-page-bg)] px-6 py-9">
       <KnowledgePanel
@@ -434,7 +580,7 @@ export default function ChatPage() {
       <div className="flex flex-1 flex-col overflow-hidden bg-card my-4 ml-6 rounded-2xl border border-border">
         <header className="flex items-center justify-between border-b chat-surface-border px-6 py-3">
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold text-foreground">{t.title}</h1>
+            <h1 className="text-lg font-semibold text-foreground">{knowledgeBase?.name || t.title}</h1>
             <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[12px] font-medium uppercase tracking-wider text-primary">
               RAG
             </span>
@@ -449,20 +595,14 @@ export default function ChatPage() {
           </div>
         </header>
 
-        {isInitialLoading && !hasMessages ? (
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
-            <div className="mx-auto max-w-3xl">
-              <ChatMessagesSkeleton />
-            </div>
-          </div>
-        ) : hasMessages ? (
+        {hasMessages ? (
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
             <div className="mx-auto max-w-4xl">
               <ChatMessages messages={messages} isLoading={isLoading} />
             </div>
           </div>
         ) : (
-          <EmptyState hasKnowledge={hasFiles} onSuggestionClick={handleSuggestionClick} />
+          <EmptyState hasKnowledge={hasKnowledge} onSuggestionClick={handleSuggestionClick} />
         )}
 
         <ChatInput
@@ -471,7 +611,7 @@ export default function ChatPage() {
           onSubmit={handleSubmit}
           onStop={handleStop}
           isLoading={isLoading}
-          hasKnowledge={hasFiles}
+          hasKnowledge={hasKnowledge}
         />
       </div>
     </div>
