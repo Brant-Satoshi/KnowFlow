@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 @plugin "tailwindcss-animate";
 
 @theme inline {
@@ -39,6 +40,7 @@
 
 @layer base {
   :root {
+    color-scheme: light;
     --background: 0 0% 100%;
     --foreground: 0 0% 9%;
     --card: 0 0% 100%;
@@ -74,41 +76,40 @@
     --chat-page-bg: #edeffa;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --background: 0 0% 4%;
-      --foreground: 0 0% 93%;
-      --card: 213 12% 15%;
-      --card-foreground: 0 0% 93%;
-      --popover: 0 0% 7%;
-      --popover-foreground: 0 0% 93%;
-      --primary: 199 89% 48%;
-      --primary-foreground: 0 0% 100%;
-      --secondary: 0 0% 12%;
-      --secondary-foreground: 0 0% 80%;
-      --muted: 0 0% 12%;
-      --muted-foreground: 0 0% 50%;
-      --accent: 199 89% 48%;
-      --accent-foreground: 0 0% 100%;
-      --destructive: 0 72% 51%;
-      --destructive-foreground: 0 0% 98%;
-      --border: 0 0% 16%;
-      --input: 0 0% 16%;
-      --ring: 199 89% 48%;
+  .dark {
+    color-scheme: dark;
+    --background: 0 0% 4%;
+    --foreground: 0 0% 93%;
+    --card: 213 12% 15%;
+    --card-foreground: 0 0% 93%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 93%;
+    --primary: 199 89% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 80%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 50%;
+    --accent: 199 89% 48%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 16%;
+    --input: 0 0% 16%;
+    --ring: 199 89% 48%;
 
-      --sidebar-background: 0 0% 7%;
-      --sidebar-foreground: 0 0% 93%;
-      --sidebar-primary: 199 89% 48%;
-      --sidebar-primary-foreground: 0 0% 100%;
-      --sidebar-accent: 0 0% 12%;
-      --sidebar-accent-foreground: 0 0% 90%;
-      --sidebar-border: 0 0% 16%;
-      --sidebar-ring: 199 89% 48%;
-      --theme-user-msg-bg: 209 100% 24%;
-      --theme-user-msg-text: 210 100% 98%;
-      --chat-surface-border: 225 4% 22%;
-      --chat-page-bg: #1a1d22;
-    }
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 93%;
+    --sidebar-primary: 199 89% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 0 0% 16%;
+    --sidebar-ring: 199 89% 48%;
+    --theme-user-msg-bg: 209 100% 24%;
+    --theme-user-msg-text: 210 100% 98%;
+    --chat-surface-border: 225 4% 22%;
+    --chat-page-bg: #1a1d22;
   }
 
   * {

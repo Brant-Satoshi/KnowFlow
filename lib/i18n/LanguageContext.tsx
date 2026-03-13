@@ -4,7 +4,7 @@ import {
   createContext,
   useContext,
   useState,
-  useEffect,
+  useSyncExternalStore,
   type ReactNode,
 } from "react"
 import { translations, type Language, type TranslationKeys } from "./translations"
@@ -24,6 +24,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(
 )
 
 const STORAGE_KEY = "askbase-language"
+const emptySubscribe = () => () => {}
 
 function getInitialLanguage(): Language {
   if (typeof window === "undefined") return "en"
@@ -36,16 +37,17 @@ function getInitialLanguage(): Language {
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("en")
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setLanguageState(getInitialLanguage())
-    setMounted(true)
-  }, [])
+  const [languageOverride, setLanguageOverride] = useState<Language | null>(null)
+  const detectedLanguage = useSyncExternalStore<Language>(
+    emptySubscribe,
+    getInitialLanguage,
+    () => "en"
+  )
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false)
+  const language: Language = languageOverride ?? detectedLanguage
 
   const setLanguage = (lang: Language) => {
-    setLanguageState(lang)
+    setLanguageOverride(lang)
     localStorage.setItem(STORAGE_KEY, lang)
   }
 

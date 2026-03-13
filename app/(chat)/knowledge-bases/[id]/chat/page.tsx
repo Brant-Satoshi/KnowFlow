@@ -7,7 +7,7 @@ import { KnowledgePanel } from "@/components/knowledge-panel"
 import { ChatMessages } from "@/components/chat-messages"
 import { ChatInput } from "@/components/chat-input"
 import { EmptyState } from "@/components/empty-state"
-import { LanguageSwitcher } from "@/components/language-switcher"
+import { SettingsMenu } from "@/components/settings-menu"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { toast } from "@/components/ui/use-toast"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -534,7 +534,7 @@ export default function ChatPage() {
                     RAG
                   </span>
                 </div>
-                <LanguageSwitcher />
+                <SettingsMenu />
               </header>
 
               {hasMessages ? (
@@ -591,7 +591,7 @@ export default function ChatPage() {
                 {indexedFilesCount} / {files.length} {t.filesIndexed}
               </span>
             )}
-            <LanguageSwitcher />
+            <SettingsMenu />
           </div>
         </header>
 

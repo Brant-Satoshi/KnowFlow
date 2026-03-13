@@ -1,4 +1,14 @@
 "use client"
+const CARD_SURFACES = [
+  "border-[#ddd8c3] bg-[#f2f2e8] dark:border-[#4a4a3c] dark:bg-[#3a3a2f]",
+  "border-[#e4d3cf] bg-[#f7edeb] dark:border-[#4a403d] dark:bg-[#3a3230]",
+  "border-[#d8dcec] bg-[#edeffa] dark:border-[#41424b] dark:bg-[#32343e]",
+] as const
+
+const CARD_TITLE_CLASS = "text-zinc-900 dark:text-zinc-50"
+const CARD_BODY_CLASS = "text-zinc-700 dark:text-zinc-300/85"
+const CARD_META_CLASS = "text-zinc-600 dark:text-zinc-300/70"
+
 
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
@@ -16,7 +26,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/use-toast"
-import { LanguageSwitcher } from "@/components/language-switcher"
+import { SettingsMenu } from "@/components/settings-menu"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { KnowledgeBase } from "@/lib/types"
 
@@ -88,14 +98,14 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--chat-page-bg)]">
+    <div className="min-h-screen bg-card">
       <header className="border-b bg-card px-6 py-4">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <div className="flex items-center gap-2">
             <Database className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-semibold text-foreground">{t.title}</h1>
           </div>
-          <LanguageSwitcher />
+          <SettingsMenu />
         </div>
       </header>
 
@@ -116,7 +126,10 @@ export default function HomePage() {
         {isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <Card key={i} className="border-border">
+              <Card
+                key={i}
+                className={CARD_SURFACES[i % CARD_SURFACES.length]}
+              >
                 <CardHeader className="pb-3">
                   <Skeleton className="h-5 w-3/4" />
                 </CardHeader>
@@ -141,24 +154,26 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {knowledgeBases.map((kb) => (
+            {knowledgeBases.map((kb, index) => (
               <Link key={kb.id} href={`/knowledge-bases/${kb.id}/chat`}>
-                <Card className="cursor-pointer transition-colors hover:bg-secondary/50 border-border">
+                <Card
+                  className={`${CARD_SURFACES[index % CARD_SURFACES.length]} cursor-pointer transition-transform duration-200 hover:-translate-y-0.5`}
+                >
                   <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-base">
+                    <CardTitle className={`flex items-center gap-2 text-base ${CARD_TITLE_CLASS}`}>
                       <FileText className="h-4 w-4 text-primary" />
                       {kb.name}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     {kb.description ? (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
+                      <p className={`line-clamp-2 text-sm ${CARD_BODY_CLASS}`}>
                         {kb.description}
                       </p>
                     ) : (
-                      <p className="text-sm text-muted-foreground/60">{t.noDescription}</p>
+                      <p className={`text-sm ${CARD_META_CLASS}`}>{t.noDescription}</p>
                     )}
-                    <p className="mt-3 text-xs text-muted-foreground">
+                    <p className={`mt-3 text-xs ${CARD_META_CLASS}`}>
                       {t.created} {formatDate(kb.createdAt)}
                     </p>
                   </CardContent>
