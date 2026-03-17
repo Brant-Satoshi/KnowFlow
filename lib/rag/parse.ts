@@ -1,18 +1,48 @@
+import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
 import { FileDoc } from "../types";
 
 type PDFParserCtor = typeof import("pdf2json")["default"];
+type MammothModule = typeof import("mammoth");
+
+const execFileAsync = promisify(execFile);
+const LIBREOFFICE_TIMEOUT_MS = 30_000;
 
 let pdfParserCtorPromise: Promise<PDFParserCtor> | null = null;
+let mammothModulePromise: Promise<MammothModule> | null = null;
 
 export async function parseFile(file: FileDoc, buffer: Buffer) {
-  const isPdf =
-    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+  const type = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+
+  const isPdf = type === "application/pdf" || name.endsWith(".pdf");
+  const isDoc = type === "application/msword" || name.endsWith(".doc");
+  const isDocx =
+    type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    name.endsWith(".docx");
+  const isPlainText =
+    type.startsWith("text/") || name.endsWith(".md") || name.endsWith(".txt");
 
   if (isPdf) {
     return parsePdfText(buffer);
   }
 
-  return buffer.toString("utf-8");
+  if (isDocx) {
+    return parseDocxText(buffer);
+  }
+
+  if (isDoc) {
+    return parseDocText(buffer);
+  }
+
+  if (isPlainText) {
+    return buffer.toString("utf-8");
+  }
+
+  throw new Error(`Unsupported file type: ${file.name}`);
 }
 
 async function parsePdfText(buffer: Buffer): Promise<string> {
@@ -56,4 +86,117 @@ function getPdfParserCtor(): Promise<PDFParserCtor> {
   pdfParserCtorPromise ??= import("pdf2json").then((mod) => mod.default);
 
   return pdfParserCtorPromise;
+}
+
+async function parseDocxText(buffer: Buffer): Promise<string> {
+  const mammoth = await getMammothModule();
+  const result = await mammoth.extractRawText({ buffer });
+
+  return result.value.trim();
+}
+
+async function parseDocText(buffer: Buffer): Promise<string> {
+  const workdir = await mkdtemp(join(tmpdir(), "doc-parse-"));
+  const inputPath = join(workdir, "source.doc");
+  const outputDir = join(workdir, "converted");
+
+  await mkdir(outputDir);
+  await writeFile(inputPath, buffer);
+
+  try {
+    await convertDocToDocx(inputPath, outputDir);
+
+    const docxPath = await findConvertedDocxPath(outputDir);
+    const docxBuffer = await readFile(docxPath);
+
+    return parseDocxText(docxBuffer);
+  } finally {
+    await rm(workdir, { recursive: true, force: true });
+  }
+}
+
+function getMammothModule(): Promise<MammothModule> {
+  mammothModulePromise ??= import("mammoth");
+
+  return mammothModulePromise;
+}
+
+async function convertDocToDocx(inputPath: string, outputDir: string): Promise<void> {
+  let sawMissingBinary = false;
+
+  for (const binary of getLibreOfficeBinaryCandidates()) {
+    try {
+      await execFileAsync(
+        binary,
+        [
+          "--headless",
+          "--nologo",
+          "--nodefault",
+          "--nofirststartwizard",
+          "--nolockcheck",
+          "--convert-to",
+          "docx",
+          "--outdir",
+          outputDir,
+          inputPath,
+        ],
+        {
+          timeout: LIBREOFFICE_TIMEOUT_MS,
+          maxBuffer: 1024 * 1024,
+        }
+      );
+      return;
+    } catch (error) {
+      if (isCommandNotFound(error)) {
+        sawMissingBinary = true;
+        continue;
+      }
+
+      throw new Error(`LibreOffice failed to convert .doc file: ${getErrorMessage(error)}`);
+    }
+  }
+
+  if (sawMissingBinary) {
+    throw new Error(
+      "LibreOffice is required to parse .doc files. Install LibreOffice and expose `soffice`, or set `LIBREOFFICE_BIN` to the full executable path."
+    );
+  }
+
+  throw new Error("LibreOffice conversion for .doc files could not be started.");
+}
+
+async function findConvertedDocxPath(outputDir: string): Promise<string> {
+  const entries = await readdir(outputDir);
+  const docxName = entries.find((entry) => entry.toLowerCase().endsWith(".docx"));
+
+  if (!docxName) {
+    throw new Error("LibreOffice did not produce a .docx output file.");
+  }
+
+  return join(outputDir, docxName);
+}
+
+function getLibreOfficeBinaryCandidates(): string[] {
+  const configured = process.env.LIBREOFFICE_BIN?.trim();
+  const candidates = [
+    configured,
+    "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+    "soffice",
+    "/usr/bin/soffice",
+    "/usr/local/bin/soffice",
+  ].filter((value): value is string => Boolean(value));
+
+  return Array.from(new Set(candidates));
+}
+
+function isCommandNotFound(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
 }

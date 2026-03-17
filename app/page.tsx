@@ -6,8 +6,8 @@ const CARD_SURFACES = [
 ] as const
 
 const CARD_TITLE_CLASS = "text-zinc-900 dark:text-zinc-50"
-const CARD_BODY_CLASS = "text-zinc-700 dark:text-zinc-300/85"
-const CARD_META_CLASS = "text-zinc-600 dark:text-zinc-300/70"
+const CARD_BODY_CLASS = "text-zinc-600 dark:text-zinc-400"
+const CARD_META_CLASS = "text-zinc-500 dark:text-zinc-400"
 
 
 import { useState, useEffect, useCallback } from "react"
@@ -99,7 +99,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-card">
-      <header className="border-b bg-card px-6 py-4">
+      <header className="bg-card px-6 py-4">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <div className="flex items-center gap-2">
             <Database className="h-6 w-6 text-primary" />
@@ -111,12 +111,6 @@ export default function HomePage() {
 
       <main className="mx-auto max-w-5xl px-6 py-8">
         <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-foreground">{t.knowledgeBases}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t.knowledgeBasesDesc}
-            </p>
-          </div>
           <Button onClick={() => setIsCreating(true)} className="gap-2">
             <Plus className="h-4 w-4" />
             {t.createKnowledgeBase}

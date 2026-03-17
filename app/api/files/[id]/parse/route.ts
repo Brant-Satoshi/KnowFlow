@@ -60,6 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     catch (e) {
+        const message = e instanceof Error ? e.message : 'Parse failed';
         if (id) {
             await updateFileStatus(id, 'failed');
             console.log('error', e)
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         return Response.json({
             requestId: crypto.randomUUID(),
             ok: false,
-            error: 'Parse failed',
+            error: message,
         }, { status: 500 });
     }
 }
