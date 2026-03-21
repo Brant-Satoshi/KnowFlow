@@ -25,9 +25,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { toast } from "@/components/ui/use-toast"
 import { SettingsMenu } from "@/components/settings-menu"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { useErrorToast } from "@/lib/hooks/use-error-toast"
 import { KnowledgeBase } from "@/lib/types"
 
 export default function HomePage() {
@@ -39,6 +39,7 @@ export default function HomePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
   const { home: t } = useLanguage()
+  const showErrorToast = useErrorToast()
 
   const fetchKnowledgeBases = useCallback(async () => {
     try {
@@ -77,13 +78,10 @@ export default function HomePage() {
         // Redirect to chat with the new knowledge base
         router.push(`/knowledge-bases/${json.data.knowledgeBase.id}/chat`)
       } else {
-        toast({ variant: "destructive", description: json.error || "Failed to create" })
+        showErrorToast(json.error || t.createFailed)
       }
     } catch (e) {
-      toast({
-        variant: "destructive",
-        description: e instanceof Error ? e.message : "Failed to create",
-      })
+      showErrorToast(e instanceof Error ? e.message : t.createFailed)
     } finally {
       setIsSubmitting(false)
     }

@@ -6,11 +6,11 @@ function formatSse(event: SseEventName, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
-export function buildPrompt(question: string, chunks: Chunk[]) {
-  const context = chunks
-    .map((c, i) => `[${i + 1}] ${c.text}`)
-    .join('\n\n');
+function splitText(text: string) {
+  return text.split(/(\s+)/); // 保留空格
+}
 
+export function buildPrompt(question: string, chunks: Chunk[]) {
   return `
         You are a helpful assistant.
 
@@ -20,7 +20,7 @@ export function buildPrompt(question: string, chunks: Chunk[]) {
         "I couldn't find relevant information in the knowledge base."
 
         Context:
-        ${context}
+        ${chunks.map(c => c.text).join('\n\n')}
 
         Question:
         ${question}
@@ -70,6 +70,7 @@ export async function streamAnswer(prompt: string, signal: AbortSignal, requestI
   }
   const encoder = new TextEncoder();
 
+
   const stream = new ReadableStream<Uint8Array>({
     start: async (controller) => {
       const reader = response.body?.getReader();
@@ -110,8 +111,16 @@ export async function streamAnswer(prompt: string, signal: AbortSignal, requestI
             const data = JSON.parse(jsonStr);
             const content = data.choices?.[0]?.delta?.content;
 
+            // if (content.length < 10) → 直接发
+            // if (content.length > 50) → 拆词
+            // if (content.length > 100) → 拆字符
             if (content) {
-              send('token', { delta: content });
+              const chunks = splitText(content);
+
+              for (const chunk of chunks) {
+                send('token', { delta: chunk });
+                await new Promise(r => setTimeout(r, 10));
+              }
             }
           } catch { }
         }

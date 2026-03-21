@@ -46,10 +46,11 @@ function parseSourcesFromText(text: string): {
 
 interface ChatMessagesProps {
   messages: UIMessage[]
-  isLoading: boolean
+  isLoading: boolean,
+  isStreaming: boolean
 }
 
-export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
+export function ChatMessages({ messages, isLoading, isStreaming }: ChatMessagesProps) {
   const latestMessageId = messages[messages.length - 1]?.id
 
   return (
@@ -91,7 +92,13 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
                   </div>
                 ) : (
                   <div className="prose prose-sm max-w-none">
-                    <ReactMarkdown>{cleanText}</ReactMarkdown>
+                    {isStreaming ? (
+                      <div className="whitespace-pre-wrap">{cleanText}</div>
+                    ) : (
+                      <ReactMarkdown>
+                        {cleanText}
+                      </ReactMarkdown>
+                    )}
                   </div>
                 )}
               </div>

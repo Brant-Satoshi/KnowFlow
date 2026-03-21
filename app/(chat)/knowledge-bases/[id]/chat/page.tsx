@@ -9,7 +9,7 @@ import { ChatInput } from "@/components/chat-input"
 import { EmptyState } from "@/components/empty-state"
 import { SettingsMenu } from "@/components/settings-menu"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
-import { toast } from "@/components/ui/use-toast"
+import { useErrorToast } from "@/lib/hooks/use-error-toast"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useIsMobile } from "@/components/ui/use-mobile"
@@ -50,17 +50,19 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<UIMessage[]>([])
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
+  const [isStreaming, setIsStreaming] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [parsingIds, setParsingIds] = useState<Set<string>>(new Set())
   const [mobileTab, setMobileTab] = useState<"knowledge" | "ask">("ask")
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  // const streamBufferRef = useRef("")
-  // const flushRaffRef = useRef<number | null>(null)
-  // const streamingMessageIdRef = useRef<string | null>(null)
+  const streamBufferRef = useRef("")
+  const flushRafRef = useRef<number | null>(null)
+  const streamingAssistantIdRef = useRef<string | null>(null)
 
   const { t } = useLanguage()
+  const showErrorToast = useErrorToast()
   const isMobile = useIsMobile()
 
   // Fetch knowledge base details
@@ -77,24 +79,49 @@ export default function ChatPage() {
         if (json.ok && json.data.knowledgeBase) {
           setKnowledgeBase(json.data.knowledgeBase)
         } else {
-          toast({ variant: "destructive", description: "Knowledge base not found" })
+          showErrorToast(t.knowledgeBaseNotFound)
           router.push("/")
         }
       } catch (e) {
         console.error("Failed to fetch knowledge base:", e)
-        toast({ variant: "destructive", description: "Failed to load knowledge base" })
+        showErrorToast(t.failedToLoadKnowledgeBase)
         router.push("/")
       }
     }
 
     fetchKnowledgeBase()
-  }, [knowledgeBaseId, router])
+  }, [t, knowledgeBaseId, router, showErrorToast])
 
-  const scrollToBottom = useCallback(() => {
-    const el = scrollRef.current
-    if (!el) return
-    el.scrollTop = el.scrollHeight
+  const flushAssistantBuffer = useCallback(() => {
+    const assistantId = streamingAssistantIdRef.current
+    const delta = streamBufferRef.current
+
+    if (!assistantId || !delta) {
+      flushRafRef.current = null
+      return
+    }
+
+    streamBufferRef.current = ""
+    setMessages((prev) => {
+      const next = [...prev]
+      const assistantIndex = next.findIndex((message) => message.id === assistantId)
+      if (assistantIndex === -1) return next
+
+      const current = next[assistantIndex]
+      const mergedText = `${getMessageText(current)}${delta}`
+      next[assistantIndex] = createTextMessage("assistant", mergedText, assistantId)
+      return next
+    })
+    flushRafRef.current = null
   }, [])
+
+  const scheduleFlush = useCallback(() => {
+    if (flushRafRef.current != null) return
+
+    flushRafRef.current = requestAnimationFrame(() => {
+      flushAssistantBuffer()
+    })
+  }, [flushAssistantBuffer])
 
   // Fetch files for the current knowledge base
   const fetchFiles = useCallback(async () => {
@@ -122,19 +149,23 @@ export default function ChatPage() {
   }, [fetchFiles])
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages, isLoading, scrollToBottom])
-
-  useEffect(() => () => abortRef.current?.abort(), [])
+    return () => {
+      abortRef.current?.abort()
+      if (flushRafRef.current != null) {
+        cancelAnimationFrame(flushRafRef.current)
+      }
+    }
+  }, [])
 
   const handleStop = useCallback(() => {
     if (!isLoading) return
     abortRef.current?.abort()
+    setIsStreaming(false)
   }, [isLoading])
 
   const handleUpload = useCallback(async (file: File) => {
     if (!knowledgeBaseId) {
-      toast({ variant: "destructive", description: "No knowledge base selected" })
+      showErrorToast(t.noKnowledgeBaseSelected)
       return
     }
 
@@ -152,17 +183,14 @@ export default function ChatPage() {
       if (json.ok) {
         setFiles((prev) => [...prev, json.data.file])
       } else {
-        toast({ variant: "destructive", description: json.error || "Upload failed" })
+        showErrorToast(json.error || t.uploadFailed)
       }
     } catch (e) {
-      toast({
-        variant: "destructive",
-        description: e instanceof Error ? e.message : "Upload failed",
-      })
+      showErrorToast(e instanceof Error ? e.message : t.uploadFailed)
     } finally {
       setUploading(false)
     }
-  }, [knowledgeBaseId])
+  }, [knowledgeBaseId, showErrorToast, t])
 
   const handleParse = useCallback(async (id: string) => {
     setParsingIds((prev) => new Set(prev).add(id))
@@ -172,7 +200,7 @@ export default function ChatPage() {
       if (json.ok && json.data?.file) {
         setFiles((prev) => prev.map((f) => (f.id === id ? json.data.file : f)))
       } else {
-        toast({ variant: "destructive", description: json.error || "Parse failed" })
+        showErrorToast(json.error || t.parseFailed)
         // Refresh files
         const url = `/api/files?knowledgeBaseId=${encodeURIComponent(knowledgeBaseId || "")}`
         const refreshRes = await fetch(url)
@@ -182,10 +210,7 @@ export default function ChatPage() {
         }
       }
     } catch (e) {
-      toast({
-        variant: "destructive",
-        description: e instanceof Error ? e.message : "Parse failed",
-      })
+      showErrorToast(e instanceof Error ? e.message : t.parseFailed)
       // Refresh files
       if (knowledgeBaseId) {
         const url = `/api/files?knowledgeBaseId=${encodeURIComponent(knowledgeBaseId)}`
@@ -202,7 +227,7 @@ export default function ChatPage() {
         return next
       })
     }
-  }, [knowledgeBaseId])
+  }, [knowledgeBaseId, t, showErrorToast])
 
   const handleDelete = useCallback(async (id: string) => {
     try {
@@ -211,28 +236,12 @@ export default function ChatPage() {
       if (json.ok) {
         setFiles((prev) => prev.filter((f) => f.id !== id))
       } else {
-        toast({ variant: "destructive", description: json.error || "Delete failed" })
+        showErrorToast(json.error || t.deleteFailed)
       }
     } catch (e) {
-      toast({
-        variant: "destructive",
-        description: e instanceof Error ? e.message : "Delete failed",
-      })
+      showErrorToast(e instanceof Error ? e.message : t.deleteFailed)
     }
-  }, [])
-
-  const appendAssistantDelta = useCallback((assistantId: string, delta: string) => {
-    setMessages((prev) => {
-      const next = [...prev]
-      const assistantIndex = next.findIndex((message) => message.id === assistantId)
-      if (assistantIndex === -1) return next
-
-      const current = next[assistantIndex]
-      const mergedText = `${getMessageText(current)}${delta}`
-      next[assistantIndex] = createTextMessage("assistant", mergedText, assistantId)
-      return next
-    })
-}, [])
+  }, [t, showErrorToast])
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -246,8 +255,10 @@ export default function ChatPage() {
       const assistantId = crypto.randomUUID()
       const assistantMessage = createTextMessage("assistant", "", assistantId)
 
+      streamingAssistantIdRef.current = assistantId
       setMessages((prev) => [...prev, userMessage, assistantMessage])
       setIsLoading(true)
+      setIsStreaming(true)
 
       try {
         const clientMessageId = crypto.randomUUID()
@@ -290,9 +301,9 @@ export default function ChatPage() {
             .catch(() => ({ error: "Request failed" }))
           const message =
             payload &&
-            typeof payload === "object" &&
-            "error" in payload &&
-            typeof payload.error === "string"
+              typeof payload === "object" &&
+              "error" in payload &&
+              typeof payload.error === "string"
               ? payload.error
               : response.statusText
           throw new Error(message)
@@ -318,13 +329,14 @@ export default function ChatPage() {
             if (event === "token") {
               const delta =
                 data &&
-                typeof data === "object" &&
-                "delta" in data &&
-                typeof data.delta === "string"
+                  typeof data === "object" &&
+                  "delta" in data &&
+                  typeof data.delta === "string"
                   ? data.delta
                   : ""
               if (delta.length > 0) {
-                appendAssistantDelta(assistantId, delta)
+                streamBufferRef.current += delta
+                scheduleFlush()
               }
             }
 
@@ -368,9 +380,13 @@ export default function ChatPage() {
           abortRef.current = null
         }
         setIsLoading(false)
+        setIsStreaming(false)
+      }
+      if (streamBufferRef.current) {
+        flushAssistantBuffer()
       }
     },
-    [appendAssistantDelta, isLoading, knowledgeBaseId]
+    [flushAssistantBuffer, isLoading, knowledgeBaseId, scheduleFlush]
   )
 
   const handleSubmit = useCallback(() => {
@@ -455,7 +471,7 @@ export default function ChatPage() {
               uploading={uploading}
               collapsed={false}
               initialLoading={isInitialLoading}
-              onToggle={() => {}}
+              onToggle={() => { }}
               fullWidth={true}
             />
           </TabsContent>
@@ -475,7 +491,7 @@ export default function ChatPage() {
               {hasMessages ? (
                 <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
                   <div className="mx-auto max-w-4xl">
-                    <ChatMessages messages={messages} isLoading={isLoading} />
+                    <ChatMessages isStreaming={isStreaming} messages={messages} isLoading={isLoading} />
                   </div>
                 </div>
               ) : (
@@ -533,7 +549,7 @@ export default function ChatPage() {
         {hasMessages ? (
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
             <div className="mx-auto max-w-4xl">
-              <ChatMessages messages={messages} isLoading={isLoading} />
+              <ChatMessages  isStreaming={isStreaming} messages={messages} isLoading={isLoading} />
             </div>
           </div>
         ) : (
