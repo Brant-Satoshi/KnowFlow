@@ -1,7 +1,7 @@
 "use client"
 
 import { useSyncExternalStore } from "react"
-import { Globe, Monitor, Moon, Settings2, Sun } from "lucide-react"
+import { Globe, Monitor, Moon, Settings, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import {
@@ -53,7 +53,7 @@ export function SettingsMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 gap-2 px-2 sm:px-3">
-          <Settings2 className="h-4 w-4" />
+          <Settings className="h-4 w-4" />
           <span className="hidden sm:inline">{labels.settings}</span>
           <span className="sr-only sm:hidden">{labels.settings}</span>
         </Button>

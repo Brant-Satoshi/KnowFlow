@@ -1,4 +1,5 @@
 import { Chunk } from "../types";
+import { isSummaryQuery } from '../validation'
 
 type SseEventName = 'meta' | 'token' | 'done' | 'error';
 
@@ -7,10 +8,30 @@ function formatSse(event: SseEventName, data: unknown): string {
 }
 
 function splitText(text: string) {
-  return text.split(/(\s+)/); // 保留空格
+  return text.split(/(\s+)/);
 }
 
 export function buildPrompt(question: string, chunks: Chunk[]) {
+  if (isSummaryQuery(question) && chunks.length === 0) {
+    return `
+    Please summarize the conversation so far.
+    `;
+  }
+  if (isSummaryQuery(question)) {
+    const contextText = chunks.map(c => c.text).join('\n\n')
+    return `You are a helpful assistant.
+
+    Summarize the following content into key points.
+
+    Rules:
+    - Be concise
+    - Use bullet points
+    - Do NOT say "not found"
+
+    Content:
+    ${contextText}
+    `;
+  }
   return `
         You are a helpful assistant.
 

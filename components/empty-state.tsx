@@ -1,6 +1,6 @@
 "use client"
 
-import { Sparkles, FileText, MessageSquare, Zap } from "lucide-react"
+import { FileText, MessageSquare, Sparkles, Zap } from "lucide-react"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 interface EmptyStateProps {
@@ -33,54 +33,81 @@ export function EmptyState({
   ]
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-4">
-      <div className="flex flex-col items-center text-center">
-        {/* Logo */}
-        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-          <Sparkles className="h-7 w-7 text-primary" />
-        </div>
+    <div className="flex flex-1 items-start px-4 py-6 sm:px-6">
+      <div className="w-full max-w-5xl">
+        <div className="rounded-[1.25rem] border border-white/60 bg-white/76 p-5 shadow-[0_32px_90px_-52px_rgba(19,31,56,0.38)] backdrop-blur-xl dark:border-white/10 dark:bg-[#10161d]/84 dark:shadow-[0_32px_90px_-52px_rgba(0,0,0,0.9)] sm:p-6">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+            <div className="max-w-[34rem]">
+              <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#dfcfaa] bg-[#fbf2d9] text-[#956712] dark:border-[#5a4820] dark:bg-[#2b2519] dark:text-[#f0c669]">
+                <Sparkles className="h-4 w-4" />
+              </div>
 
-        <h1 className="text-balance text-2xl font-semibold tracking-tight text-foreground">
-          {t.title}
-        </h1>
-        <p className="mt-2 max-w-sm text-pretty text-sm leading-relaxed text-muted-foreground">
-          {hasKnowledge
-            ? t.emptyStateWithKnowledgeDesc
-            : t.emptyStateDesc}
-        </p>
+              <h2 className="mt-5 [font-family:var(--font-home-display)] text-3xl font-semibold tracking-[-0.05em] text-foreground sm:text-4xl">
+                {t.emptyStateTitle}
+              </h2>
+              <p className="mt-4 max-w-[34rem] text-sm leading-7 text-muted-foreground sm:text-base">
+                {hasKnowledge ? t.emptyStateWithKnowledgeDesc : t.emptyStateDesc}
+              </p>
+            </div>
 
-        {/* Suggestions */}
-        {hasKnowledge && (
-          <div className="mt-8 flex flex-col gap-2">
-            {suggestions.map((suggestion) => (
-              <button
-                key={suggestion.text}
-                onClick={() => onSuggestionClick(suggestion.text)}
-                className="group flex cursor-pointer items-center gap-3 rounded-xl border chat-surface-border bg-card px-4 py-3 text-left transition-all hover:border-primary/30 hover:bg-card/80"
-              >
-                <suggestion.icon className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {suggestion.text}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {suggestion.description}
-                  </p>
+            <div>
+              {hasKnowledge ? (
+                <div className="rounded-[1rem] border border-black/8 bg-black/[0.03] p-5 dark:border-white/10 dark:bg-white/[0.03]">
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">{t.suggestions.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{t.chatInputHint}</p>
                 </div>
-              </button>
-            ))}
+              ) : (
+                <div className="rounded-[1rem] border border-[#c7d7eb] bg-[#ebf3fb] p-5 dark:border-[#2c4a67] dark:bg-[#12202d]">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/70 text-[#27517d] dark:bg-white/8 dark:text-[#9ecdf6]">
+                      <FileText className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{t.emptyStateAddDocsHint}</p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">{t.panelEmptyDesc}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        )}
 
-        {/* Guide when no knowledge */}
-        {!hasKnowledge && (
-          <div className="mt-8 flex items-center gap-2 rounded-lg bg-primary/5 px-4 py-2.5 text-xs text-primary">
-            <FileText className="h-3.5 w-3.5 shrink-0" />
-            <span>
-              {t.emptyStateAddDocsHint}
-            </span>
-          </div>
-        )}
+          {hasKnowledge ? (
+            <div className="mt-5 grid gap-3 lg:grid-cols-3">
+              {suggestions.map((suggestion) => (
+                <button
+                  key={suggestion.text}
+                  onClick={() => onSuggestionClick(suggestion.text)}
+                  className="group cursor-pointer rounded-[1rem] border border-black/8 bg-white/60 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-white dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/[0.04] text-foreground dark:bg-white/[0.07]">
+                      <suggestion.icon className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{suggestion.text}</p>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">{suggestion.description}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              {[t.uploadFile, t.parseFile, t.ask].map((step, index) => (
+                <div
+                  key={step}
+                  className="flex items-center gap-3 rounded-[1rem] border border-black/8 bg-black/[0.03] px-4 py-3 dark:border-white/10 dark:bg-white/[0.03]"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black/6 text-sm font-semibold text-foreground dark:bg-white/8">
+                    0{index + 1}
+                  </div>
+                  <span className="text-sm text-foreground">{step}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
