@@ -12,7 +12,7 @@ export function EmptyState({
   hasKnowledge,
   onSuggestionClick,
 }: EmptyStateProps) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
 
   const suggestions = [
     {
@@ -33,16 +33,22 @@ export function EmptyState({
   ]
 
   return (
-    <div className="flex flex-1 items-start px-4 py-6 sm:px-6">
-      <div className="w-full max-w-5xl">
-        <div className="rounded-[1.25rem] border border-white/60 bg-white/76 p-5 shadow-[0_32px_90px_-52px_rgba(19,31,56,0.38)] backdrop-blur-xl dark:border-white/10 dark:bg-[#10161d]/84 dark:shadow-[0_32px_90px_-52px_rgba(0,0,0,0.9)] sm:p-6">
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+    <div className="flex min-h-full items-start justify-center px-4 py-5 sm:px-6 sm:py-6 xl:min-h-full xl:items-center">
+      <div className="w-full max-w-3xl">
+        <div className="rounded-[1.25rem] sm:p-6">
+          <div className="flex flex-col items-center gap-4 text-center sm:gap-5">
             <div className="max-w-[34rem]">
               <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#dfcfaa] bg-[#fbf2d9] text-[#956712] dark:border-[#5a4820] dark:bg-[#2b2519] dark:text-[#f0c669]">
                 <Sparkles className="h-4 w-4" />
               </div>
 
-              <h2 className="mt-5 [font-family:var(--font-home-display)] text-3xl font-semibold tracking-[-0.05em] text-foreground sm:text-4xl">
+              <h2
+                className={`mt-4 text-3xl font-semibold text-foreground sm:mt-5 sm:text-4xl ${
+                  language === "zh"
+                    ? "[font-family:var(--font-home-sans)] tracking-[-0.03em]"
+                    : "[font-family:var(--font-home-display)] tracking-[-0.05em]"
+                }`}
+              >
                 {t.emptyStateTitle}
               </h2>
               <p className="mt-4 max-w-[34rem] text-sm leading-7 text-muted-foreground sm:text-base">
@@ -50,7 +56,7 @@ export function EmptyState({
               </p>
             </div>
 
-            <div>
+            <div className="w-full max-w-3xl">
               {hasKnowledge ? (
                 <div className="rounded-[1rem] border border-black/8 bg-black/[0.03] p-5 dark:border-white/10 dark:bg-white/[0.03]">
                   <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">{t.suggestions.title}</p>
@@ -63,7 +69,7 @@ export function EmptyState({
                       <FileText className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-foreground">{t.emptyStateAddDocsHint}</p>
+                      <p className="text-left text-sm font-medium text-foreground">{t.emptyStateAddDocsHint}</p>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">{t.panelEmptyDesc}</p>
                     </div>
                   </div>
@@ -73,7 +79,7 @@ export function EmptyState({
           </div>
 
           {hasKnowledge ? (
-            <div className="mt-5 grid gap-3 lg:grid-cols-3">
+            <div className="mx-auto mt-4 grid w-full max-w-3xl gap-3 sm:mt-5">
               {suggestions.map((suggestion) => (
                 <button
                   key={suggestion.text}
@@ -93,7 +99,7 @@ export function EmptyState({
               ))}
             </div>
           ) : (
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="mx-auto mt-4 grid w-full max-w-3xl gap-3 sm:mt-5">
               {[t.uploadFile, t.parseFile, t.ask].map((step, index) => (
                 <div
                   key={step}

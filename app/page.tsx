@@ -120,7 +120,7 @@ export default function HomePage() {
 
         <main className="flex-1 pt-10 lg:pt-12">
           <section className="mt-12">
-            <div className="flex flex-col gap-3 border-b border-black/10 pb-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-xl font-semibold tracking-[-0.03em] text-foreground">
                   {t.knowledgeBases}

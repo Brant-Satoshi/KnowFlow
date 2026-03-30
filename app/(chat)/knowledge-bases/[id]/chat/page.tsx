@@ -659,10 +659,15 @@ export default function ChatPage() {
                   </div>
                 </div>
               ) : (
-                <EmptyState
-                  hasKnowledge={hasKnowledge}
-                  onSuggestionClick={handleSuggestionClick}
-                />
+                <div
+                  ref={scrollRef}
+                  className="h-full overflow-y-auto overscroll-contain px-1 [-webkit-overflow-scrolling:touch] sm:px-2"
+                >
+                  <EmptyState
+                    hasKnowledge={hasKnowledge}
+                    onSuggestionClick={handleSuggestionClick}
+                  />
+                </div>
               )}
             </div>
 
