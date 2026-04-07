@@ -5,6 +5,7 @@ import type { UIMessage } from "ai"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, Database, Loader2, Sparkles } from "lucide-react"
+import { BrandLogo } from "@/components/brand-logo"
 import { ChatInput } from "@/components/chat-input"
 import { ChatMessages } from "@/components/chat-messages"
 import { EmptyState } from "@/components/empty-state"
@@ -189,13 +190,12 @@ export default function ChatPage() {
         <div className="relative flex min-h-0 flex-1 flex-col gap-3">
           <header className={cn("rounded-[1.25rem] px-4 py-3", chatSurfaceClass)}>
             <div className="flex items-center justify-between gap-3">
-              <Link href="/" className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#101828] text-white shadow-[0_16px_40px_-20px_rgba(15,23,42,0.85)] dark:bg-white dark:text-zinc-950">
-                  <Database className="h-4 w-4" />
-                </div>
-                <h1 className="truncate text-lg font-semibold tracking-[-0.04em] text-foreground">
-                  {t.title}
-                </h1>
+              <Link href="/" className="min-w-0">
+                <BrandLogo
+                  name={t.title}
+                  className="min-w-0"
+                  textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
+                />
               </Link>
               <SettingsMenu />
             </div>
@@ -297,13 +297,12 @@ export default function ChatPage() {
       <div className="relative mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-3 lg:gap-4">
         <header className={cn("rounded-[1.25rem] px-4 py-3 sm:px-5", chatSurfaceClass)}>
           <div className="flex items-center justify-between gap-4">
-            <Link href="/" className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#101828] text-white shadow-[0_16px_40px_-20px_rgba(15,23,42,0.85)] dark:bg-white dark:text-zinc-950">
-                <Database className="h-4 w-4" />
-              </div>
-              <h1 className="truncate text-lg font-semibold tracking-[-0.04em] text-foreground">
-                {t.title}
-              </h1>
+            <Link href="/" className="min-w-0">
+              <BrandLogo
+                name={t.title}
+                className="min-w-0"
+                textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
+              />
             </Link>
             <SettingsMenu />
           </div>

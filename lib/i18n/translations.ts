@@ -1,7 +1,9 @@
+import { BRAND_NAME } from "@/lib/brand"
+
 export const translations = {
   en: {
     home: {
-      title: "AskBase",
+      title: BRAND_NAME,
       knowledgeBases: "Knowledge Bases",
       knowledgeBasesDesc: "Select a knowledge base to start chatting",
       createKnowledgeBase: "Create Knowledge Base",
@@ -22,7 +24,7 @@ export const translations = {
       noDescription: "No description",
     },
     chat: {
-      title: "AskBase",
+      title: BRAND_NAME,
       workspaceLabel: "Workspace",
       workspaceReady: "Ready to chat",
       workspacePreparing: "Indexing in progress",
@@ -104,7 +106,7 @@ export const translations = {
   },
   zh: {
     home: {
-      title: "AskBase",
+      title: BRAND_NAME,
       knowledgeBases: "知识库",
       knowledgeBasesDesc: "选择一个知识库开始聊天",
       createKnowledgeBase: "创建知识库",
@@ -125,7 +127,7 @@ export const translations = {
       noDescription: "暂无描述",
     },
     chat: {
-      title: "AskBase",
+      title: BRAND_NAME,
       workspaceLabel: "工作区",
       workspaceReady: "可以开始问答",
       workspacePreparing: "正在建立索引",

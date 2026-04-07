@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Database, FileText, Loader2, Plus } from "lucide-react"
+import { FileText, Loader2, Plus } from "lucide-react"
+import { BrandLogo } from "@/components/brand-logo"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -110,10 +111,7 @@ export default function HomePage() {
       <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-4 pb-14 pt-6 sm:px-6 lg:px-8">
         <header className="flex items-center justify-between gap-4">
           <div className={cn("flex items-center gap-3 rounded-3xl border px-4 py-3", SURFACE_PANEL_CLASS)}>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#101828] text-white shadow-[0_16px_40px_-20px_rgba(15,23,42,0.85)] dark:bg-white dark:text-zinc-950">
-              <Database className="h-5 w-5" />
-            </div>
-            <h1 className="text-lg font-medium text-foreground">{t.title}</h1>
+            <BrandLogo name={t.title} />
           </div>
           <SettingsMenu />
         </header>
@@ -139,7 +137,7 @@ export default function HomePage() {
             </div>
 
             {isLoading ? (
-              <div className="mt-6 grid gap-2.5 md:grid-cols-2 md:gap-3 xl:grid-cols-3">
+              <div className="mt-6 grid gap-2.5 md:grid-cols-2 md:gap-3 lg:grid-cols-4">
                 {Array.from({ length: 6 }).map((_, index) => (
                   <Card
                     key={index}
@@ -177,7 +175,7 @@ export default function HomePage() {
                 </Button>
               </div>
             ) : (
-              <div className="mt-6 grid gap-2.5 md:grid-cols-2 md:gap-3 xl:grid-cols-3">
+              <div className="mt-6 grid gap-2.5 md:grid-cols-2 md:gap-3 lg:grid-cols-4">
                 {sortedKnowledgeBases.map((kb, index) => {
                   return (
                     <Link key={kb.id} href={`/knowledge-bases/${kb.id}/chat`} className="group block">
