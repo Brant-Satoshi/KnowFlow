@@ -1,10 +1,11 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
 import type { UIMessage } from "ai"
 import Link from "next/link"
+import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, Database, Loader2, Sparkles } from "lucide-react"
+import { BrandLogo } from "@/components/brand-logo"
 import { ChatInput } from "@/components/chat-input"
 import { ChatMessages } from "@/components/chat-messages"
 import { EmptyState } from "@/components/empty-state"
@@ -13,26 +14,15 @@ import { SettingsMenu } from "@/components/settings-menu"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useIsMobile } from "@/components/ui/use-mobile"
-import { readSseStream } from "@/lib/chat/sse"
+import { useChatStream } from "@/lib/hooks/use-chat-stream"
 import { useErrorToast } from "@/lib/hooks/use-error-toast"
+import { useFileState } from "@/lib/hooks/use-file-state"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
-import { FileDoc, KnowledgeBase } from "@/lib/types"
+import { KnowledgeBase } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const chatSurfaceClass =
   "border border-white/60 bg-white/76 shadow-[0_30px_80px_-48px_rgba(19,31,56,0.34)] backdrop-blur-xl dark:border-white/10 dark:bg-[#10161d]/84 dark:shadow-[0_30px_80px_-48px_rgba(0,0,0,0.92)]"
-
-function createTextMessage(
-  role: "user" | "assistant",
-  text: string,
-  id = crypto.randomUUID()
-): UIMessage {
-  return {
-    id,
-    role,
-    parts: [{ type: "text", text }],
-  }
-}
 
 function getMessageText(message: UIMessage): string {
   return message.parts
@@ -52,31 +42,56 @@ export default function ChatPage() {
   const knowledgeBaseId = params.id as string
 
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBase | null>(null)
-  const [files, setFiles] = useState<FileDoc[]>([])
+  const [isKnowledgeBaseLoading, setIsKnowledgeBaseLoading] = useState(true)
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   const [input, setInput] = useState("")
-  const [messages, setMessages] = useState<UIMessage[]>([])
-  const [isInitialLoading, setIsInitialLoading] = useState(true)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isStreaming, setIsStreaming] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [parsingIds, setParsingIds] = useState<Set<string>>(new Set())
   const [mobileTab, setMobileTab] = useState<"knowledge" | "ask">("ask")
   const scrollRef = useRef<HTMLDivElement>(null)
-  const abortRef = useRef<AbortController | null>(null)
-  const streamBufferRef = useRef("")
-  const flushRafRef = useRef<number | null>(null)
-  const streamingAssistantIdRef = useRef<string | null>(null)
 
   const { t } = useLanguage()
   const showErrorToast = useErrorToast()
   const isMobile = useIsMobile()
 
+  const scrollToBottom = useCallback(() => {
+    const element = scrollRef.current
+    if (!element) return
+
+    element.scrollTo({
+      top: element.scrollHeight,
+      behavior: "smooth",
+    })
+  }, [])
+
+  const {
+    files,
+    uploading,
+    parsingIds,
+    isInitialLoading: isFilesLoading,
+    handleUpload,
+    handleParse,
+    handleDelete,
+  } = useFileState({
+    knowledgeBaseId,
+    showErrorToast,
+    noKnowledgeBaseSelectedMessage: t.noKnowledgeBaseSelected,
+    uploadFailedMessage: t.uploadFailed,
+    parseFailedMessage: t.parseFailed,
+    deleteFailedMessage: t.deleteFailed,
+  })
+
+  const { messages, isLoading, isStreaming, handleStop, sendMessage } = useChatStream({
+    knowledgeBaseId,
+    scrollRef,
+    scrollToBottom,
+  })
+
   useEffect(() => {
     if (!knowledgeBaseId) {
-      setIsInitialLoading(false)
+      setIsKnowledgeBaseLoading(false)
       return
     }
+
+    setIsKnowledgeBaseLoading(true)
 
     const fetchKnowledgeBase = async () => {
       try {
@@ -93,338 +108,13 @@ export default function ChatPage() {
         console.error("Failed to fetch knowledge base:", error)
         showErrorToast(t.failedToLoadKnowledgeBase)
         router.push("/")
+      } finally {
+        setIsKnowledgeBaseLoading(false)
       }
     }
 
-    fetchKnowledgeBase()
+    void fetchKnowledgeBase()
   }, [knowledgeBaseId, router, showErrorToast, t.failedToLoadKnowledgeBase, t.knowledgeBaseNotFound])
-
-  function isNearBottom(element: HTMLElement) {
-    return element.scrollHeight - element.scrollTop - element.clientHeight < 100
-  }
-
-  const scrollToBottom = useCallback(() => {
-    const element = scrollRef.current
-    if (!element) return
-
-    element.scrollTo({
-      top: element.scrollHeight,
-      behavior: "smooth",
-    })
-  }, [])
-
-  const flushAssistantBuffer = useCallback(() => {
-    const assistantId = streamingAssistantIdRef.current
-    const delta = streamBufferRef.current
-
-    if (!assistantId || !delta) {
-      flushRafRef.current = null
-      return
-    }
-
-    const element = scrollRef.current
-    const shouldScroll = element ? isNearBottom(element) : true
-
-    streamBufferRef.current = ""
-    setMessages((prev) => {
-      const next = [...prev]
-      const assistantIndex = next.findIndex((message) => message.id === assistantId)
-      if (assistantIndex === -1) return next
-
-      const current = next[assistantIndex]
-      next[assistantIndex] = createTextMessage("assistant", `${getMessageText(current)}${delta}`, assistantId)
-      return next
-    })
-    flushRafRef.current = null
-
-    if (shouldScroll) {
-      requestAnimationFrame(() => {
-        scrollToBottom()
-      })
-    }
-  }, [scrollToBottom])
-
-  const scheduleFlush = useCallback(() => {
-    if (flushRafRef.current != null) return
-
-    flushRafRef.current = requestAnimationFrame(() => {
-      flushAssistantBuffer()
-    })
-  }, [flushAssistantBuffer])
-
-  const fetchFiles = useCallback(async () => {
-    if (!knowledgeBaseId) {
-      setIsInitialLoading(false)
-      return
-    }
-
-    try {
-      const res = await fetch(`/api/files?knowledgeBaseId=${encodeURIComponent(knowledgeBaseId)}`)
-      const json = await res.json()
-      if (json.ok) {
-        setFiles(json.data.files)
-      }
-    } catch (error) {
-      console.error("Failed to fetch files:", error)
-    } finally {
-      setIsInitialLoading(false)
-    }
-  }, [knowledgeBaseId])
-
-  useEffect(() => {
-    fetchFiles()
-  }, [fetchFiles])
-
-  useEffect(() => {
-    return () => {
-      abortRef.current?.abort()
-      if (flushRafRef.current != null) {
-        cancelAnimationFrame(flushRafRef.current)
-      }
-    }
-  }, [])
-
-  const handleStop = useCallback(() => {
-    if (!isLoading) return
-    abortRef.current?.abort()
-    setIsStreaming(false)
-  }, [isLoading])
-
-  const handleUpload = useCallback(
-    async (file: File) => {
-      if (!knowledgeBaseId) {
-        showErrorToast(t.noKnowledgeBaseSelected)
-        return
-      }
-
-      setUploading(true)
-      try {
-        const formData = new FormData()
-        formData.append("file", file)
-        formData.append("knowledgeBaseId", knowledgeBaseId)
-
-        const res = await fetch("/api/files/upload", {
-          method: "POST",
-          body: formData,
-        })
-        const json = await res.json()
-        if (json.ok) {
-          setFiles((prev) => [...prev, json.data.file])
-        } else {
-          showErrorToast(json.error || t.uploadFailed)
-        }
-      } catch (error) {
-        showErrorToast(error instanceof Error ? error.message : t.uploadFailed)
-      } finally {
-        setUploading(false)
-      }
-    },
-    [knowledgeBaseId, showErrorToast, t.noKnowledgeBaseSelected, t.uploadFailed]
-  )
-
-  const handleParse = useCallback(
-    async (id: string) => {
-      setParsingIds((prev) => new Set(prev).add(id))
-
-      try {
-        const res = await fetch(`/api/files/${id}/parse`, { method: "POST" })
-        const json = await res.json()
-
-        if (json.ok && json.data?.file) {
-          setFiles((prev) => prev.map((file) => (file.id === id ? json.data.file : file)))
-        } else {
-          showErrorToast(json.error || t.parseFailed)
-          const refreshRes = await fetch(`/api/files?knowledgeBaseId=${encodeURIComponent(knowledgeBaseId || "")}`)
-          const refreshJson = await refreshRes.json()
-          if (refreshJson.ok) {
-            setFiles(refreshJson.data.files)
-          }
-        }
-      } catch (error) {
-        showErrorToast(error instanceof Error ? error.message : t.parseFailed)
-
-        if (knowledgeBaseId) {
-          const res = await fetch(`/api/files?knowledgeBaseId=${encodeURIComponent(knowledgeBaseId)}`)
-          const json = await res.json()
-          if (json.ok) {
-            setFiles(json.data.files)
-          }
-        }
-      } finally {
-        setParsingIds((prev) => {
-          const next = new Set(prev)
-          next.delete(id)
-          return next
-        })
-      }
-    },
-    [knowledgeBaseId, showErrorToast, t.parseFailed]
-  )
-
-  const handleDelete = useCallback(
-    async (id: string) => {
-      try {
-        const res = await fetch(`/api/files/${id}`, { method: "DELETE" })
-        const json = await res.json()
-        if (json.ok) {
-          setFiles((prev) => prev.filter((file) => file.id !== id))
-        } else {
-          showErrorToast(json.error || t.deleteFailed)
-        }
-      } catch (error) {
-        showErrorToast(error instanceof Error ? error.message : t.deleteFailed)
-      }
-    },
-    [showErrorToast, t.deleteFailed]
-  )
-
-  const sendMessage = useCallback(
-    async (text: string) => {
-      const trimmedText = text.trim()
-      if (!trimmedText || isLoading) return
-
-      abortRef.current?.abort()
-      const controller = new AbortController()
-      abortRef.current = controller
-
-      const userMessage = createTextMessage("user", trimmedText)
-      const assistantId = crypto.randomUUID()
-      const assistantMessage = createTextMessage("assistant", "", assistantId)
-
-      streamingAssistantIdRef.current = assistantId
-      setMessages((prev) => [...prev, userMessage, assistantMessage])
-      requestAnimationFrame(() => {
-        scrollToBottom()
-      })
-      setIsLoading(true)
-      setIsStreaming(true)
-
-      try {
-        const clientMessageId = crypto.randomUUID()
-        const shouldDebugStream =
-          process.env.NODE_ENV === "development" &&
-          typeof window !== "undefined" &&
-          new URLSearchParams(window.location.search).get("debugStream") === "1"
-
-        const payload: {
-          message: string
-          clientMessageId: string
-          knowledgeBaseId?: string
-          debug?: { delayMs: number; repeat: number; chunkBy: "char" | "word" }
-        } = {
-          message: trimmedText,
-          clientMessageId,
-        }
-
-        if (knowledgeBaseId) {
-          payload.knowledgeBaseId = knowledgeBaseId
-        }
-
-        if (shouldDebugStream) {
-          payload.debug = {
-            delayMs: 120,
-            repeat: 200,
-            chunkBy: "char",
-          }
-        }
-
-        const response = await fetch("/api/chat/stream", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-        })
-
-        if (!response.ok) {
-          const payload = await response.json().catch(() => ({ error: "Request failed" }))
-          const message =
-            payload &&
-            typeof payload === "object" &&
-            "error" in payload &&
-            typeof payload.error === "string"
-              ? payload.error
-              : response.statusText
-          throw new Error(message)
-        }
-
-        if (!response.body) {
-          throw new Error("Empty stream response")
-        }
-
-        let streamError: string | null = null
-        let requestId: string | undefined
-
-        await readSseStream(response.body as ReadableStream<Uint8Array>, ({ event, data }) => {
-          if (event === "meta") {
-            requestId =
-              data && typeof data === "object" && "requestId" in data && typeof data.requestId === "string"
-                ? data.requestId
-                : undefined
-            return
-          }
-
-          if (event === "token") {
-            const delta =
-              data && typeof data === "object" && "delta" in data && typeof data.delta === "string"
-                ? data.delta
-                : ""
-
-            if (delta.length > 0) {
-              streamBufferRef.current += delta
-              scheduleFlush()
-            }
-          }
-
-          if (event === "error") {
-            streamError =
-              data && typeof data === "object" && "message" in data && typeof data.message === "string"
-                ? data.message
-                : "Stream error"
-          }
-        })
-
-        if (streamError) {
-          const prefix = requestId ? `[${requestId}] ` : ""
-          throw new Error(prefix + streamError)
-        }
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          setMessages((prev) =>
-            prev.map((message) =>
-              message.id === assistantId
-                ? createTextMessage("assistant", `${getMessageText(message)}\n\n[Stopped]`, assistantId)
-                : message
-            )
-          )
-        } else {
-          const errorMessage = error instanceof Error ? error.message : "Stream error"
-          setMessages((prev) =>
-            prev.map((message) => {
-              if (message.id !== assistantId) return message
-
-              const fallbackText = getMessageText(message)
-              const nextText =
-                fallbackText.length > 0
-                  ? `${fallbackText}\n\n[Error] ${errorMessage}`
-                  : `[Error] ${errorMessage}`
-              return createTextMessage("assistant", nextText, assistantId)
-            })
-          )
-        }
-      } finally {
-        if (abortRef.current === controller) {
-          abortRef.current = null
-        }
-        setIsLoading(false)
-        setIsStreaming(false)
-      }
-
-      if (streamBufferRef.current) {
-        flushAssistantBuffer()
-      }
-    },
-    [flushAssistantBuffer, isLoading, knowledgeBaseId, scheduleFlush, scrollToBottom]
-  )
 
   const handleSubmit = useCallback(() => {
     if (!input.trim() || isLoading) return
@@ -441,6 +131,7 @@ export default function ChatPage() {
     [isLoading, sendMessage]
   )
 
+  const isInitialLoading = isKnowledgeBaseLoading || isFilesLoading
   const isParsingOrUploading = uploading || parsingIds.size > 0
   const hasKnowledge = files.some((file) => file.status === "indexed") && !isParsingOrUploading
   const hasMessages = messages.length > 0
@@ -499,13 +190,12 @@ export default function ChatPage() {
         <div className="relative flex min-h-0 flex-1 flex-col gap-3">
           <header className={cn("rounded-[1.25rem] px-4 py-3", chatSurfaceClass)}>
             <div className="flex items-center justify-between gap-3">
-              <Link href="/" className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#101828] text-white shadow-[0_16px_40px_-20px_rgba(15,23,42,0.85)] dark:bg-white dark:text-zinc-950">
-                  <Database className="h-4 w-4" />
-                </div>
-                <h1 className="truncate text-lg font-semibold tracking-[-0.04em] text-foreground">
-                  {t.title}
-                </h1>
+              <Link href="/" className="min-w-0">
+                <BrandLogo
+                  name={t.title}
+                  className="min-w-0"
+                  textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
+                />
               </Link>
               <SettingsMenu />
             </div>
@@ -607,13 +297,12 @@ export default function ChatPage() {
       <div className="relative mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-3 lg:gap-4">
         <header className={cn("rounded-[1.25rem] px-4 py-3 sm:px-5", chatSurfaceClass)}>
           <div className="flex items-center justify-between gap-4">
-            <Link href="/" className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#101828] text-white shadow-[0_16px_40px_-20px_rgba(15,23,42,0.85)] dark:bg-white dark:text-zinc-950">
-                <Database className="h-4 w-4" />
-              </div>
-              <h1 className="truncate text-lg font-semibold tracking-[-0.04em] text-foreground">
-                {t.title}
-              </h1>
+            <Link href="/" className="min-w-0">
+              <BrandLogo
+                name={t.title}
+                className="min-w-0"
+                textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
+              />
             </Link>
             <SettingsMenu />
           </div>
