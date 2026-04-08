@@ -31,6 +31,7 @@ export interface KnowledgeBase {
 
 // Files / RAG
 export type FileDocStatus = 'uploaded' | 'parsing' | 'indexed' | 'failed';
+export type FileDocClientStatus = 'uploading';
 
 export interface FileDoc {
   id: string;
@@ -40,6 +41,10 @@ export interface FileDoc {
   status: FileDocStatus;
   createdAt: ISODateString;
   knowledgeBaseId?: string; // 关联的知识库 ID
+}
+
+export interface FileListItem extends FileDoc {
+  clientStatus?: FileDocClientStatus;
 }
 
 export interface ChunkMeta {

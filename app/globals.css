@@ -87,6 +87,22 @@
     }
   }
 
+  @keyframes file-card-loading-sweep {
+    0% {
+      transform: translate3d(-170%, 0, 0) skewX(-18deg);
+      opacity: 0;
+    }
+
+    18% {
+      opacity: 0.95;
+    }
+
+    100% {
+      transform: translate3d(420%, 0, 0) skewX(-18deg);
+      opacity: 0;
+    }
+  }
+
   :root {
     color-scheme: light;
     --background: 0 0% 100%;
@@ -205,6 +221,13 @@
   .home-card-enter {
     opacity: 0;
     animation: home-card-enter 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .file-card-loading-sweep {
+    animation: file-card-loading-sweep 1.75s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    filter: blur(10px);
+    mix-blend-mode: screen;
+    will-change: transform, opacity;
   }
 
   .home-mesh {

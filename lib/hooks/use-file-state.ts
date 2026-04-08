@@ -1,9 +1,16 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { FileDoc } from "@/lib/types"
+import { toast } from "@/components/ui/use-toast"
+import { FileDoc, FileListItem } from "@/lib/types"
 
-type ErrorToast = (message?: string) => void
+type ErrorToast = (
+  message?: string,
+  options?: {
+    title?: string
+    description?: string
+  }
+) => void
 
 interface UseFileStateParams {
   knowledgeBaseId?: string
@@ -11,7 +18,12 @@ interface UseFileStateParams {
   noKnowledgeBaseSelectedMessage: string
   uploadFailedMessage: string
   parseFailedMessage: string
-  deleteFailedMessage: string
+  deleteFailedTitle: string
+  deleteFailedDesc: string
+  deleteLoadingTitle: string
+  deleteLoadingDesc: string
+  deleteSuccessTitle: string
+  deleteSuccessDesc: string
 }
 
 export function useFileState({
@@ -20,12 +32,19 @@ export function useFileState({
   noKnowledgeBaseSelectedMessage,
   uploadFailedMessage,
   parseFailedMessage,
-  deleteFailedMessage,
+  deleteFailedTitle,
+  deleteFailedDesc,
+  deleteLoadingTitle,
+  deleteLoadingDesc,
+  deleteSuccessTitle,
+  deleteSuccessDesc,
 }: UseFileStateParams) {
   const [files, setFiles] = useState<FileDoc[]>([])
+  const [optimisticFiles, setOptimisticFiles] = useState<FileListItem[]>([])
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [parsingIds, setParsingIds] = useState<Set<string>>(new Set())
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
 
   const refreshFiles = useCallback(async () => {
     const res = await fetch(`/api/files?knowledgeBaseId=${encodeURIComponent(knowledgeBaseId || "")}`)
@@ -54,41 +73,12 @@ export function useFileState({
     void fetchFiles()
   }, [fetchFiles])
 
-  const handleUpload = useCallback(
-    async (file: File) => {
-      if (!knowledgeBaseId) {
-        showErrorToast(noKnowledgeBaseSelectedMessage)
-        return
-      }
-
-      setUploading(true)
-      try {
-        const formData = new FormData()
-        formData.append("file", file)
-        formData.append("knowledgeBaseId", knowledgeBaseId)
-
-        const res = await fetch("/api/files/upload", {
-          method: "POST",
-          body: formData,
-        })
-        const json = await res.json()
-        if (json.ok) {
-          setFiles((prev) => [...prev, json.data.file])
-        } else {
-          showErrorToast(json.error || uploadFailedMessage)
-        }
-      } catch (error) {
-        showErrorToast(error instanceof Error ? error.message : uploadFailedMessage)
-      } finally {
-        setUploading(false)
-      }
-    },
-    [knowledgeBaseId, noKnowledgeBaseSelectedMessage, showErrorToast, uploadFailedMessage]
-  )
-
   const handleParse = useCallback(
     async (id: string) => {
       setParsingIds((prev) => new Set(prev).add(id))
+      setFiles((prev) =>
+        prev.map((file) => (file.id === id ? { ...file, status: "parsing" } : file))
+      )
 
       try {
         const res = await fetch(`/api/files/${id}/parse`, { method: "POST" })
@@ -117,27 +107,126 @@ export function useFileState({
     [knowledgeBaseId, parseFailedMessage, refreshFiles, showErrorToast]
   )
 
+  const handleUpload = useCallback(
+    async (file: File) => {
+      if (!knowledgeBaseId) {
+        showErrorToast(noKnowledgeBaseSelectedMessage)
+        return
+      }
+
+      setUploading(true)
+      const optimisticId = `uploading-${crypto.randomUUID()}`
+      const optimisticFile: FileListItem = {
+        id: optimisticId,
+        name: file.name,
+        type: file.type || "application/octet-stream",
+        size: file.size,
+        status: "uploaded",
+        clientStatus: "uploading",
+        createdAt: new Date().toISOString(),
+        knowledgeBaseId,
+      }
+
+      setOptimisticFiles((prev) => [optimisticFile, ...prev])
+
+      try {
+        const formData = new FormData()
+        formData.append("file", file)
+        formData.append("knowledgeBaseId", knowledgeBaseId)
+
+        const res = await fetch("/api/files/upload", {
+          method: "POST",
+          body: formData,
+        })
+        const json = await res.json()
+        if (json.ok && json.data?.file) {
+          setOptimisticFiles((prev) => prev.filter((item) => item.id !== optimisticId))
+          const nextFile: FileDoc = {
+            ...json.data.file,
+            status: "parsing",
+          }
+          setFiles((prev) => [nextFile, ...prev])
+          void handleParse(nextFile.id)
+        } else {
+          setOptimisticFiles((prev) => prev.filter((item) => item.id !== optimisticId))
+          showErrorToast(json.error || uploadFailedMessage)
+        }
+      } catch (error) {
+        setOptimisticFiles((prev) => prev.filter((item) => item.id !== optimisticId))
+        showErrorToast(error instanceof Error ? error.message : uploadFailedMessage)
+      } finally {
+        setUploading(false)
+      }
+    },
+    [
+      handleParse,
+      knowledgeBaseId,
+      noKnowledgeBaseSelectedMessage,
+      showErrorToast,
+      uploadFailedMessage,
+    ]
+  )
+
   const handleDelete = useCallback(
     async (id: string) => {
+      const deletingToast = toast({
+        title: deleteLoadingTitle,
+        description: deleteLoadingDesc,
+      })
+
+      setDeletingIds((prev) => new Set(prev).add(id))
+
       try {
         const res = await fetch(`/api/files/${id}`, { method: "DELETE" })
         const json = await res.json()
         if (json.ok) {
           setFiles((prev) => prev.filter((file) => file.id !== id))
-        } else {
-          showErrorToast(json.error || deleteFailedMessage)
+          deletingToast.dismiss()
+          toast({
+            title: deleteSuccessTitle,
+            description: deleteSuccessDesc,
+            variant: "success",
+          })
+          return true
         }
-      } catch (error) {
-        showErrorToast(error instanceof Error ? error.message : deleteFailedMessage)
+
+        deletingToast.dismiss()
+        showErrorToast(undefined, {
+          title: deleteFailedTitle,
+          description: deleteFailedDesc,
+        })
+        return false
+      } catch {
+        deletingToast.dismiss()
+        showErrorToast(undefined, {
+          title: deleteFailedTitle,
+          description: deleteFailedDesc,
+        })
+        return false
+      } finally {
+        setDeletingIds((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
       }
     },
-    [deleteFailedMessage, showErrorToast]
+    [
+      deleteFailedDesc,
+      deleteFailedTitle,
+      deleteLoadingDesc,
+      deleteLoadingTitle,
+      deleteSuccessDesc,
+      deleteSuccessTitle,
+      showErrorToast,
+    ]
   )
 
   return {
-    files,
+    files: [...optimisticFiles, ...files],
     uploading,
     parsingIds,
+    deletingIds,
     isInitialLoading,
     handleUpload,
     handleParse,

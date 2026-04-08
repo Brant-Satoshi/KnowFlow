@@ -1,3 +1,4 @@
+import { Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type BrandLogoProps = {
@@ -22,10 +23,9 @@ export function BrandLogo({
         )}
         aria-hidden="true"
       >
-        <span className="absolute inset-[7px] rounded-[10px] border border-white/20" />
-        <span className="absolute left-[9px] top-[9px] h-2.5 w-2.5 rounded-full bg-white/95" />
-        <span className="absolute bottom-[9px] right-[9px] h-2.5 w-2.5 rounded-full bg-[#fde68a]" />
-        <span className="absolute h-[2px] w-6 rotate-[-45deg] rounded-full bg-white/90 shadow-[0_0_18px_rgba(255,255,255,0.4)]" />
+        <span className="absolute inset-0 bg-[radial-gradient(circle_at_50%_28%,rgba(255,255,255,0.28),transparent_60%)]" />
+        <span className="absolute inset-[7px] rounded-[10px] border border-white/16" />
+        <Sparkles className="relative z-10 h-[18px] w-[18px] text-white drop-shadow-[0_0_14px_rgba(255,255,255,0.28)]" strokeWidth={2.1} />
       </span>
       <span className={cn("truncate text-lg font-medium text-foreground", textClassName)}>{name}</span>
     </div>
