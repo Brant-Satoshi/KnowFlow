@@ -31,6 +31,10 @@ type MiniMaxEmbeddingResponse = {
   };
 };
 
+type EmbeddingOptions = {
+  signal?: AbortSignal;
+};
+
 function readEnv(name: string): string | undefined {
   const value = process.env[name]?.trim();
   return value ? value.replace(/^['"]|['"]$/g, '') : undefined;
@@ -140,7 +144,10 @@ function getResponseMessage(payload: unknown, status: number): string {
   );
 }
 
-async function createEmbeddings(input: string[]): Promise<number[][]> {
+async function createEmbeddings(
+  input: string[],
+  options?: EmbeddingOptions
+): Promise<number[][]> {
   const provider = getProvider();
   const dimensions = getEmbeddingDimensions(provider);
   const res = await fetch(getEmbeddingUrl(provider), {
@@ -162,6 +169,7 @@ async function createEmbeddings(input: string[]): Promise<number[][]> {
             ...(dimensions ? { dimensions } : {}),
           }),
     }),
+    signal: options?.signal,
   });
 
   let payload: unknown = null;
@@ -196,14 +204,20 @@ async function createEmbeddings(input: string[]): Promise<number[][]> {
   return response.data.map((item, index) => assertValidEmbedding(item.embedding, index));
 }
 
-export async function embedText(text: string): Promise<number[]> {
-  const [embedding] = await createEmbeddings([text]);
+export async function embedText(
+  text: string,
+  options?: EmbeddingOptions
+): Promise<number[]> {
+  const [embedding] = await createEmbeddings([text], options);
   return embedding;
 }
 
-export async function embedChunk(chunks: Chunk[]): Promise<Chunk[]> {
+export async function embedChunk(
+  chunks: Chunk[],
+  options?: EmbeddingOptions
+): Promise<Chunk[]> {
   const texts = chunks.map((chunk) => chunk.text);
-  const vectors = await createEmbeddings(texts);
+  const vectors = await createEmbeddings(texts, options);
 
   return chunks.map((chunk, i) => ({
     ...chunk,

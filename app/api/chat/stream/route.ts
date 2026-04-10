@@ -3,6 +3,7 @@ import { buildPrompt, streamAnswer } from '@/lib/llm/chat';
 import { embedText } from '@/lib/rag/embedings';
 import { NextRequest } from 'next/server';
 import { isValidUuid } from '@/lib/validation';
+import { rerankChunks } from '@/lib/rag/rerank';
 
 function sseHeaders(): HeadersInit {
   return {
@@ -32,14 +33,13 @@ export async function POST(request: NextRequest) {
       ? (body as { message?: unknown }).message
       : undefined;
 
-  if (!message || typeof message !== 'string') {
+  if (!message || typeof message !== 'string' || !message.trim()) {
     return Response.json(
       { requestId, ok: false, error: 'Message is required' },
       { status: 400 },
     );
   }
 
-  // knowledgeBaseId is optional but must be valid if provided
   const knowledgeBaseId =
     typeof body === 'object' && body !== null && 'knowledgeBaseId' in body
       ? (body as { knowledgeBaseId?: unknown }).knowledgeBaseId
@@ -60,15 +60,23 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const queryEmbedding = await embedText(message);
-    const chunks = await searchChunks(
+    const queryEmbedding = await embedText(message, { signal: request.signal });
+    const recalledChunks = await searchChunks(
       queryEmbedding,
-      5,
+      20,
       0.4,
       undefined,
       typeof knowledgeBaseId === 'string' ? knowledgeBaseId : undefined
     );
-    const prompt = buildPrompt(message, chunks);
+
+    const rerankedChunks = await rerankChunks(message, recalledChunks, {
+      signal: request.signal,
+      topN: 8,
+    });
+
+    const finalChunks = rerankedChunks.slice(0, 5);
+
+    const prompt = buildPrompt(message, finalChunks);
     const stream = await streamAnswer(prompt, request.signal, requestId);
 
     return new Response(stream, { headers: sseHeaders() });

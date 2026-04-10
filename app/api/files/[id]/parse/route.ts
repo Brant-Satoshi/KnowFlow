@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         let chunkDocs = chunkText(text, id)
 
-        chunkDocs = await embedChunk(chunkDocs);
+        chunkDocs = await embedChunk(chunkDocs, { signal: req.signal });
 
         await replaceFileChunks(id, chunkDocs);
         
