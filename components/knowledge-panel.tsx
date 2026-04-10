@@ -14,22 +14,23 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
-import { FileDoc } from "@/lib/types"
+import { FileListItem } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 interface KnowledgePanelProps {
-  files: FileDoc[]
+  files: FileListItem[]
   onUpload: (file: File) => void
   onParse: (id: string) => void
-  onDelete: (id: string) => void
+  onDelete: (id: string) => Promise<boolean>
   parsingIds: Set<string>
-  deletingIds?: Set<string>
+  deletingIds: Set<string>
   uploading: boolean
   collapsed: boolean
   initialLoading?: boolean
@@ -44,8 +45,10 @@ function formatSize(bytes: number): string {
 }
 
 const statusColors: Record<string, string> = {
+  uploading: "border-[#c9d6f8] bg-[#eef3ff] text-[#32548d] dark:border-[#2b436d] dark:bg-[#152238] dark:text-[#b8d2ff]",
   uploaded: "border-[#b8d0f0] bg-[#e9f1fc] text-[#27517d] dark:border-[#29527c] dark:bg-[#14314f] dark:text-[#a6d0f6]",
   parsing: "border-[#e9d398] bg-[#fbf2d8] text-[#946815] dark:border-[#5f4c1f] dark:bg-[#302814] dark:text-[#f0c669]",
+  deleting: "border-[#dfd0aa] bg-[#faf3df] text-[#8e6a16] dark:border-[#5f4b1c] dark:bg-[#2f2613] dark:text-[#efcf7a]",
   indexed: "border-[#b6d7c7] bg-[#e9f6ef] text-[#1f6b48] dark:border-[#25533f] dark:bg-[#13271e] dark:text-[#97ddb7]",
   failed: "border-[#e3b6b6] bg-[#fae7e7] text-[#9a3d3d] dark:border-[#663737] dark:bg-[#301919] dark:text-[#f3b1b1]",
 }
@@ -59,6 +62,7 @@ export function KnowledgePanel({
   onParse,
   onDelete,
   parsingIds,
+  deletingIds,
   uploading,
   collapsed,
   initialLoading = false,
@@ -115,11 +119,23 @@ export function KnowledgePanel({
     setDeleteFileName(name)
   }, [])
 
-  const handleConfirmDelete = useCallback(() => {
-    if (!deleteFileId) return
-    onDelete(deleteFileId)
+  const isDeleting = deleteFileId ? deletingIds.has(deleteFileId) : false
+
+  const handleCloseDeleteDialog = useCallback(() => {
+    if (isDeleting) return
     setDeleteFileId(null)
-  }, [deleteFileId, onDelete])
+    setDeleteFileName("")
+  }, [isDeleting])
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteFileId || isDeleting) return
+
+    const deleted = await onDelete(deleteFileId)
+    if (deleted) {
+      setDeleteFileId(null)
+      setDeleteFileName("")
+    }
+  }, [deleteFileId, isDeleting, onDelete])
 
   const getStatusText = (status: string) => {
     return t.status[status as keyof typeof t.status] || status
@@ -260,60 +276,90 @@ export function KnowledgePanel({
                       <div className="mt-3 space-y-2.5">
                         {files.map((file) => {
                           const isParsing = parsingIds.has(file.id)
+                          const isClientUploading = file.clientStatus === "uploading"
+                          const isDeletingFile = deletingIds.has(file.id)
+                          const isLoadingFile = isClientUploading || isParsing || file.status === "parsing"
+                          const displayStatus = isDeletingFile
+                            ? "deleting"
+                            : isClientUploading
+                              ? "uploading"
+                              : file.status
+                          const canRetryParse = !isClientUploading && file.status === "failed"
 
                           return (
                             <div
                               key={file.id}
-                              className="group rounded-[0.9rem] border border-black/8 bg-black/[0.02] p-2.5 transition-all hover:-translate-y-0.5 hover:bg-black/[0.035] dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05]"
+                              className={cn(
+                                "group relative overflow-hidden rounded-[0.85rem] border border-black/8 bg-black/[0.02] p-2 transition-all hover:-translate-y-0.5 hover:bg-black/[0.035] dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05]",
+                                isLoadingFile &&
+                                  "border-[#cfdbf8] bg-[#f4f7ff] dark:border-[#2b436d] dark:bg-[#121c2d]"
+                              )}
                             >
-                              <div className="flex items-start gap-3">
-                                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/80 text-foreground shadow-sm dark:bg-white/[0.07]">
-                                  <FileText className="h-4 w-4" />
+                              {isLoadingFile && (
+                                <>
+                                  <span className="pointer-events-none absolute inset-0 rounded-[inherit] bg-[linear-gradient(90deg,rgba(214,226,255,0.28),rgba(255,255,255,0.03),rgba(214,226,255,0.28))] dark:bg-[linear-gradient(90deg,rgba(35,55,87,0.28),rgba(11,18,29,0.03),rgba(35,55,87,0.28))]" />
+                                  <span className="file-card-loading-sweep pointer-events-none absolute inset-y-[-18%] left-[-52%] z-[1] w-[52%] rounded-full bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.18),rgba(255,255,255,0.95),rgba(255,255,255,0.18),transparent)] opacity-100 dark:bg-[linear-gradient(90deg,transparent,rgba(120,170,255,0.14),rgba(171,206,255,0.58),rgba(120,170,255,0.14),transparent)]" />
+                                </>
+                              )}
+
+                              <div className="flex items-center gap-2.5">
+                                <div
+                                  className={cn(
+                                    "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.9rem] bg-white/80 text-foreground shadow-sm dark:bg-white/[0.07]",
+                                    isLoadingFile && "bg-white/90 dark:bg-white/[0.08]"
+                                  )}
+                                >
+                                  {isLoadingFile ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <FileText className="h-3.5 w-3.5" />
+                                  )}
                                 </div>
 
-                                <div className="min-w-0 flex-1">
+                                <div className="relative z-10 min-w-0 flex-1">
                                   <p className="truncate text-sm font-medium text-foreground" title={file.name}>
                                     {file.name}
                                   </p>
-                                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                    <span>{formatSize(file.size)}</span>
+                                  <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span className="shrink-0">{formatSize(file.size)}</span>
                                     <span
                                       className={cn(
-                                        "rounded-lg border px-2 py-1 font-medium",
-                                        statusColors[file.status]
+                                        "shrink-0 rounded-lg border px-2 py-1 font-medium",
+                                        statusColors[displayStatus]
                                       )}
                                     >
-                                      {getStatusText(file.status)}
+                                      {getStatusText(displayStatus)}
                                     </span>
+
+                                    <div className="ml-auto flex items-center gap-1.5">
+                                      {canRetryParse && (
+                                        <button
+                                          onClick={() => onParse(file.id)}
+                                          disabled={isParsing || isDeletingFile}
+                                          className="inline-flex h-7 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-black/8 bg-white/70 px-2.5 text-[11px] font-medium text-foreground transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.1]"
+                                          title={t.retryParse}
+                                        >
+                                          {isParsing ? (
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                          ) : (
+                                            <FileCode className="h-3 w-3" />
+                                          )}
+                                          {isParsing ? t.retryingParse : t.retryParse}
+                                        </button>
+                                      )}
+
+                                      <button
+                                        onClick={() => handleDeleteClick(file.id, file.name)}
+                                        disabled={isDeletingFile || isClientUploading}
+                                        className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-black/8 bg-white/70 text-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.06]"
+                                        title={isDeletingFile ? t.deleteLoadingAction : t.deleteFile}
+                                        aria-label={isDeletingFile ? t.deleteLoadingAction : t.deleteFile}
+                                      >
+                                        {isDeletingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-
-                              <div className="mt-2.5 flex items-center justify-end gap-2">
-                                {file.status === "uploaded" && (
-                                  <button
-                                    onClick={() => onParse(file.id)}
-                                    disabled={isParsing}
-                                    className="inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-lg border border-black/8 bg-white/70 px-3 text-xs font-medium text-foreground transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.06] dark:hover:bg-white/[0.1]"
-                                    title={t.parseFile}
-                                  >
-                                    {isParsing ? (
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    ) : (
-                                      <FileCode className="h-3.5 w-3.5" />
-                                    )}
-                                    {isParsing ? t.parsing : t.parseFile}
-                                  </button>
-                                )}
-
-                                <button
-                                  onClick={() => handleDeleteClick(file.id, file.name)}
-                                  className="inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-lg border border-black/8 bg-white/70 px-3 text-xs font-medium text-foreground transition-colors hover:border-destructive/30 hover:text-destructive dark:border-white/10 dark:bg-white/[0.06]"
-                                  title={t.deleteFile}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                  {t.deleteFile}
-                                </button>
                               </div>
                             </div>
                           )
@@ -328,20 +374,31 @@ export function KnowledgePanel({
         )}
       </div>
 
-      <Dialog open={deleteFileId !== null} onOpenChange={(open) => !open && setDeleteFileId(null)}>
-        <DialogContent className="rounded-[1.1rem] border-white/50 bg-[#fcfbf7] dark:border-white/10 dark:bg-[#10151d]">
+      <Dialog open={deleteFileId !== null} onOpenChange={(open) => !open && handleCloseDeleteDialog()}>
+        <DialogContent disableAnimation className="rounded-[1.1rem] border-white/50 bg-[#fcfbf7] dark:border-white/10 dark:bg-[#10151d]">
           <DialogHeader>
             <DialogTitle>{t.confirmDeleteTitle}</DialogTitle>
+            <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
+              {t.confirmDeleteDesc.replace("{fileName}", deleteFileName)}
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-sm leading-6 text-muted-foreground">
-            {t.confirmDeleteDesc.replace("{fileName}", deleteFileName)}
-          </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteFileId(null)} className="rounded-lg">
-              {t.cancel}
+            <Button
+              variant="outline"
+              onClick={handleCloseDeleteDialog}
+              disabled={isDeleting}
+              className="rounded-lg"
+            >
+              {t.confirmDeleteCancel}
             </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete} className="rounded-lg">
-              {t.deleteFile}
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="rounded-lg"
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {isDeleting ? t.deleteLoadingAction : t.confirmDeleteAction}
             </Button>
           </DialogFooter>
         </DialogContent>

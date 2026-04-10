@@ -1,18 +1,21 @@
 "use client"
 
-import { FileText, MessageSquare, Sparkles, Zap } from "lucide-react"
+import { FileText, Loader2, MessageSquare, Sparkles, Zap } from "lucide-react"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 
 interface EmptyStateProps {
   hasKnowledge: boolean
+  isPreparingKnowledge?: boolean
   onSuggestionClick: (text: string) => void
 }
 
 export function EmptyState({
   hasKnowledge,
+  isPreparingKnowledge = false,
   onSuggestionClick,
 }: EmptyStateProps) {
   const { t, language } = useLanguage()
+  const isPreparing = isPreparingKnowledge && !hasKnowledge
 
   const suggestions = [
     {
@@ -39,7 +42,7 @@ export function EmptyState({
           <div className="flex flex-col items-center gap-3 text-center sm:gap-4">
             <div className="max-w-[32rem]">
               <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#dfcfaa] bg-[#fbf2d9] text-[#956712] dark:border-[#5a4820] dark:bg-[#2b2519] dark:text-[#f0c669]">
-                <Sparkles className="h-4 w-4" />
+                {isPreparing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               </div>
 
               <h2
@@ -49,15 +52,31 @@ export function EmptyState({
                     : "[font-family:var(--font-home-display)] tracking-[-0.05em]"
                 }`}
               >
-                {t.emptyStateTitle}
+                {isPreparing ? t.workspacePreparing : t.emptyStateTitle}
               </h2>
               <p className="mt-3 max-w-[32rem] text-sm leading-7 text-muted-foreground sm:text-base">
-                {hasKnowledge ? t.emptyStateWithKnowledgeDesc : t.emptyStateDesc}
+                {isPreparing
+                  ? t.inputPreparingHint
+                  : hasKnowledge
+                    ? t.emptyStateWithKnowledgeDesc
+                    : t.emptyStateDesc}
               </p>
             </div>
 
             <div className="w-full max-w-3xl">
-              {hasKnowledge ? (
+              {isPreparing ? (
+                <div className="rounded-[1rem] border border-[#dfcfaa] bg-[#fbf2d9] p-4 dark:border-[#5a4820] dark:bg-[#2b2519]">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/70 text-[#956712] dark:bg-white/8 dark:text-[#f0c669]">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    </div>
+                    <div>
+                      <p className="text-left text-sm font-medium text-foreground">{t.workspacePreparing}</p>
+                      <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{t.inputPreparingHint}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : hasKnowledge ? (
                 <div className="rounded-[1rem] border border-black/8 bg-black/[0.03] p-4 dark:border-white/10 dark:bg-white/[0.03]">
                   <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">{t.suggestions.title}</p>
                   <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{t.chatInputHint}</p>
@@ -78,7 +97,21 @@ export function EmptyState({
             </div>
           </div>
 
-          {hasKnowledge ? (
+          {isPreparing ? (
+            <div className="mx-auto mt-4 grid w-full max-w-3xl gap-3 sm:mt-5 md:grid-cols-3">
+              {[t.uploadFile, t.autoParseFile, t.ask].map((step, index) => (
+                <div
+                  key={step}
+                  className="flex items-center gap-3 rounded-[1rem] border border-[#dfcfaa] bg-[#fff7e8] px-4 py-3 dark:border-[#5a4820] dark:bg-[#2b2112]"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/70 text-sm font-semibold text-foreground dark:bg-white/8">
+                    0{index + 1}
+                  </div>
+                  <span className="text-sm text-foreground">{step}</span>
+                </div>
+              ))}
+            </div>
+          ) : hasKnowledge ? (
             <div className="mx-auto mt-4 grid w-full max-w-3xl gap-3 sm:mt-5 md:grid-cols-2 xl:grid-cols-3">
               {suggestions.map((suggestion) => (
                 <button
@@ -100,7 +133,7 @@ export function EmptyState({
             </div>
           ) : (
             <div className="mx-auto mt-4 grid w-full max-w-3xl gap-3 sm:mt-5 md:grid-cols-3">
-              {[t.uploadFile, t.parseFile, t.ask].map((step, index) => (
+              {[t.uploadFile, t.autoParseFile, t.ask].map((step, index) => (
                 <div
                   key={step}
                   className="flex items-center gap-3 rounded-[1rem] border border-black/8 bg-black/[0.03] px-4 py-3 dark:border-white/10 dark:bg-white/[0.03]"

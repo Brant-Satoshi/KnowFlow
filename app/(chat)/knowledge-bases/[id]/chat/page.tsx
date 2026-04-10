@@ -66,6 +66,7 @@ export default function ChatPage() {
     files,
     uploading,
     parsingIds,
+    deletingIds,
     isInitialLoading: isFilesLoading,
     handleUpload,
     handleParse,
@@ -76,7 +77,12 @@ export default function ChatPage() {
     noKnowledgeBaseSelectedMessage: t.noKnowledgeBaseSelected,
     uploadFailedMessage: t.uploadFailed,
     parseFailedMessage: t.parseFailed,
-    deleteFailedMessage: t.deleteFailed,
+    deleteFailedTitle: t.deleteFailedTitle,
+    deleteFailedDesc: t.deleteFailedDesc,
+    deleteLoadingTitle: t.deleteLoadingTitle,
+    deleteLoadingDesc: t.deleteLoadingDesc,
+    deleteSuccessTitle: t.deleteSuccessTitle,
+    deleteSuccessDesc: t.deleteSuccessDesc,
   })
 
   const { messages, isLoading, isStreaming, handleStop, sendMessage } = useChatStream({
@@ -225,9 +231,11 @@ export default function ChatPage() {
               <section className={cn("flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.25rem]", chatSurfaceClass)}>
                 <div className="border-b border-black/8 px-4 py-3 dark:border-white/10">
                   <div className="flex items-start gap-3">
-                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#101828] text-white dark:bg-white dark:text-zinc-950">
+                    <div
+                      className="mt-2 hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#e0d0aa] bg-[#fbf2d9] text-[#9b6c12] sm:flex dark:border-[#5b4920] dark:bg-[#2b2519] dark:text-[#f5c86b]"
+                    >
                       <Sparkles className="h-4 w-4" />
-                    </span>
+                    </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">{t.conversationLabel}</p>
                       <p className="mt-1 truncate text-sm font-medium text-foreground">{knowledgeBase?.name || t.title}</p>
@@ -249,6 +257,7 @@ export default function ChatPage() {
                   ) : (
                     <EmptyState
                       hasKnowledge={hasKnowledge}
+                      isPreparingKnowledge={isParsingOrUploading}
                       onSuggestionClick={handleSuggestionClick}
                     />
                   )}
@@ -274,6 +283,7 @@ export default function ChatPage() {
                 onParse={handleParse}
                 onDelete={handleDelete}
                 parsingIds={parsingIds}
+                deletingIds={deletingIds}
                 uploading={uploading}
                 collapsed={false}
                 initialLoading={isInitialLoading}
@@ -315,6 +325,7 @@ export default function ChatPage() {
             onParse={handleParse}
             onDelete={handleDelete}
             parsingIds={parsingIds}
+            deletingIds={deletingIds}
             uploading={uploading}
             collapsed={panelCollapsed}
             initialLoading={isInitialLoading}
@@ -324,9 +335,11 @@ export default function ChatPage() {
           <section className={cn("flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.25rem]", chatSurfaceClass)}>
             <div className="border-b border-black/8 px-5 py-4 dark:border-white/10 sm:px-6">
               <div className="mx-auto flex max-w-5xl items-center gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#101828] text-white dark:bg-white dark:text-zinc-950">
-                  <Sparkles className="h-[18px] w-[18px]" />
-                </span>
+                <div
+                  className="mt-2 hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#e0d0aa] bg-[#fbf2d9] text-[#9b6c12] sm:flex dark:border-[#5b4920] dark:bg-[#2b2519] dark:text-[#f5c86b]"
+                >
+                  <Sparkles className="h-4 w-4" />
+                </div>
                 <div className="min-w-0">
                   <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">{t.conversationLabel}</p>
                   <p className="mt-1 truncate text-sm font-medium text-foreground">{knowledgeBase?.name || t.title}</p>

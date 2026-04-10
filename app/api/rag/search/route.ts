@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { query, fileId, topK = 5, maxScore = 0.4 } = body;
 
-    if (!query || typeof query !== 'string') {
+    if (!query || typeof query !== 'string' || !query.trim()) {
       return Response.json(error('Missing query'), { status: 400 });
     }
 
@@ -25,7 +25,10 @@ export async function POST(req: NextRequest) {
       return Response.json(error('Invalid fileId'), { status: 400 });
     }
 
-    const queryChunks = await embedChunk([{ id: 'query', fileId: '', idx: 0, text: query, meta: {} }]);
+    const queryChunks = await embedChunk(
+      [{ id: 'query', fileId: '', idx: 0, text: query, meta: {} }],
+      { signal: req.signal }
+    );
     const queryEmbedding = queryChunks[0].embedding;
 
     if (!queryEmbedding) {
