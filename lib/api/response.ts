@@ -15,10 +15,11 @@ export function success<T>(data: T): ApiResponse<T> {
   };
 }
 
-export function error(message: string): ApiResponse {
+export function error<T = unknown>(message: string, data?: T): ApiResponse<T> {
   return {
     requestId: getRequestId(),
     ok: false,
     error: message,
+    ...(data !== undefined ? { data } : {}),
   };
 }

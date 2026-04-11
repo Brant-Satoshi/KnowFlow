@@ -1,9 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { FileText, Loader2, Plus } from "lucide-react"
+import { Edit3, FileText, Loader2, MoreHorizontal, Plus, Trash2 } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,10 +15,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { SettingsMenu } from "@/components/settings-menu"
+import { toast } from "@/components/ui/use-toast"
 import { useErrorToast } from "@/lib/hooks/use-error-toast"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { KnowledgeBase } from "@/lib/types"
@@ -33,6 +40,23 @@ const CARD_SURFACES = [
   "border-[#d8dcec] bg-[#edeffa] dark:border-[#41424b] dark:bg-[#32343e]",
 ] as const
 
+type KnowledgeBaseErrorData = {
+  code?: string
+  failedKeys?: string[]
+}
+
+type KnowledgeBaseApiResponse<T = unknown> = {
+  ok: boolean
+  data?: T
+  error?: string
+}
+
+function sortKnowledgeBases(items: KnowledgeBase[]) {
+  return [...items].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  )
+}
+
 export default function HomePage() {
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -40,6 +64,12 @@ export default function HomePage() {
   const [newKbName, setNewKbName] = useState("")
   const [newKbDesc, setNewKbDesc] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [editingKnowledgeBase, setEditingKnowledgeBase] = useState<KnowledgeBase | null>(null)
+  const [editName, setEditName] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [deletingKnowledgeBase, setDeletingKnowledgeBase] = useState<KnowledgeBase | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const router = useRouter()
   const { home: t } = useLanguage()
   const showErrorToast = useErrorToast()
@@ -47,9 +77,9 @@ export default function HomePage() {
   const fetchKnowledgeBases = useCallback(async () => {
     try {
       const res = await fetch("/api/knowledge-bases")
-      const json = await res.json()
-      if (json.ok) {
-        setKnowledgeBases(json.data.knowledgeBases)
+      const json: KnowledgeBaseApiResponse<{ knowledgeBases: KnowledgeBase[] }> = await res.json()
+      if (json.ok && json.data) {
+        setKnowledgeBases(sortKnowledgeBases(json.data.knowledgeBases))
       }
     } catch (error) {
       console.error("Failed to fetch knowledge bases:", error)
@@ -62,8 +92,27 @@ export default function HomePage() {
     fetchKnowledgeBases()
   }, [fetchKnowledgeBases])
 
+  const resetCreateState = () => {
+    setNewKbName("")
+    setNewKbDesc("")
+    setIsCreating(false)
+  }
+
+  const resetEditState = () => {
+    setEditingKnowledgeBase(null)
+    setEditName("")
+    setEditDescription("")
+  }
+
+  const resetDeleteState = () => {
+    setDeletingKnowledgeBase(null)
+  }
+
   const handleCreateKnowledgeBase = async () => {
-    if (!newKbName.trim()) return
+    if (!newKbName.trim()) {
+      showErrorToast(t.nameRequired)
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -72,13 +121,12 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newKbName.trim(), description: newKbDesc.trim() }),
       })
-      const json = await res.json()
-      if (json.ok) {
-        setKnowledgeBases((prev) => [json.data.knowledgeBase, ...prev])
-        setIsCreating(false)
-        setNewKbName("")
-        setNewKbDesc("")
-        router.push(`/knowledge-bases/${json.data.knowledgeBase.id}/chat`)
+      const json: KnowledgeBaseApiResponse<{ knowledgeBase: KnowledgeBase }> = await res.json()
+      if (json.ok && json.data) {
+        const knowledgeBase = json.data.knowledgeBase
+        setKnowledgeBases((prev) => sortKnowledgeBases([knowledgeBase, ...prev]))
+        resetCreateState()
+        router.push(`/knowledge-bases/${knowledgeBase.id}/chat`)
       } else {
         showErrorToast(json.error || t.createFailed)
       }
@@ -86,6 +134,100 @@ export default function HomePage() {
       showErrorToast(error instanceof Error ? error.message : t.createFailed)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleOpenEditDialog = (kb: KnowledgeBase) => {
+    setEditingKnowledgeBase(kb)
+    setEditName(kb.name)
+    setEditDescription(kb.description || "")
+  }
+
+  const handleOpenDeleteDialog = (kb: KnowledgeBase) => {
+    setDeletingKnowledgeBase(kb)
+  }
+
+  const handleUpdateKnowledgeBase = async () => {
+    if (!editingKnowledgeBase) return
+
+    if (!editName.trim()) {
+      showErrorToast(t.nameRequired)
+      return
+    }
+
+    setIsUpdating(true)
+    try {
+      const res = await fetch(`/api/knowledge-bases/${editingKnowledgeBase.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName.trim(),
+          description: editDescription.trim(),
+        }),
+      })
+      const json: KnowledgeBaseApiResponse<{ knowledgeBase: KnowledgeBase } & KnowledgeBaseErrorData> = await res.json()
+
+      if (res.status === 404) {
+        showErrorToast(json.error || t.updateFailed)
+        await fetchKnowledgeBases()
+        return
+      }
+
+      if (json.ok && json.data?.knowledgeBase) {
+        const knowledgeBase = json.data.knowledgeBase
+        setKnowledgeBases((prev) =>
+          sortKnowledgeBases(
+            prev.map((kb) => (kb.id === knowledgeBase.id ? knowledgeBase : kb))
+          )
+        )
+        resetEditState()
+        toast({
+          title: t.updateSuccessTitle,
+          description: t.updateSuccessDesc,
+        })
+      } else {
+        showErrorToast(json.error || t.updateFailed)
+      }
+    } catch (error) {
+      showErrorToast(error instanceof Error ? error.message : t.updateFailed)
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const handleDeleteKnowledgeBase = async () => {
+    if (!deletingKnowledgeBase) return
+
+    setIsDeleting(true)
+    try {
+      const res = await fetch(`/api/knowledge-bases/${deletingKnowledgeBase.id}`, {
+        method: "DELETE",
+      })
+      const json: KnowledgeBaseApiResponse<KnowledgeBaseErrorData> = await res.json()
+
+      if (res.status === 404) {
+        showErrorToast(json.error || t.deleteFailed)
+        await fetchKnowledgeBases()
+        return
+      }
+
+      if (json.ok) {
+        setKnowledgeBases((prev) => prev.filter((kb) => kb.id !== deletingKnowledgeBase.id))
+        resetDeleteState()
+        toast({
+          title: t.deleteSuccessTitle,
+          description: t.deleteSuccessDesc,
+        })
+      } else {
+        const message = json.data?.code === "KB_DELETE_FORBIDDEN"
+          ? t.defaultKnowledgeBaseDeleteForbidden
+          : json.error || t.deleteFailed
+        showErrorToast(message)
+      }
+    } catch (error) {
+      showErrorToast(error instanceof Error ? error.message : t.deleteFailed)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -100,9 +242,7 @@ export default function HomePage() {
     return new Date(dateStr).toLocaleDateString(undefined, options)
   }
 
-  const sortedKnowledgeBases = [...knowledgeBases].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-  )
+  const sortedKnowledgeBases = useMemo(() => sortKnowledgeBases(knowledgeBases), [knowledgeBases])
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[linear-gradient(180deg,#f5f0e5_0%,#eef4fb_44%,#fdfdf9_100%)] [font-family:var(--font-home-sans)] dark:bg-[linear-gradient(180deg,#090b0f_0%,#121924_45%,#0e1117_100%)]">
@@ -178,33 +318,63 @@ export default function HomePage() {
               <div className="mt-6 grid gap-2.5 md:grid-cols-2 md:gap-3 lg:grid-cols-4">
                 {sortedKnowledgeBases.map((kb, index) => {
                   return (
-                    <Link key={kb.id} href={`/knowledge-bases/${kb.id}/chat`} className="group block">
-                      <Card
-                        className={cn(
-                          "rounded-[1.25rem] p-0 transition-transform duration-200 hover:-translate-y-0.5",
-                          HOME_CARD_BASE_CLASS,
-                          CARD_SURFACES[index % CARD_SURFACES.length]
-                        )}
-                      >
-                        <CardHeader className="gap-2 p-4 sm:gap-3 sm:p-5">
-                          <CardTitle className="line-clamp-1 text-base font-semibold tracking-[-0.03em] text-zinc-950 sm:text-lg dark:text-zinc-50">
-                            {kb.name}
-                          </CardTitle>
-                          <p className="line-clamp-1 text-sm leading-5 text-zinc-700 sm:line-clamp-2 sm:leading-6 dark:text-zinc-300">
-                            {kb.description || t.noDescription}
-                          </p>
-                          <div className="hidden flex-wrap items-center gap-3 text-xs text-zinc-600 sm:flex dark:text-zinc-400">
-                            <span>
-                              {t.created} {formatDate(kb.createdAt)}
-                            </span>
-                            <span className="h-1 w-1 rounded-full bg-current/45" />
-                            <span>
-                              {t.updatedLabel} {formatDate(kb.updatedAt)}
-                            </span>
-                          </div>
-                        </CardHeader>
-                      </Card>
-                    </Link>
+                    <div key={kb.id} className="group relative block focus-within:outline-none">
+                      <div className="absolute right-3 top-3 z-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 rounded-full border-black/10 bg-white/85 dark:border-white/10 dark:bg-black/20"
+                              aria-label={t.actions}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5">
+                            <DropdownMenuItem onSelect={() => handleOpenEditDialog(kb)}>
+                              <Edit3 className="h-4 w-4" />
+                              {t.edit}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={() => handleOpenDeleteDialog(kb)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {t.delete}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      <Link href={`/knowledge-bases/${kb.id}/chat`} className="block focus:outline-none">
+                        <Card
+                          className={cn(
+                            "relative rounded-[1.25rem] p-0 transition-transform duration-200 hover:-translate-y-0.5 focus-within:-translate-y-0.5",
+                            HOME_CARD_BASE_CLASS,
+                            CARD_SURFACES[index % CARD_SURFACES.length]
+                          )}
+                        >
+                          <CardHeader className="gap-2 p-4 sm:gap-3 sm:p-5">
+                            <CardTitle className="line-clamp-1 pr-8 text-base font-semibold tracking-[-0.03em] text-zinc-950 sm:text-lg dark:text-zinc-50">
+                              {kb.name}
+                            </CardTitle>
+                            <p className="line-clamp-1 text-sm leading-5 text-zinc-700 sm:line-clamp-2 sm:leading-6 dark:text-zinc-300">
+                              {kb.description || t.noDescription}
+                            </p>
+                            <div className="hidden flex-wrap items-center gap-3 text-xs text-zinc-600 sm:flex dark:text-zinc-400">
+                              <span>
+                                {t.created} {formatDate(kb.createdAt)}
+                              </span>
+                              <span className="h-1 w-1 rounded-full bg-current/45" />
+                              <span>
+                                {t.updatedLabel} {formatDate(kb.updatedAt)}
+                              </span>
+                            </div>
+                          </CardHeader>
+                        </Card>
+                      </Link>
+                    </div>
                   )
                 })}
               </div>
@@ -213,7 +383,7 @@ export default function HomePage() {
         </main>
       </div>
 
-      <Dialog open={isCreating} onOpenChange={setIsCreating}>
+      <Dialog open={isCreating} onOpenChange={(open) => !isSubmitting && (open ? setIsCreating(true) : resetCreateState())}>
         <DialogContent className="rounded-[1.8rem] border-white/50 bg-[#fcfbf7] p-0 sm:max-w-xl dark:border-white/10 dark:bg-[#10151d]">
           <div className="rounded-[1.8rem] border border-black/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0)_100%)] p-6 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0)_100%)]">
             <DialogHeader className="text-left">
@@ -259,8 +429,9 @@ export default function HomePage() {
             <DialogFooter className="mt-6 gap-3 sm:justify-end">
               <Button
                 variant="outline"
-                onClick={() => setIsCreating(false)}
+                onClick={resetCreateState}
                 className="rounded-full border-black/10 bg-white/70 px-5 dark:border-white/10 dark:bg-white/6"
+                disabled={isSubmitting}
               >
                 {t.cancel}
               </Button>
@@ -280,6 +451,107 @@ export default function HomePage() {
               </Button>
             </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editingKnowledgeBase !== null} onOpenChange={(open) => !isUpdating && !open && resetEditState()}>
+        <DialogContent className="rounded-[1.8rem] border-white/50 bg-[#fcfbf7] p-0 sm:max-w-xl dark:border-white/10 dark:bg-[#10151d]">
+          <div className="rounded-[1.8rem] border border-black/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0)_100%)] p-6 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0)_100%)]">
+            <DialogHeader className="text-left">
+              <DialogTitle className="[font-family:var(--font-home-display)] text-3xl font-semibold tracking-[-0.04em]">
+                {t.editKnowledgeBase}
+              </DialogTitle>
+              <DialogDescription className="mt-2 max-w-lg text-sm leading-6">
+                {t.editDialogDescription}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">{t.name}</label>
+                <Input
+                  placeholder={t.namePlaceholder}
+                  value={editName}
+                  onChange={(event) => setEditName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      handleUpdateKnowledgeBase()
+                    }
+                  }}
+                  className="h-12 rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">{t.description}</label>
+                <Textarea
+                  placeholder={t.descriptionPlaceholder}
+                  value={editDescription}
+                  onChange={(event) => setEditDescription(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                      handleUpdateKnowledgeBase()
+                    }
+                  }}
+                  className="min-h-[120px] rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="mt-6 gap-3 sm:justify-end">
+              <Button
+                variant="outline"
+                onClick={resetEditState}
+                className="rounded-full border-black/10 bg-white/70 px-5 dark:border-white/10 dark:bg-white/6"
+                disabled={isUpdating}
+              >
+                {t.cancel}
+              </Button>
+              <Button
+                onClick={handleUpdateKnowledgeBase}
+                disabled={!editName.trim() || isUpdating}
+                className="rounded-full px-5"
+              >
+                {isUpdating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {t.saving}
+                  </>
+                ) : (
+                  t.save
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deletingKnowledgeBase !== null} onOpenChange={(open) => !isDeleting && !open && resetDeleteState()}>
+        <DialogContent disableAnimation className="rounded-[1.1rem] border-white/50 bg-[#fcfbf7] dark:border-white/10 dark:bg-[#10151d]">
+          <DialogHeader>
+            <DialogTitle>{t.confirmDeleteTitle}</DialogTitle>
+            <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
+              {t.confirmDeleteDesc.replace("{knowledgeBaseName}", deletingKnowledgeBase?.name || "")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={resetDeleteState}
+              disabled={isDeleting}
+              className="rounded-lg"
+            >
+              {t.confirmDeleteCancel}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteKnowledgeBase}
+              disabled={isDeleting}
+              className="rounded-lg"
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {isDeleting ? t.deleting : t.confirmDeleteAction}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
