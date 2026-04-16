@@ -1,6 +1,6 @@
 import { searchChunks } from '@/lib/db/chunks';
 import { buildPrompt, streamAnswer } from '@/lib/llm/chat';
-import { embedText } from '@/lib/rag/embedings';
+import { embedText } from '@/lib/rag/embeddings';
 import { NextRequest } from 'next/server';
 import { isValidUuid } from '@/lib/validation';
 import { rerankChunks } from '@/lib/rag/rerank';

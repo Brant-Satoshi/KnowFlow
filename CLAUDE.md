@@ -1,37 +1,62 @@
-# Project Rules
+# CLAUDE.md
 
-## Project Overview
-- Next.js App Router 项目，用于 RAG + LLM 聊天应用
-- 使用 PostgreSQL + pgvector 进行向量存储
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Routes
-- `/` - 首页（Knowledge Base 列表）
-- `/knowledge-bases/:id/chat` - 聊天页面
-- `/files` - 文件管理页面
-- `/eval` - 评估页面
+## Commands
 
-## Core Modules
-- `lib/llm/` - LLM 调用（OpenAI/Anthropic）
-- `lib/rag/` - RAG 流程（分块、嵌入、搜索）
-- `lib/db/` - 数据库操作（PostgreSQL）
-- `lib/telemetry/` - 遥测
-
-## Shared Types (lib/types.ts)
-- `Message`, `Conversation` - 聊天相关
-- `FileDoc`, `Chunk`, `Citation` - 文件和 RAG 相关
-
-## API Response Shape
-所有 API 端点必须包含 requestId：
-```typescript
-{ requestId, ok, data?, error? }
+```sh
+pnpm dev          # start dev server (localhost:3000)
+pnpm build        # production build + type-check
+pnpm lint         # ESLint
 ```
 
-## Constraints
-- Do NOT add extra pages beyond /, /knowledge-bases/:id/chat, /files, /eval
-- Keep changes minimal and runnable
-- Use standard API response shape
+No test runner is configured. Use `pnpm build` to catch type errors.
 
-## Output format whenever asked to implement:
-1) List changed files
-2) Provide file-by-file code
-3) Provide commands to run + checklist to verify
+## Architecture
+
+Next.js App Router RAG chat app. PostgreSQL + pgvector for vector storage.
+
+**Routes (do not add others)**
+- `/` — Knowledge Base list (CRUD)
+- `/knowledge-bases/[id]/chat` — RAG chat scoped to a KB
+- `/files` — file management
+- `/eval` — evaluation
+
+**RAG pipeline** (per chat request at `app/api/chat/stream/route.ts`):
+1. Embed the user query → `lib/rag/embeddings.ts` (`embedText`)
+2. Vector search top-20 chunks with cosine distance < 0.4 → `lib/db/chunks.ts` (`searchChunks`)
+3. Rerank via OpenRouter/Cohere → `lib/rag/rerank.ts` (`rerankChunks`), take top-5
+4. Build prompt → `lib/llm/chat.ts` (`buildPrompt`)
+5. Stream answer from MiniMax → `lib/llm/chat.ts` (`streamAnswer`), returned as SSE
+
+**SSE event types** (`meta` → `token`+ → `done` | `error`). All carry `requestId`.
+
+**Database schema** (3 tables):
+- `knowledge_bases` — id, name, description
+- `files` — id, name, type, size, status, knowledge_base_id (FK)
+- `chunks` — id, file_id (FK), idx, text, embedding vector(1536)
+
+HNSW index on `chunks.embedding` for fast cosine search.
+
+**External services**
+- LLM: MiniMax (`MINIMAX_API_KEY`) — model `abab6.5-chat`
+- Embeddings: MiniMax or OpenAI-compatible, toggled by env vars (`MINIMAX_EMBEDDING_MODEL` vs `OPENAI_EMBEDDING_MODEL`). Vectors must be 1536-dimensional.
+- Reranking: OpenRouter (`OPENROUTER_API_KEY`) — model `cohere/rerank-v3.5`. Disabled by `RERANK_ENABLED=false`.
+
+## Key Patterns
+
+**API response shape** — all endpoints must return via `lib/api/response.ts`:
+```typescript
+{ requestId: string, ok: boolean, data?, error? }
+```
+Use `success(data)` and `error(message)` from `@/lib/api/response.ts`.  
+`requestId` is generated fresh per call via `lib/telemetry/requestId.ts`.
+
+**Shared types** — `lib/types.ts`: `Message`, `Conversation`, `KnowledgeBase`, `FileDoc`, `Chunk`, `Citation`.
+
+## Constraints
+
+- Do not add new top-level routes (pages are fixed to the four above)
+- Do not add new npm dependencies without asking
+- Every change must be runnable without additional setup
+- Do not change database schema or API response shape unless explicitly requested

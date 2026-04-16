@@ -3,7 +3,24 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Edit3, FileText, Loader2, MoreHorizontal, Plus, Trash2 } from "lucide-react"
+import {
+  ArrowRight,
+  BookOpen,
+  Code2,
+  Database,
+  Edit3,
+  FileText,
+  Layers,
+  Loader2,
+  MessageSquare,
+  MoreHorizontal,
+  Plus,
+  Search,
+  Shield,
+  Sparkles,
+  Trash2,
+  Zap,
+} from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,6 +45,7 @@ import { SettingsMenu } from "@/components/settings-menu"
 import { toast } from "@/components/ui/use-toast"
 import { useErrorToast } from "@/lib/hooks/use-error-toast"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { BRAND_NAME, BRAND_DESCRIPTION } from "@/lib/brand"
 import { KnowledgeBase } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -244,11 +262,57 @@ export default function HomePage() {
 
   const sortedKnowledgeBases = useMemo(() => sortKnowledgeBases(knowledgeBases), [knowledgeBases])
 
+  const CATEGORIES = [
+    {
+      icon: <BookOpen className="h-5 w-5" />,
+      title: "Research & Analysis",
+      description: "Upload papers, reports, and notes. Ask nuanced questions and get cited answers.",
+      color: "border-[#d8dcec] bg-[#edeffa] dark:border-[#41424b] dark:bg-[#32343e]",
+    },
+    {
+      icon: <Code2 className="h-5 w-5" />,
+      title: "Technical Docs",
+      description: "Index API references, runbooks, and specs. Let engineers query them in plain language.",
+      color: "border-[#ddd8c3] bg-[#f2f2e8] dark:border-[#4a4a3c] dark:bg-[#3a3a2f]",
+    },
+    {
+      icon: <MessageSquare className="h-5 w-5" />,
+      title: "Customer Support",
+      description: "Ground your support bot in your product knowledge base for accurate, on-brand replies.",
+      color: "border-[#e4d3cf] bg-[#f7edeb] dark:border-[#4a403d] dark:bg-[#3a3230]",
+    },
+  ]
+
+  const TOOLS = [
+    {
+      icon: <Search className="h-5 w-5 text-blue-500" />,
+      title: "Semantic Search",
+      description: "Vector similarity search powered by pgvector finds the most relevant passages — not just keyword matches.",
+    },
+    {
+      icon: <Layers className="h-5 w-5 text-violet-500" />,
+      title: "Smart Reranking",
+      description: "A second-pass reranker scores retrieved chunks for relevance before they reach the LLM, cutting noise.",
+    },
+    {
+      icon: <Database className="h-5 w-5 text-emerald-500" />,
+      title: "Multi-format Ingestion",
+      description: "Drop in PDFs, Markdown, and plain text. Parsing, chunking, and embedding happen automatically.",
+    },
+    {
+      icon: <Zap className="h-5 w-5 text-amber-500" />,
+      title: "Cited Answers",
+      description: "Every response links back to the exact source chunks so you can verify claims in seconds.",
+    },
+  ]
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[linear-gradient(180deg,#f5f0e5_0%,#eef4fb_44%,#fdfdf9_100%)] [font-family:var(--font-home-sans)] dark:bg-[linear-gradient(180deg,#090b0f_0%,#121924_45%,#0e1117_100%)]">
       <div className="home-mesh pointer-events-none absolute inset-0" />
       <div className="home-orb-float pointer-events-none absolute right-[-4rem] top-20 h-80 w-80 rounded-full bg-[#c4d9f7]/45 blur-3xl dark:bg-[#19324d]/28 [animation-delay:-6s]" />
       <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-4 pb-14 pt-6 sm:px-6 lg:px-8">
+
+        {/* ── Nav ── */}
         <header className="flex items-center justify-between gap-4">
           <div className={cn("flex items-center gap-3 rounded-3xl border px-4 py-3", SURFACE_PANEL_CLASS)}>
             <BrandLogo name={t.title} />
@@ -256,13 +320,129 @@ export default function HomePage() {
           <SettingsMenu />
         </header>
 
-        <main className="flex-1 pt-10 lg:pt-12">
-          <section className="mt-12">
+        <main className="flex-1">
+
+          {/* ── Hero ── */}
+          <section className="mx-auto mt-20 max-w-2xl text-center sm:mt-28">
+            <div className="inline-flex items-center gap-2 rounded-full border border-black/8 bg-white/60 px-3.5 py-1.5 text-xs font-medium text-zinc-600 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-white/6 dark:text-zinc-400">
+              <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+              Retrieval-augmented generation, simplified
+            </div>
+            <h1 className="mt-6 text-4xl font-bold tracking-[-0.04em] text-zinc-950 sm:text-5xl lg:text-6xl dark:text-zinc-50">
+              Chat with your documents,{" "}
+              <span className="bg-[linear-gradient(135deg,#1d4ed8_0%,#60a5fa_100%)] bg-clip-text text-transparent">
+                not just search them
+              </span>
+            </h1>
+            <p className="mx-auto mt-5 max-w-[42ch] text-base leading-7 text-zinc-600 sm:text-lg dark:text-zinc-400">
+              {BRAND_DESCRIPTION}
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <Button
+                onClick={() => setIsCreating(true)}
+                className="h-11 rounded-full px-6 text-sm font-medium shadow-[0_8px_24px_-8px_rgba(29,78,216,0.55)]"
+              >
+                <Plus className="h-4 w-4" />
+                {t.createKnowledgeBase}
+              </Button>
+              <Button
+                variant="outline"
+                asChild
+                className="h-11 rounded-full border-black/10 bg-white/65 px-6 text-sm dark:border-white/10 dark:bg-white/6"
+              >
+                <a href="#knowledge-bases">
+                  View workspaces
+                  <ArrowRight className="h-4 w-4" />
+                </a>
+              </Button>
+            </div>
+          </section>
+
+          {/* ── Trust signals ── */}
+          <section className="mt-10 flex flex-wrap items-center justify-center gap-2.5">
+            {[
+              { icon: <Search className="h-3.5 w-3.5" />, label: "Semantic search" },
+              { icon: <Layers className="h-3.5 w-3.5" />, label: "Smart reranking" },
+              { icon: <Zap className="h-3.5 w-3.5" />, label: "Source citations" },
+              { icon: <Shield className="h-3.5 w-3.5" />, label: "Local & private" },
+              { icon: <Database className="h-3.5 w-3.5" />, label: "pgvector storage" },
+            ].map(({ icon, label }) => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-1.5 rounded-full border border-black/8 bg-white/55 px-3 py-1 text-xs font-medium text-zinc-600 backdrop-blur-sm dark:border-white/8 dark:bg-white/5 dark:text-zinc-400"
+              >
+                {icon}
+                {label}
+              </span>
+            ))}
+          </section>
+
+          {/* ── Category blocks ── */}
+          <section className="mt-20">
+            <h2 className="text-center text-sm font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-500">
+              Use cases
+            </h2>
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              {CATEGORIES.map(({ icon, title, description, color }) => (
+                <div
+                  key={title}
+                  className={cn(
+                    "rounded-[1.25rem] border p-5 backdrop-blur-xl",
+                    color
+                  )}
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/60 text-zinc-700 shadow-sm dark:bg-white/8 dark:text-zinc-300">
+                    {icon}
+                  </div>
+                  <h3 className="mt-4 font-semibold tracking-[-0.02em] text-zinc-900 dark:text-zinc-100">
+                    {title}
+                  </h3>
+                  <p className="mt-1.5 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                    {description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* ── Featured tools ── */}
+          <section className="mt-16">
+            <h2 className="text-center text-sm font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-500">
+              Under the hood
+            </h2>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {TOOLS.map(({ icon, title, description }) => (
+                <div
+                  key={title}
+                  className={cn(
+                    "rounded-[1.25rem] border p-5",
+                    SURFACE_PANEL_CLASS
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/70 shadow-sm dark:bg-white/6">
+                      {icon}
+                    </div>
+                    <h3 className="font-semibold tracking-[-0.02em] text-zinc-900 dark:text-zinc-100">
+                      {title}
+                    </h3>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                    {description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* ── Knowledge bases ── */}
+          <section id="knowledge-bases" className="mt-20">
             <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="text-xl font-semibold tracking-[-0.03em] text-foreground">
+                <h2 className="text-xl font-semibold tracking-[-0.03em] text-foreground">
                   {t.knowledgeBases}
-                </h3>
+                </h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">{t.knowledgeBasesDesc}</p>
               </div>
               {sortedKnowledgeBases.length > 0 && (
                 <Button
@@ -359,14 +539,13 @@ export default function HomePage() {
                             <CardTitle className="line-clamp-1 pr-8 text-base font-semibold tracking-[-0.03em] text-zinc-950 sm:text-lg dark:text-zinc-50">
                               {kb.name}
                             </CardTitle>
-                            <p className="line-clamp-1 text-sm leading-5 text-zinc-700 sm:line-clamp-2 sm:leading-6 dark:text-zinc-300">
+                            <p className="min-h-[1.25rem] line-clamp-1 text-sm leading-5 text-zinc-700 sm:min-h-[3rem] sm:line-clamp-2 sm:leading-6 dark:text-zinc-300">
                               {kb.description || t.noDescription}
                             </p>
-                            <div className="hidden flex-wrap items-center gap-3 text-xs text-zinc-600 sm:flex dark:text-zinc-400">
+                            <div className="hidden gap-1 pt-1 text-xs text-zinc-600 sm:grid dark:text-zinc-400">
                               <span>
                                 {t.created} {formatDate(kb.createdAt)}
                               </span>
-                              <span className="h-1 w-1 rounded-full bg-current/45" />
                               <span>
                                 {t.updatedLabel} {formatDate(kb.updatedAt)}
                               </span>
@@ -381,6 +560,18 @@ export default function HomePage() {
             )}
           </section>
         </main>
+
+        {/* ── Footer ── */}
+        <footer className="mt-20 flex flex-col items-center gap-2 border-t border-black/6 pt-8 text-xs text-zinc-500 sm:flex-row sm:justify-between dark:border-white/6 dark:text-zinc-500">
+          <div className="flex items-center gap-2">
+            <BrandLogo
+              name={BRAND_NAME}
+              iconClassName="h-6 w-6 rounded-lg"
+              textClassName="text-sm text-zinc-600 dark:text-zinc-400"
+            />
+          </div>
+          <span>Built with pgvector · Next.js · OpenAI</span>
+        </footer>
       </div>
 
       <Dialog open={isCreating} onOpenChange={(open) => !isSubmitting && (open ? setIsCreating(true) : resetCreateState())}>

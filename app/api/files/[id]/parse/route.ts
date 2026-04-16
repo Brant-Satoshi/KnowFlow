@@ -5,7 +5,7 @@ import { parseFile } from '@/lib/rag/parse';
 import { NextRequest } from 'next/server';
 import { extname } from 'path';
 import { isValidUuid } from '@/lib/validation';
-import { embedChunk } from '@/lib/rag/embedings';
+import { embedChunk } from '@/lib/rag/embeddings';
 import { readFileFromStorage } from '@/lib/db/storage';
 
 export const runtime = "nodejs";

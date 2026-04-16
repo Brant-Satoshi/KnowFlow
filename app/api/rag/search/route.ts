@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
 import { isValidUuid } from '@/lib/validation';
-import { embedChunk } from '@/lib/rag/embedings';
+import { embedChunk } from '@/lib/rag/embeddings';
 import { searchChunks } from '@/lib/db/chunks';
 
 export async function POST(req: NextRequest) {
