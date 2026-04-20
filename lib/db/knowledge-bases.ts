@@ -11,6 +11,12 @@ const KB_SELECT = `
 
 export const DEFAULT_KB_NAME = 'Default Knowledge Base';
 
+export type KnowledgeBaseDeleteFile = {
+  id: string;
+  name: string;
+  knowledgeBaseId: string;
+};
+
 export async function listKnowledgeBases(): Promise<KnowledgeBase[]> {
   return query<KnowledgeBase>(
     `SELECT ${KB_SELECT} FROM knowledge_bases ORDER BY created_at DESC;`
@@ -92,6 +98,23 @@ export async function updateKnowledgeBase(
     values
   );
   return rows[0];
+}
+
+export async function listKnowledgeBaseDeleteFiles(
+  knowledgeBaseId: string
+): Promise<KnowledgeBaseDeleteFile[]> {
+  return query<KnowledgeBaseDeleteFile>(
+    `
+    SELECT
+      id::text,
+      name,
+      knowledge_base_id AS "knowledgeBaseId"
+    FROM files
+    WHERE knowledge_base_id = $1::uuid
+    ORDER BY created_at DESC;
+    `,
+    [knowledgeBaseId]
+  );
 }
 
 export async function deleteKnowledgeBase(id: string): Promise<boolean> {
