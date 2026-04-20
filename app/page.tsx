@@ -4,26 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
-  ArrowRight,
-  BookOpen,
-  Code2,
-  Database,
   Edit3,
-  FileText,
-  Layers,
   Loader2,
-  MessageSquare,
   MoreHorizontal,
   Plus,
   Search,
-  Shield,
-  Sparkles,
   Trash2,
-  Zap,
 } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -45,18 +34,18 @@ import { SettingsMenu } from "@/components/settings-menu"
 import { toast } from "@/components/ui/use-toast"
 import { useErrorToast } from "@/lib/hooks/use-error-toast"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
-import { BRAND_NAME, BRAND_DESCRIPTION } from "@/lib/brand"
 import { KnowledgeBase } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-const SURFACE_PANEL_CLASS =
-  "border-white/60 bg-white/75 shadow-[0_30px_80px_-45px_rgba(19,31,56,0.35)] backdrop-blur-xl dark:border-white/10 dark:bg-[#11161d]/78 dark:shadow-[0_30px_80px_-45px_rgba(0,0,0,0.85)]"
-const HOME_CARD_BASE_CLASS = "border shadow-none backdrop-blur-xl"
-const CARD_SURFACES = [
-  "border-[#ddd8c3] bg-[#f2f2e8] dark:border-[#4a4a3c] dark:bg-[#3a3a2f]",
-  "border-[#e4d3cf] bg-[#f7edeb] dark:border-[#4a403d] dark:bg-[#3a3230]",
-  "border-[#d8dcec] bg-[#edeffa] dark:border-[#41424b] dark:bg-[#32343e]",
+const CARD_COLORS = [
+  "bg-[#f5f2e8] dark:bg-[#3a3a2f]",
+  "bg-[#eceef8] dark:bg-[#32343e]",
+  "bg-[#e8f0f8] dark:bg-[#2d3540]",
+  "bg-[#eef5ee] dark:bg-[#2d3a2d]",
+  "bg-[#f7edeb] dark:bg-[#3a3230]",
 ] as const
+
+const CARD_EMOJIS = ["📓", "🤖", "🚀", "🎨", "📜", "🔬", "💡", "🌍", "📊", "🔧"]
 
 type KnowledgeBaseErrorData = {
   code?: string
@@ -88,6 +77,7 @@ export default function HomePage() {
   const [isUpdating, setIsUpdating] = useState(false)
   const [deletingKnowledgeBase, setDeletingKnowledgeBase] = useState<KnowledgeBase | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
   const router = useRouter()
   const { home: t } = useLanguage()
   const showErrorToast = useErrorToast()
@@ -249,339 +239,150 @@ export default function HomePage() {
     }
   }
 
-  const formatDate = (
-    dateStr: string,
-    options: Intl.DateTimeFormatOptions = {
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",
       day: "numeric",
-    }
-  ) => {
-    return new Date(dateStr).toLocaleDateString(undefined, options)
-  }
+    })
 
-  const sortedKnowledgeBases = useMemo(() => sortKnowledgeBases(knowledgeBases), [knowledgeBases])
-
-  const CATEGORIES = [
-    {
-      icon: <BookOpen className="h-5 w-5" />,
-      title: "Research & Analysis",
-      description: "Upload papers, reports, and notes. Ask nuanced questions and get cited answers.",
-      color: "border-[#d8dcec] bg-[#edeffa] dark:border-[#41424b] dark:bg-[#32343e]",
-    },
-    {
-      icon: <Code2 className="h-5 w-5" />,
-      title: "Technical Docs",
-      description: "Index API references, runbooks, and specs. Let engineers query them in plain language.",
-      color: "border-[#ddd8c3] bg-[#f2f2e8] dark:border-[#4a4a3c] dark:bg-[#3a3a2f]",
-    },
-    {
-      icon: <MessageSquare className="h-5 w-5" />,
-      title: "Customer Support",
-      description: "Ground your support bot in your product knowledge base for accurate, on-brand replies.",
-      color: "border-[#e4d3cf] bg-[#f7edeb] dark:border-[#4a403d] dark:bg-[#3a3230]",
-    },
-  ]
-
-  const TOOLS = [
-    {
-      icon: <Search className="h-5 w-5 text-blue-500" />,
-      title: "Semantic Search",
-      description: "Vector similarity search powered by pgvector finds the most relevant passages — not just keyword matches.",
-    },
-    {
-      icon: <Layers className="h-5 w-5 text-violet-500" />,
-      title: "Smart Reranking",
-      description: "A second-pass reranker scores retrieved chunks for relevance before they reach the LLM, cutting noise.",
-    },
-    {
-      icon: <Database className="h-5 w-5 text-emerald-500" />,
-      title: "Multi-format Ingestion",
-      description: "Drop in PDFs, Markdown, and plain text. Parsing, chunking, and embedding happen automatically.",
-    },
-    {
-      icon: <Zap className="h-5 w-5 text-amber-500" />,
-      title: "Cited Answers",
-      description: "Every response links back to the exact source chunks so you can verify claims in seconds.",
-    },
-  ]
+  const sortedKnowledgeBases = useMemo(() => {
+    const sorted = sortKnowledgeBases(knowledgeBases)
+    if (!searchQuery.trim()) return sorted
+    const q = searchQuery.toLowerCase()
+    return sorted.filter(
+      (kb) =>
+        kb.name.toLowerCase().includes(q) ||
+        (kb.description || "").toLowerCase().includes(q)
+    )
+  }, [knowledgeBases, searchQuery])
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[linear-gradient(180deg,#f5f0e5_0%,#eef4fb_44%,#fdfdf9_100%)] [font-family:var(--font-home-sans)] dark:bg-[linear-gradient(180deg,#090b0f_0%,#121924_45%,#0e1117_100%)]">
-      <div className="home-mesh pointer-events-none absolute inset-0" />
-      <div className="home-orb-float pointer-events-none absolute right-[-4rem] top-20 h-80 w-80 rounded-full bg-[#c4d9f7]/45 blur-3xl dark:bg-[#19324d]/28 [animation-delay:-6s]" />
-      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-4 pb-14 pt-6 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#f8f7f4] dark:bg-[#0e1117]">
+      {/* Header */}
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-black/6 bg-[#f8f7f4]/90 px-6 py-3.5 backdrop-blur-sm dark:border-white/6 dark:bg-[#0e1117]/90">
+        <BrandLogo name={t.title} />
+        <SettingsMenu />
+      </header>
 
-        {/* ── Nav ── */}
-        <header className="flex items-center justify-between gap-4">
-          <div className={cn("flex items-center gap-3 rounded-3xl border px-4 py-3", SURFACE_PANEL_CLASS)}>
-            <BrandLogo name={t.title} />
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Toolbar */}
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-xl font-semibold tracking-[-0.03em] text-zinc-900 dark:text-zinc-50">
+            {t.knowledgeBases}
+          </h1>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search..."
+                className="h-9 w-48 rounded-full border-black/10 bg-white/80 pl-9 text-sm dark:border-white/10 dark:bg-white/6"
+              />
+            </div>
+            <Button
+              onClick={() => setIsCreating(true)}
+              className="h-9 rounded-full px-4 text-sm font-medium"
+            >
+              <Plus className="h-4 w-4" />
+              {t.createKnowledgeBase}
+            </Button>
           </div>
-          <SettingsMenu />
-        </header>
+        </div>
 
-        <main className="flex-1">
-
-          {/* ── Hero ── */}
-          <section className="mx-auto mt-20 max-w-2xl text-center sm:mt-28">
-            <div className="inline-flex items-center gap-2 rounded-full border border-black/8 bg-white/60 px-3.5 py-1.5 text-xs font-medium text-zinc-600 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-white/6 dark:text-zinc-400">
-              <Sparkles className="h-3.5 w-3.5 text-blue-500" />
-              Retrieval-augmented generation, simplified
-            </div>
-            <h1 className="mt-6 text-4xl font-bold tracking-[-0.04em] text-zinc-950 sm:text-5xl lg:text-6xl dark:text-zinc-50">
-              Chat with your documents,{" "}
-              <span className="bg-[linear-gradient(135deg,#1d4ed8_0%,#60a5fa_100%)] bg-clip-text text-transparent">
-                not just search them
-              </span>
-            </h1>
-            <p className="mx-auto mt-5 max-w-[42ch] text-base leading-7 text-zinc-600 sm:text-lg dark:text-zinc-400">
-              {BRAND_DESCRIPTION}
-            </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Button
-                onClick={() => setIsCreating(true)}
-                className="h-11 rounded-full px-6 text-sm font-medium shadow-[0_8px_24px_-8px_rgba(29,78,216,0.55)]"
-              >
-                <Plus className="h-4 w-4" />
-                {t.createKnowledgeBase}
-              </Button>
-              <Button
-                variant="outline"
-                asChild
-                className="h-11 rounded-full border-black/10 bg-white/65 px-6 text-sm dark:border-white/10 dark:bg-white/6"
-              >
-                <a href="#knowledge-bases">
-                  View workspaces
-                  <ArrowRight className="h-4 w-4" />
-                </a>
-              </Button>
-            </div>
-          </section>
-
-          {/* ── Trust signals ── */}
-          <section className="mt-10 flex flex-wrap items-center justify-center gap-2.5">
-            {[
-              { icon: <Search className="h-3.5 w-3.5" />, label: "Semantic search" },
-              { icon: <Layers className="h-3.5 w-3.5" />, label: "Smart reranking" },
-              { icon: <Zap className="h-3.5 w-3.5" />, label: "Source citations" },
-              { icon: <Shield className="h-3.5 w-3.5" />, label: "Local & private" },
-              { icon: <Database className="h-3.5 w-3.5" />, label: "pgvector storage" },
-            ].map(({ icon, label }) => (
-              <span
-                key={label}
-                className="inline-flex items-center gap-1.5 rounded-full border border-black/8 bg-white/55 px-3 py-1 text-xs font-medium text-zinc-600 backdrop-blur-sm dark:border-white/8 dark:bg-white/5 dark:text-zinc-400"
-              >
-                {icon}
-                {label}
-              </span>
+        {/* Grid */}
+        {isLoading ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <Skeleton key={i} className="h-44 rounded-2xl" />
             ))}
-          </section>
-
-          {/* ── Category blocks ── */}
-          <section className="mt-20">
-            <h2 className="text-center text-sm font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-500">
-              Use cases
-            </h2>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              {CATEGORIES.map(({ icon, title, description, color }) => (
-                <div
-                  key={title}
-                  className={cn(
-                    "rounded-[1.25rem] border p-5 backdrop-blur-xl",
-                    color
-                  )}
-                >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/60 text-zinc-700 shadow-sm dark:bg-white/8 dark:text-zinc-300">
-                    {icon}
-                  </div>
-                  <h3 className="mt-4 font-semibold tracking-[-0.02em] text-zinc-900 dark:text-zinc-100">
-                    {title}
-                  </h3>
-                  <p className="mt-1.5 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                    {description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* ── Featured tools ── */}
-          <section className="mt-16">
-            <h2 className="text-center text-sm font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-500">
-              Under the hood
-            </h2>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {TOOLS.map(({ icon, title, description }) => (
-                <div
-                  key={title}
-                  className={cn(
-                    "rounded-[1.25rem] border p-5",
-                    SURFACE_PANEL_CLASS
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/70 shadow-sm dark:bg-white/6">
-                      {icon}
-                    </div>
-                    <h3 className="font-semibold tracking-[-0.02em] text-zinc-900 dark:text-zinc-100">
-                      {title}
-                    </h3>
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                    {description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* ── Knowledge bases ── */}
-          <section id="knowledge-bases" className="mt-20">
-            <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold tracking-[-0.03em] text-foreground">
-                  {t.knowledgeBases}
-                </h2>
-                <p className="mt-0.5 text-sm text-muted-foreground">{t.knowledgeBasesDesc}</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {/* New KB card */}
+            <button
+              onClick={() => setIsCreating(true)}
+              className="flex h-44 flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-black/12 bg-white/50 text-zinc-500 transition-colors hover:border-black/20 hover:bg-white/70 dark:border-white/10 dark:bg-white/3 dark:text-zinc-400 dark:hover:border-white/20"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/6 dark:bg-white/8">
+                <Plus className="h-6 w-6" />
               </div>
-              {sortedKnowledgeBases.length > 0 && (
-                <Button
-                  onClick={() => setIsCreating(true)}
-                  variant="outline"
-                  className="rounded-full border-black/10 bg-white/65 px-5 dark:border-white/10 dark:bg-white/6"
-                >
-                  <Plus className="h-4 w-4" />
-                  {t.createKnowledgeBase}
-                </Button>
-              )}
-            </div>
+              <span className="text-sm font-medium">{t.createKnowledgeBase}</span>
+            </button>
 
-            {isLoading ? (
-              <div className="mt-6 grid gap-2.5 md:grid-cols-2 md:gap-3 lg:grid-cols-4">
-                {Array.from({ length: 6 }).map((_, index) => (
-                  <Card
-                    key={index}
+            {sortedKnowledgeBases.map((kb, index) => {
+              const emoji = CARD_EMOJIS[index % CARD_EMOJIS.length]
+              const color = CARD_COLORS[index % CARD_COLORS.length]
+              return (
+                <div key={kb.id} className="group relative">
+                  <div className="absolute right-2.5 top-2.5 z-10">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 rounded-full opacity-0 transition-opacity hover:bg-black/8 group-hover:opacity-100 dark:hover:bg-white/10"
+                          aria-label={t.actions}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40 rounded-xl p-1.5">
+                        <DropdownMenuItem onSelect={() => handleOpenEditDialog(kb)}>
+                          <Edit3 className="h-4 w-4" />
+                          {t.edit}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => handleOpenDeleteDialog(kb)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          {t.delete}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  <Link
+                    href={`/knowledge-bases/${kb.id}/chat`}
                     className={cn(
-                      "overflow-hidden rounded-[1.25rem] p-0",
-                      HOME_CARD_BASE_CLASS,
-                      CARD_SURFACES[index % CARD_SURFACES.length]
+                      "flex h-44 flex-col justify-between rounded-2xl p-4 transition-transform duration-150 hover:-translate-y-0.5",
+                      color
                     )}
                   >
-                    <CardHeader className="space-y-2 p-4 sm:space-y-3 sm:p-5">
-                      <Skeleton className="h-5 w-1/2 sm:h-6" />
-                      <Skeleton className="h-3.5 w-full sm:h-4" />
-                      <Skeleton className="h-3.5 w-3/4 sm:h-4" />
-                    </CardHeader>
-                    <CardContent className="space-y-2 pb-4 sm:pb-5">
-                      <Skeleton className="h-3.5 w-2/3" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : sortedKnowledgeBases.length === 0 ? (
-              <div className={cn("mt-6 rounded-[1.5rem] border px-6 py-14 text-center", SURFACE_PANEL_CLASS)}>
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-black/5 dark:bg-white/8">
-                  <FileText className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <h4 className="mt-5 text-xl font-semibold tracking-[-0.03em] text-foreground">
-                  {t.noKnowledgeBases}
-                </h4>
-                <p className="mx-auto mt-3 max-w-[36ch] text-sm leading-6 text-muted-foreground">
-                  {t.noKnowledgeBasesHint}
-                </p>
-                <Button onClick={() => setIsCreating(true)} className="mt-6 rounded-full px-5">
-                  <Plus className="h-4 w-4" />
-                  {t.createKnowledgeBase}
-                </Button>
-              </div>
-            ) : (
-              <div className="mt-6 grid gap-2.5 md:grid-cols-2 md:gap-3 lg:grid-cols-4">
-                {sortedKnowledgeBases.map((kb, index) => {
-                  return (
-                    <div key={kb.id} className="group relative block focus-within:outline-none">
-                      <div className="absolute right-3 top-3 z-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8 rounded-full border-black/10 bg-white/85 dark:border-white/10 dark:bg-black/20"
-                              aria-label={t.actions}
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5">
-                            <DropdownMenuItem onSelect={() => handleOpenEditDialog(kb)}>
-                              <Edit3 className="h-4 w-4" />
-                              {t.edit}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={() => handleOpenDeleteDialog(kb)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              {t.delete}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-
-                      <Link href={`/knowledge-bases/${kb.id}/chat`} className="block focus:outline-none">
-                        <Card
-                          className={cn(
-                            "relative rounded-[1.25rem] p-0 transition-transform duration-200 hover:-translate-y-0.5 focus-within:-translate-y-0.5",
-                            HOME_CARD_BASE_CLASS,
-                            CARD_SURFACES[index % CARD_SURFACES.length]
-                          )}
-                        >
-                          <CardHeader className="gap-2 p-4 sm:gap-3 sm:p-5">
-                            <CardTitle className="line-clamp-1 pr-8 text-base font-semibold tracking-[-0.03em] text-zinc-950 sm:text-lg dark:text-zinc-50">
-                              {kb.name}
-                            </CardTitle>
-                            <p className="min-h-[1.25rem] line-clamp-1 text-sm leading-5 text-zinc-700 sm:min-h-[3rem] sm:line-clamp-2 sm:leading-6 dark:text-zinc-300">
-                              {kb.description || t.noDescription}
-                            </p>
-                            <div className="hidden gap-1 pt-1 text-xs text-zinc-600 sm:grid dark:text-zinc-400">
-                              <span>
-                                {t.created} {formatDate(kb.createdAt)}
-                              </span>
-                              <span>
-                                {t.updatedLabel} {formatDate(kb.updatedAt)}
-                              </span>
-                            </div>
-                          </CardHeader>
-                        </Card>
-                      </Link>
+                    <span className="text-3xl leading-none">{emoji}</span>
+                    <div>
+                      <p className="line-clamp-2 text-sm font-semibold tracking-[-0.02em] text-zinc-900 dark:text-zinc-100">
+                        {kb.name}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                        {formatDate(kb.updatedAt)}
+                      </p>
                     </div>
-                  )
-                })}
-              </div>
-            )}
-          </section>
-        </main>
-
-        {/* ── Footer ── */}
-        <footer className="mt-20 flex flex-col items-center gap-2 border-t border-black/6 pt-8 text-xs text-zinc-500 sm:flex-row sm:justify-between dark:border-white/6 dark:text-zinc-500">
-          <div className="flex items-center gap-2">
-            <BrandLogo
-              name={BRAND_NAME}
-              iconClassName="h-6 w-6 rounded-lg"
-              textClassName="text-sm text-zinc-600 dark:text-zinc-400"
-            />
+                  </Link>
+                </div>
+              )
+            })}
           </div>
-          <span>Built with pgvector · Next.js · OpenAI</span>
-        </footer>
-      </div>
+        )}
 
+        {!isLoading && sortedKnowledgeBases.length === 0 && searchQuery && (
+          <p className="mt-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
+            No results for &ldquo;{searchQuery}&rdquo;
+          </p>
+        )}
+      </main>
+
+      {/* Create dialog */}
       <Dialog open={isCreating} onOpenChange={(open) => !isSubmitting && (open ? setIsCreating(true) : resetCreateState())}>
         <DialogContent className="rounded-[1.8rem] border-white/50 bg-[#fcfbf7] p-0 sm:max-w-xl dark:border-white/10 dark:bg-[#10151d]">
           <div className="rounded-[1.8rem] border border-black/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0)_100%)] p-6 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0)_100%)]">
             <DialogHeader className="text-left">
-              <DialogTitle className="[font-family:var(--font-home-display)] text-3xl font-semibold tracking-[-0.04em]">
+              <DialogTitle className="text-2xl font-semibold tracking-[-0.03em]">
                 {t.createKnowledgeBase}
               </DialogTitle>
-              <DialogDescription className="mt-2 max-w-lg text-sm leading-6">
+              <DialogDescription className="mt-2 text-sm leading-6">
                 {t.dialogDescription}
               </DialogDescription>
             </DialogHeader>
@@ -592,13 +393,9 @@ export default function HomePage() {
                 <Input
                   placeholder={t.namePlaceholder}
                   value={newKbName}
-                  onChange={(event) => setNewKbName(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      handleCreateKnowledgeBase()
-                    }
-                  }}
-                  className="h-12 rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
+                  onChange={(e) => setNewKbName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleCreateKnowledgeBase() }}
+                  className="h-11 rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
                 />
               </div>
               <div className="space-y-2">
@@ -606,18 +403,14 @@ export default function HomePage() {
                 <Textarea
                   placeholder={t.descriptionPlaceholder}
                   value={newKbDesc}
-                  onChange={(event) => setNewKbDesc(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                      handleCreateKnowledgeBase()
-                    }
-                  }}
-                  className="min-h-[120px] rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
+                  onChange={(e) => setNewKbDesc(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleCreateKnowledgeBase() }}
+                  className="min-h-[100px] rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
                 />
               </div>
             </div>
 
-            <DialogFooter className="mt-6 gap-3 sm:justify-end">
+            <DialogFooter className="mt-6 gap-2 sm:justify-end">
               <Button
                 variant="outline"
                 onClick={resetCreateState}
@@ -632,27 +425,23 @@ export default function HomePage() {
                 className="rounded-full px-5"
               >
                 {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t.creating}
-                  </>
-                ) : (
-                  t.create
-                )}
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t.creating}</>
+                ) : t.create}
               </Button>
             </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* Edit dialog */}
       <Dialog open={editingKnowledgeBase !== null} onOpenChange={(open) => !isUpdating && !open && resetEditState()}>
         <DialogContent className="rounded-[1.8rem] border-white/50 bg-[#fcfbf7] p-0 sm:max-w-xl dark:border-white/10 dark:bg-[#10151d]">
           <div className="rounded-[1.8rem] border border-black/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0)_100%)] p-6 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0)_100%)]">
             <DialogHeader className="text-left">
-              <DialogTitle className="[font-family:var(--font-home-display)] text-3xl font-semibold tracking-[-0.04em]">
+              <DialogTitle className="text-2xl font-semibold tracking-[-0.03em]">
                 {t.editKnowledgeBase}
               </DialogTitle>
-              <DialogDescription className="mt-2 max-w-lg text-sm leading-6">
+              <DialogDescription className="mt-2 text-sm leading-6">
                 {t.editDialogDescription}
               </DialogDescription>
             </DialogHeader>
@@ -663,13 +452,9 @@ export default function HomePage() {
                 <Input
                   placeholder={t.namePlaceholder}
                   value={editName}
-                  onChange={(event) => setEditName(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      handleUpdateKnowledgeBase()
-                    }
-                  }}
-                  className="h-12 rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleUpdateKnowledgeBase() }}
+                  className="h-11 rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
                 />
               </div>
               <div className="space-y-2">
@@ -677,18 +462,14 @@ export default function HomePage() {
                 <Textarea
                   placeholder={t.descriptionPlaceholder}
                   value={editDescription}
-                  onChange={(event) => setEditDescription(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                      handleUpdateKnowledgeBase()
-                    }
-                  }}
-                  className="min-h-[120px] rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleUpdateKnowledgeBase() }}
+                  className="min-h-[100px] rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
                 />
               </div>
             </div>
 
-            <DialogFooter className="mt-6 gap-3 sm:justify-end">
+            <DialogFooter className="mt-6 gap-2 sm:justify-end">
               <Button
                 variant="outline"
                 onClick={resetEditState}
@@ -703,19 +484,15 @@ export default function HomePage() {
                 className="rounded-full px-5"
               >
                 {isUpdating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t.saving}
-                  </>
-                ) : (
-                  t.save
-                )}
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t.saving}</>
+                ) : t.save}
               </Button>
             </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* Delete dialog */}
       <Dialog open={deletingKnowledgeBase !== null} onOpenChange={(open) => !isDeleting && !open && resetDeleteState()}>
         <DialogContent disableAnimation className="rounded-[1.1rem] border-white/50 bg-[#fcfbf7] dark:border-white/10 dark:bg-[#10151d]">
           <DialogHeader>
