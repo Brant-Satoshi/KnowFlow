@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { UIMessage } from "ai"
 import { readSseStream } from "@/lib/chat/sse"
+import type { RetrievedChunk } from "@/lib/types"
 
 interface UseChatStreamParams {
   knowledgeBaseId?: string
@@ -33,15 +34,33 @@ function isNearBottom(element: HTMLElement) {
   return element.scrollHeight - element.scrollTop - element.clientHeight < 100
 }
 
+function stripCode(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`[^`\n]+`/g, "")
+}
+
+function parseUsedIndices(text: string): Set<number> {
+  const prose = stripCode(text)
+  const indices = new Set<number>()
+  for (const m of prose.matchAll(/(?<!\w)\[(\d+)\]/g)) {
+    indices.add(parseInt(m[1], 10))
+  }
+  return indices
+}
+
 export function useChatStream({ knowledgeBaseId, scrollRef, scrollToBottom }: UseChatStreamParams) {
   const [messages, setMessages] = useState<UIMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isStreaming, setIsStreaming] = useState(false)
+  const [citationsMap, setCitationsMap] = useState<Map<string, RetrievedChunk[]>>(new Map())
 
   const abortRef = useRef<AbortController | null>(null)
   const streamBufferRef = useRef("")
+  const fullTextRef = useRef("")
   const flushRafRef = useRef<number | null>(null)
   const streamingAssistantIdRef = useRef<string | null>(null)
+  const retrievedChunksRef = useRef<RetrievedChunk[]>([])
 
   const flushAssistantBuffer = useCallback(() => {
     const assistantId = streamingAssistantIdRef.current
@@ -179,6 +198,14 @@ export function useChatStream({ knowledgeBaseId, scrollRef, scrollToBottom }: Us
               data && typeof data === "object" && "requestId" in data && typeof data.requestId === "string"
                 ? data.requestId
                 : undefined
+            if (
+              data &&
+              typeof data === "object" &&
+              "retrievedChunks" in data &&
+              Array.isArray(data.retrievedChunks)
+            ) {
+              retrievedChunksRef.current = data.retrievedChunks as RetrievedChunk[]
+            }
             return
           }
 
@@ -190,6 +217,7 @@ export function useChatStream({ knowledgeBaseId, scrollRef, scrollToBottom }: Us
 
             if (delta.length > 0) {
               streamBufferRef.current += delta
+              fullTextRef.current += delta
               scheduleFlush()
             }
           }
@@ -241,6 +269,18 @@ export function useChatStream({ knowledgeBaseId, scrollRef, scrollToBottom }: Us
       if (streamBufferRef.current) {
         flushAssistantBuffer()
       }
+
+      const usedIndices = parseUsedIndices(fullTextRef.current)
+      const citations = retrievedChunksRef.current.filter((c) => usedIndices.has(c.index))
+      if (citations.length > 0) {
+        setCitationsMap((prev) => {
+          const next = new Map(prev)
+          next.set(assistantId, citations)
+          return next
+        })
+      }
+      fullTextRef.current = ""
+      retrievedChunksRef.current = []
     },
     [flushAssistantBuffer, isLoading, knowledgeBaseId, scheduleFlush, scrollToBottom]
   )
@@ -249,6 +289,7 @@ export function useChatStream({ knowledgeBaseId, scrollRef, scrollToBottom }: Us
     messages,
     isLoading,
     isStreaming,
+    citationsMap,
     handleStop,
     sendMessage,
   }

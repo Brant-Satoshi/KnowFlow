@@ -60,6 +60,16 @@ export interface Chunk {
   text: string;
   meta: ChunkMeta;
   embedding?: number[];
+  fileName?: string;
+}
+
+export interface RetrievedChunk {
+  index: number;
+  chunkId: string;
+  fileId: string;
+  fileName: string;
+  page?: number;
+  quote: string;
 }
 
 export interface Citation {

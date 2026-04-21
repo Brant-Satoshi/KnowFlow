@@ -6,6 +6,8 @@ import ReactMarkdown from "react-markdown"
 import { Sparkles } from "lucide-react"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { cn } from "@/lib/utils"
+import type { RetrievedChunk } from "@/lib/types"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 function getUIMessageText(message: UIMessage): string {
   if (!message.parts || !Array.isArray(message.parts)) return ""
@@ -14,26 +16,6 @@ function getUIMessageText(message: UIMessage): string {
     .filter((part): part is { type: "text"; text: string } => part.type === "text")
     .map((part) => part.text)
     .join("")
-}
-
-function parseSourcesFromText(text: string): {
-  cleanText: string
-  sources: string[]
-} {
-  const sourcePattern = /\[Source:\s*([^\]]+)\]/g
-  const sources: string[] = []
-  let match: RegExpExecArray | null
-
-  match = sourcePattern.exec(text)
-  while (match !== null) {
-    sources.push(match[1].trim())
-    match = sourcePattern.exec(text)
-  }
-
-  return {
-    cleanText: text.replace(sourcePattern, "").trim(),
-    sources,
-  }
 }
 
 const markdownComponents: Components = {
@@ -77,17 +59,22 @@ const markdownComponents: Components = {
   ),
 }
 
-interface SourceBadgeProps {
-  index: number
-  title: string
-}
-
-function SourceBadge({ index, title }: SourceBadgeProps) {
+function SourceBadge({ chunk }: { chunk: RetrievedChunk }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#cbd6e7] bg-white/80 px-3 py-1 text-[11px] font-medium text-slate-700 dark:border-white/10 dark:bg-white/8 dark:text-slate-200">
-      <span className="text-[10px] text-slate-500 dark:text-slate-400">[{index}]</span>
-      <span className="max-w-[18rem] truncate">{title}</span>
-    </span>
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className="inline-flex items-center gap-1.5 rounded-lg border border-[#cbd6e7] bg-white/80 px-3 py-1 text-[11px] font-medium text-slate-700 transition-colors hover:bg-white dark:border-white/10 dark:bg-white/8 dark:text-slate-200 dark:hover:bg-white/12">
+          <span className="text-[10px] text-slate-500 dark:text-slate-400">[{chunk.index}]</span>
+          <span className="max-w-[18rem] truncate">{chunk.fileName}</span>
+          {chunk.page != null && (
+            <span className="text-[10px] text-slate-400 dark:text-slate-500">p.{chunk.page}</span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 text-xs leading-6 text-muted-foreground" side="top">
+        <p className="line-clamp-6">{chunk.quote}</p>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -105,9 +92,10 @@ interface ChatMessagesProps {
   messages: UIMessage[]
   isLoading: boolean
   isStreaming: boolean
+  citationsMap: Map<string, RetrievedChunk[]>
 }
 
-export function ChatMessages({ messages, isLoading, isStreaming }: ChatMessagesProps) {
+export function ChatMessages({ messages, isLoading, isStreaming, citationsMap }: ChatMessagesProps) {
   const latestMessageId = messages[messages.length - 1]?.id
   const { t } = useLanguage()
 
@@ -118,7 +106,7 @@ export function ChatMessages({ messages, isLoading, isStreaming }: ChatMessagesP
         const isUser = message.role === "user"
         const isStreamingMessage = isStreaming && !isUser && message.id === latestMessageId
         const isAssistantLoading = isLoading && !isUser && message.id === latestMessageId && text.length === 0
-        const { cleanText, sources } = isUser ? { cleanText: text, sources: [] } : parseSourcesFromText(text)
+        const citations = isUser ? [] : (citationsMap.get(message.id) ?? [])
 
         return (
           <div key={message.id} className={cn("flex items-start gap-3", isUser && "justify-end")}>
@@ -155,26 +143,26 @@ export function ChatMessages({ messages, isLoading, isStreaming }: ChatMessagesP
                   <div className="text-sm text-current">
                     {isStreamingMessage ? (
                       <div className="whitespace-pre-wrap break-words leading-7">
-                        {cleanText}
+                        {text}
                         <span
                           aria-hidden="true"
                           className="streaming-cursor ml-1 inline-block h-[1.1em] w-0.5 translate-y-0.5 rounded-full bg-primary align-[-0.1em]"
                         />
                       </div>
                     ) : (
-                      <ReactMarkdown components={markdownComponents}>{cleanText}</ReactMarkdown>
+                      <ReactMarkdown components={markdownComponents}>{text}</ReactMarkdown>
                     )}
                   </div>
                 )}
               </div>
 
-              {sources.length > 0 && (
+              {citations.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 px-1">
                   <span className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
                     {t.sourcesLabel}
                   </span>
-                  {sources.map((source, index) => (
-                    <SourceBadge key={`${message.id}-source-${index}`} index={index + 1} title={source} />
+                  {citations.map((chunk) => (
+                    <SourceBadge key={`${message.id}-citation-${chunk.index}`} chunk={chunk} />
                   ))}
                 </div>
               )}

@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import type { UIMessage } from "ai"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, Database, Loader2, Sparkles } from "lucide-react"
@@ -24,17 +23,6 @@ import { cn } from "@/lib/utils"
 const chatSurfaceClass =
   "border border-white/60 bg-white/76 shadow-[0_30px_80px_-48px_rgba(19,31,56,0.34)] backdrop-blur-xl dark:border-white/10 dark:bg-[#10161d]/84 dark:shadow-[0_30px_80px_-48px_rgba(0,0,0,0.92)]"
 
-function getMessageText(message: UIMessage): string {
-  return message.parts
-    .filter((part): part is { type: "text"; text: string } => part.type === "text")
-    .map((part) => part.text)
-    .join("")
-}
-
-function countSourcesFromText(text: string): number {
-  const matches = text.match(/\[Source:\s*([^\]]+)\]/g)
-  return matches?.length ?? 0
-}
 
 export default function ChatPage() {
   const params = useParams()
@@ -85,7 +73,7 @@ export default function ChatPage() {
     deleteSuccessDesc: t.deleteSuccessDesc,
   })
 
-  const { messages, isLoading, isStreaming, handleStop, sendMessage } = useChatStream({
+  const { messages, isLoading, isStreaming, citationsMap, handleStop, sendMessage } = useChatStream({
     knowledgeBaseId,
     scrollRef,
     scrollToBottom,
@@ -143,7 +131,7 @@ export default function ChatPage() {
   const hasMessages = messages.length > 0
   const latestAssistantMessage = [...messages].reverse().find((message) => message.role === "assistant")
   const latestAssistantSourceCount = latestAssistantMessage
-    ? countSourcesFromText(getMessageText(latestAssistantMessage))
+    ? (citationsMap.get(latestAssistantMessage.id)?.length ?? 0)
     : 0
 
   if (!knowledgeBaseId) {
@@ -252,7 +240,7 @@ export default function ChatPage() {
                 >
                   {hasMessages ? (
                     <div className="px-4 py-5">
-                      <ChatMessages messages={messages} isLoading={isLoading} isStreaming={isStreaming} />
+                      <ChatMessages messages={messages} isLoading={isLoading} isStreaming={isStreaming} citationsMap={citationsMap} />
                     </div>
                   ) : (
                     <EmptyState
@@ -357,7 +345,7 @@ export default function ChatPage() {
                   className="h-full overflow-y-auto overscroll-contain px-5 py-6 [-webkit-overflow-scrolling:touch] sm:px-6"
                 >
                   <div className="mx-auto max-w-5xl">
-                    <ChatMessages messages={messages} isLoading={isLoading} isStreaming={isStreaming} />
+                    <ChatMessages messages={messages} isLoading={isLoading} isStreaming={isStreaming} citationsMap={citationsMap} />
                   </div>
                 </div>
               ) : (

@@ -13,42 +13,47 @@ function splitText(text: string) {
 
 export function buildPrompt(question: string, chunks: Chunk[]) {
   if (isSummaryQuery(question) && chunks.length === 0) {
-    return `
-    Please summarize the conversation so far.
-    `;
+    return `Please summarize the conversation so far.`;
   }
+  const numbered = chunks.map((c, i) => `[${i + 1}] ${c.text}`).join('\n\n');
   if (isSummaryQuery(question)) {
-    const contextText = chunks.map(c => c.text).join('\n\n')
     return `You are a helpful assistant.
 
-    Summarize the following content into key points.
+Summarize the following content into key points.
 
-    Rules:
-    - Be concise
-    - Use bullet points
-    - Do NOT say "not found"
+Rules:
+- Be concise
+- Use bullet points
+- Do NOT say "not found"
+- When referencing specific content, cite by number like [1] or [1][2]
+- Do NOT write [Source: filename], only use bracket numbers
 
-    Content:
-    ${contextText}
-    `;
+Content:
+${numbered}`;
   }
-  return `
-        You are a helpful assistant.
+  return `You are a helpful assistant.
 
-        Answer the user's question using ONLY the provided context.
+Answer the user's question using ONLY the provided context.
 
-        If the answer cannot be found in the context, say:
-        "I couldn't find relevant information in the knowledge base."
+If the answer cannot be found in the context, say: "I couldn't find relevant information in the knowledge base."
 
-        Context:
-        ${chunks.map(c => c.text).join('\n\n')}
+Rules:
+- Cite sources inline using bracket numbers like [1] or [1][2]
+- Do NOT write [Source: filename], only use bracket numbers
 
-        Question:
-        ${question}
-        `;
+Context:
+${numbered}
+
+Question:
+${question}`;
 }
 
-export async function streamAnswer(prompt: string, signal: AbortSignal, requestId: string) {
+export async function streamAnswer(
+  prompt: string,
+  signal: AbortSignal,
+  requestId: string,
+  extraMeta?: Record<string, unknown>,
+) {
   const response = await fetch(
     "https://api.minimax.chat/v1/text/chatcompletion_v2",
     {
@@ -82,7 +87,7 @@ export async function streamAnswer(prompt: string, signal: AbortSignal, requestI
     }
     const errorStream = new ReadableStream<Uint8Array>({
       start: (controller) => {
-        controller.enqueue(encoder.encode(formatSse('meta', { requestId })));
+        controller.enqueue(encoder.encode(formatSse('meta', { requestId, ...extraMeta })));
         controller.enqueue(encoder.encode(formatSse('error', { requestId, status: response.status, error: errorData })));
         controller.close();
       },
@@ -102,7 +107,7 @@ export async function streamAnswer(prompt: string, signal: AbortSignal, requestI
         controller.enqueue(encoder.encode(formatSse(event, data)));
       };
 
-      send('meta', { requestId });
+      send('meta', { requestId, ...extraMeta });
 
       let buffer = '';
       let streamDone = false;

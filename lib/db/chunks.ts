@@ -55,7 +55,7 @@ export async function searchChunks(
   if (knowledgeBaseId) {
     return query<Chunk>(
       `
-      SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text, c.meta
+      SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text, c.meta, f.name AS "fileName"
       FROM chunks c
       JOIN files f ON c.file_id = f.id::uuid
       WHERE c.embedding IS NOT NULL
@@ -70,12 +70,13 @@ export async function searchChunks(
 
   return query<Chunk>(
     `
-    SELECT id::text, file_id AS "fileId", idx, text, meta
-    FROM chunks
-    WHERE embedding IS NOT NULL
-    AND embedding <=> $1::vector < $2
-    ${fileId ? 'AND file_id = $3' : ''}
-    ORDER BY embedding <=> $1::vector
+    SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text, c.meta, f.name AS "fileName"
+    FROM chunks c
+    JOIN files f ON c.file_id = f.id::uuid
+    WHERE c.embedding IS NOT NULL
+    AND c.embedding <=> $1::vector < $2
+    ${fileId ? 'AND c.file_id = $3' : ''}
+    ORDER BY c.embedding <=> $1::vector
     LIMIT ${fileId ? '$4' : '$3'}
     `,
     fileId

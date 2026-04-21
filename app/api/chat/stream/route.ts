@@ -4,6 +4,7 @@ import { embedText } from '@/lib/rag/embeddings';
 import { NextRequest } from 'next/server';
 import { isValidUuid } from '@/lib/validation';
 import { rerankChunks } from '@/lib/rag/rerank';
+import type { RetrievedChunk } from '@/lib/types';
 
 function sseHeaders(): HeadersInit {
   return {
@@ -76,8 +77,17 @@ export async function POST(request: NextRequest) {
 
     const finalChunks = rerankedChunks.slice(0, 5);
 
+    const retrievedChunks: RetrievedChunk[] = finalChunks.map((c, i) => ({
+      index: i + 1,
+      chunkId: c.id,
+      fileId: c.fileId,
+      fileName: c.fileName ?? c.fileId,
+      page: c.meta.page,
+      quote: c.text.slice(0, 300),
+    }));
+
     const prompt = buildPrompt(message, finalChunks);
-    const stream = await streamAnswer(prompt, request.signal, requestId);
+    const stream = await streamAnswer(prompt, request.signal, requestId, { retrievedChunks });
 
     return new Response(stream, { headers: sseHeaders() });
   } catch (e) {
