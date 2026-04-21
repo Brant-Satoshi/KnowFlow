@@ -2,6 +2,7 @@
 
 import { FileText, Loader2, MessageSquare, Sparkles, Zap } from "lucide-react"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { cn } from "@/lib/utils"
 
 interface EmptyStateProps {
   hasKnowledge: boolean
@@ -18,135 +19,126 @@ export function EmptyState({
   const isPreparing = isPreparingKnowledge && !hasKnowledge
 
   const suggestions = [
-    {
-      icon: FileText,
-      text: t.suggestions.summarize,
-      description: t.suggestions.summarizeDesc,
-    },
-    {
-      icon: MessageSquare,
-      text: t.suggestions.topics,
-      description: t.suggestions.topicsDesc,
-    },
-    {
-      icon: Zap,
-      text: t.suggestions.insights,
-      description: t.suggestions.insightsDesc,
-    },
+    { icon: FileText,     text: t.suggestions.summarize, description: t.suggestions.summarizeDesc },
+    { icon: MessageSquare,text: t.suggestions.topics,    description: t.suggestions.topicsDesc },
+    { icon: Zap,          text: t.suggestions.insights,  description: t.suggestions.insightsDesc },
   ]
 
   return (
-    <div className="flex min-h-full items-start justify-center px-4 py-4 sm:px-6 sm:py-5">
-      <div className="w-full max-w-3xl">
-        <div className="rounded-[1.25rem] sm:p-4">
-          <div className="flex flex-col items-center gap-3 text-center sm:gap-4">
-            <div className="max-w-[32rem]">
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#dfcfaa] bg-[#fbf2d9] text-[#956712] dark:border-[#5a4820] dark:bg-[#2b2519] dark:text-[#f0c669]">
-                {isPreparing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              </div>
-
-              <h2
-                className={`mt-3 text-3xl font-semibold text-foreground sm:mt-4 sm:text-4xl ${
-                  language === "zh"
-                    ? "[font-family:var(--font-home-sans)] tracking-[-0.03em]"
-                    : "[font-family:var(--font-home-display)] tracking-[-0.05em]"
-                }`}
-              >
-                {isPreparing ? t.workspacePreparing : t.emptyStateTitle}
-              </h2>
-              <p className="mt-3 max-w-[32rem] text-sm leading-7 text-muted-foreground sm:text-base">
-                {isPreparing
-                  ? t.inputPreparingHint
-                  : hasKnowledge
-                    ? t.emptyStateWithKnowledgeDesc
-                    : t.emptyStateDesc}
-              </p>
-            </div>
-
-            <div className="w-full max-w-3xl">
-              {isPreparing ? (
-                <div className="rounded-[1rem] border border-[#dfcfaa] bg-[#fbf2d9] p-4 dark:border-[#5a4820] dark:bg-[#2b2519]">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/70 text-[#956712] dark:bg-white/8 dark:text-[#f0c669]">
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    </div>
-                    <div>
-                      <p className="text-left text-sm font-medium text-foreground">{t.workspacePreparing}</p>
-                      <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{t.inputPreparingHint}</p>
-                    </div>
-                  </div>
-                </div>
-              ) : hasKnowledge ? (
-                <div className="rounded-[1rem] border border-black/8 bg-black/[0.03] p-4 dark:border-white/10 dark:bg-white/[0.03]">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">{t.suggestions.title}</p>
-                  <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{t.chatInputHint}</p>
-                </div>
-              ) : (
-                <div className="rounded-[1rem] border border-[#c7d7eb] bg-[#ebf3fb] p-4 dark:border-[#2c4a67] dark:bg-[#12202d]">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/70 text-[#27517d] dark:bg-white/8 dark:text-[#9ecdf6]">
-                      <FileText className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-left text-sm font-medium text-foreground">{t.emptyStateAddDocsHint}</p>
-                      <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{t.panelEmptyDesc}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+    <div className="flex min-h-full items-center justify-center px-4 py-8 sm:px-6">
+      <div className="w-full max-w-2xl">
+        {/* Icon + heading */}
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className={cn(
+            "flex h-11 w-11 items-center justify-center rounded-[13px] border",
+            isPreparing
+              ? "border-amber-200/60 bg-amber-50 text-amber-600 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400"
+              : "border-primary/25 bg-primary/10 text-primary"
+          )}>
+            {isPreparing
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <Sparkles className="h-4 w-4" />}
           </div>
 
+          <div className="max-w-[30rem]">
+            <h2 className={cn(
+              "text-[1.75rem] font-semibold tracking-[-0.04em] text-foreground sm:text-[2rem]",
+              language === "zh"
+                ? "[font-family:var(--font-home-sans)]"
+                : "[font-family:var(--font-home-display)]"
+            )}>
+              {isPreparing ? t.workspacePreparing : t.emptyStateTitle}
+            </h2>
+            <p className="mt-2.5 text-[13.5px] leading-[1.7] text-muted-foreground">
+              {isPreparing
+                ? t.inputPreparingHint
+                : hasKnowledge
+                  ? t.emptyStateWithKnowledgeDesc
+                  : t.emptyStateDesc}
+            </p>
+          </div>
+        </div>
+
+        {/* Info / status card */}
+        <div className="mt-6 w-full">
           {isPreparing ? (
-            <div className="mx-auto mt-4 grid w-full max-w-3xl gap-3 sm:mt-5 md:grid-cols-3">
-              {[t.uploadFile, t.autoParseFile, t.ask].map((step, index) => (
-                <div
-                  key={step}
-                  className="flex items-center gap-3 rounded-[1rem] border border-[#dfcfaa] bg-[#fff7e8] px-4 py-3 dark:border-[#5a4820] dark:bg-[#2b2112]"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/70 text-sm font-semibold text-foreground dark:bg-white/8">
-                    0{index + 1}
-                  </div>
-                  <span className="text-sm text-foreground">{step}</span>
+            <div className="rounded-[13px] border border-amber-200/60 bg-amber-50/70 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-white/70 text-amber-600 dark:bg-white/6 dark:text-amber-400">
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
-              ))}
+                <div>
+                  <p className="text-[13px] font-medium text-foreground">{t.workspacePreparing}</p>
+                  <p className="mt-1 text-[12px] leading-5 text-muted-foreground">{t.inputPreparingHint}</p>
+                </div>
+              </div>
             </div>
           ) : hasKnowledge ? (
-            <div className="mx-auto mt-4 grid w-full max-w-3xl gap-3 sm:mt-5 md:grid-cols-2 xl:grid-cols-3">
-              {suggestions.map((suggestion) => (
-                <button
-                  key={suggestion.text}
-                  onClick={() => onSuggestionClick(suggestion.text)}
-                  className="group h-full cursor-pointer rounded-[1rem] border border-black/8 bg-white/60 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-white dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]"
-                >
-                  <div className="flex items-start gap-3 xl:flex-col xl:gap-4">
-                    <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/[0.04] text-foreground dark:bg-white/[0.07]">
-                      <suggestion.icon className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground">{suggestion.text}</p>
-                      <p className="mt-1 text-sm leading-6 text-muted-foreground">{suggestion.description}</p>
-                    </div>
-                  </div>
-                </button>
-              ))}
+            <div className="rounded-[13px] border border-border bg-secondary px-4 py-3">
+              <p className="text-[9.5px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                {t.suggestions.title}
+              </p>
+              <p className="mt-1 text-[12.5px] leading-6 text-muted-foreground">{t.chatInputHint}</p>
             </div>
           ) : (
-            <div className="mx-auto mt-4 grid w-full max-w-3xl gap-3 sm:mt-5 md:grid-cols-3">
-              {[t.uploadFile, t.autoParseFile, t.ask].map((step, index) => (
-                <div
-                  key={step}
-                  className="flex items-center gap-3 rounded-[1rem] border border-black/8 bg-black/[0.03] px-4 py-3 dark:border-white/10 dark:bg-white/[0.03]"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black/6 text-sm font-semibold text-foreground dark:bg-white/8">
-                    0{index + 1}
-                  </div>
-                  <span className="text-sm text-foreground">{step}</span>
+            <div className="rounded-[13px] border border-border bg-secondary p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-card text-muted-foreground">
+                  <FileText className="h-4 w-4" />
                 </div>
-              ))}
+                <div>
+                  <p className="text-[13px] font-medium text-foreground">{t.emptyStateAddDocsHint}</p>
+                  <p className="mt-1 text-[12px] leading-5 text-muted-foreground">{t.panelEmptyDesc}</p>
+                </div>
+              </div>
             </div>
           )}
         </div>
+
+        {/* Steps / suggestions */}
+        {isPreparing ? (
+          <div className="mt-4 grid w-full gap-2.5 sm:grid-cols-3">
+            {[t.uploadFile, t.autoParseFile, t.ask].map((step, i) => (
+              <div key={step} className="flex items-center gap-3 rounded-[11px] border border-amber-200/50 bg-amber-50/60 px-3.5 py-2.5 dark:border-amber-900/40 dark:bg-amber-950/20">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] bg-white/70 font-mono text-[11px] font-semibold text-foreground dark:bg-white/6">
+                  0{i + 1}
+                </div>
+                <span className="text-[12.5px] text-foreground">{step}</span>
+              </div>
+            ))}
+          </div>
+        ) : hasKnowledge ? (
+          <div className="mt-4 grid w-full gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+            {suggestions.map(s => (
+              <button
+                key={s.text}
+                onClick={() => onSuggestionClick(s.text)}
+                className="group cursor-pointer rounded-[13px] border border-border bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-secondary"
+              >
+                <div className="flex items-start gap-3 xl:flex-col xl:gap-3.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-secondary text-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                    <s.icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium text-foreground">{s.text}</p>
+                    <p className="mt-0.5 text-[11.5px] leading-5 text-muted-foreground">{s.description}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 grid w-full gap-2.5 sm:grid-cols-3">
+            {[t.uploadFile, t.autoParseFile, t.ask].map((step, i) => (
+              <div key={step} className="flex items-center gap-3 rounded-[11px] border border-border bg-secondary px-3.5 py-2.5">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] bg-card font-mono text-[11px] font-semibold text-foreground">
+                  0{i + 1}
+                </div>
+                <span className="text-[12.5px] text-foreground">{step}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -11,8 +11,8 @@ export const metadata: Metadata = {
   applicationName: BRAND_NAME,
   icons: {
     icon: "/icon.svg",
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
+    shortcut: "/favicon.ico",
+    apple: "/apple-icon.png",
   },
 };
 
