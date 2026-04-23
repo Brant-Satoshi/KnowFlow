@@ -19,7 +19,6 @@ Next.js App Router RAG chat app. PostgreSQL + pgvector for vector storage.
 **Routes (do not add others)**
 - `/` — Knowledge Base list (CRUD)
 - `/knowledge-bases/[id]/chat` — RAG chat scoped to a KB
-- `/files` — file management
 - `/eval` — evaluation
 
 **RAG pipeline** (per chat request at `app/api/chat/stream/route.ts`):
@@ -56,7 +55,7 @@ Use `success(data)` and `error(message)` from `@/lib/api/response.ts`.
 
 ## Constraints
 
-- Do not add new top-level routes (pages are fixed to the four above)
+- Do not add new top-level routes (pages are fixed to the three above)
 - Do not add new npm dependencies without asking
 - Every change must be runnable without additional setup
 - Do not change database schema or API response shape unless explicitly requested
