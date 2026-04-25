@@ -53,6 +53,15 @@ Use `success(data)` and `error(message)` from `@/lib/api/response.ts`.
 
 **Shared types** — `lib/types.ts`: `Message`, `Conversation`, `KnowledgeBase`, `FileDoc`, `Chunk`, `Citation`.
 
+## i18n
+
+All user-visible strings must use the translation system — no hardcoded English or Chinese text in JSX or `aria-label`.
+
+- Translation files: `lib/i18n/translations.ts` — two top-level sections: `home` (accessed via `home: t = useLanguage()`) and `chat` (accessed via `t = useLanguage()`).
+- Add keys to **both** `en` and `zh` when introducing new strings.
+- For parameterised strings use a `{placeholder}` convention and replace at call site (e.g. `t.noResults.replace("{query}", searchQuery)`).
+- Sub-components that render text must receive `t` as a prop (typed `ReturnType<typeof useLanguage>["home" | "chat"]`) rather than calling `useLanguage()` themselves, unless they are already client components with clear ownership.
+
 ## Constraints
 
 - Do not add new top-level routes (pages are fixed to the three above)
