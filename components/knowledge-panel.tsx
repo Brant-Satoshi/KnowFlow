@@ -84,7 +84,7 @@ const statusStyles: Record<string, { color: string; bg: string }> = {
   failed:    { color: "hsl(var(--destructive))", bg: "hsl(var(--destructive) / 0.12)" },
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, label }: { status: string; label: string }) {
   const s = statusStyles[status] ?? statusStyles.indexed
   const isPulsing = status === "parsing" || status === "uploading"
   return (
@@ -98,7 +98,7 @@ function StatusBadge({ status }: { status: string }) {
           style={{ background: s.color }}
         />
       )}
-      {status}
+      {label}
     </span>
   )
 }
@@ -235,7 +235,7 @@ export function KnowledgePanel({
                 </div>
                 <div>
                   <p className="text-[13px] font-semibold leading-none text-foreground">{t.knowledgePanel}</p>
-                  <p className="mt-1 text-[10.5px] text-muted-foreground">{indexedCount} indexed</p>
+                  <p className="mt-1 text-[10.5px] text-muted-foreground">{indexedCount} {t.indexedLabel}</p>
                 </div>
               </div>
             </div>
@@ -278,7 +278,7 @@ export function KnowledgePanel({
                       </div>
                       <div>
                         <p className={cn("text-[12px] font-medium", isDragOver ? "text-primary" : "text-foreground")}>
-                          {uploading ? t.uploading : isDragOver ? "Drop to upload" : t.panelDropTitle}
+                          {uploading ? t.uploading : isDragOver ? t.panelDropActive : t.panelDropTitle}
                         </p>
                         <p className="mt-0.5 text-[10.5px] tracking-wide text-muted-foreground">
                           MD · TXT · PDF · DOC · DOCX
@@ -341,7 +341,7 @@ export function KnowledgePanel({
                                 </p>
                                 <div className="mt-1 flex items-center gap-1.5">
                                   <span className="text-[10.5px] text-muted-foreground">{formatSize(file.size)}</span>
-                                  <StatusBadge status={displayStatus} />
+                                  <StatusBadge status={displayStatus} label={t.status[displayStatus as keyof typeof t.status] ?? displayStatus} />
 
                                   <div className="ml-auto flex items-center gap-1.5">
                                     {canRetry && (

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { BookmarkPlus, Edit3, Loader2, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react"
+import { ArrowRight, BookmarkPlus, Edit3, Loader2, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { Button } from "@/components/ui/button"
 import {
@@ -31,16 +31,6 @@ import { KnowledgeBase } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const CARD_COLORS = [
-  "bg-[#f5f2e8] dark:bg-[#2a2a1e]",
-  "bg-[#eceef8] dark:bg-[#22223a]",
-  "bg-[#e8f0f8] dark:bg-[#1e2832]",
-  "bg-[#eef5ee] dark:bg-[#1e2c1e]",
-  "bg-[#f7edeb] dark:bg-[#2e2220]",
-] as const
-
-const CARD_EMOJIS = ["📓", "🤖", "🚀", "🎨", "📜", "🔬", "💡", "🌍", "📊", "🔧"]
-
 const RECENTS_KEY = "rag-studio-recent-kbs"
 const MAX_RECENTS = 4
 
@@ -87,10 +77,12 @@ function RecentsStrip({
   kbs,
   recentIds,
   onRemove,
+  t,
 }: {
   kbs: KnowledgeBase[]
   recentIds: string[]
   onRemove: (id: string) => void
+  t: ReturnType<typeof useLanguage>["home"]
 }) {
   const recents = recentIds
     .map((id) => kbs.find((k) => k.id === id))
@@ -98,30 +90,26 @@ function RecentsStrip({
 
   if (!recents.length) return null
 
-  const kbIndex = (kb: KnowledgeBase) => kbs.indexOf(kb)
-
   return (
-    <div className="mb-7">
-      <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
-        Recent
+    <div className="mb-8">
+      <p className="mb-3 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+        {t.recentlyOpened}
       </p>
       <div className="flex gap-2 overflow-x-auto pb-0.5">
         {recents.map((kb) => (
-          <div key={kb.id} className="group/chip flex shrink-0 items-center rounded-xl border border-border bg-card text-sm font-medium text-foreground transition-colors hover:border-border/80 hover:bg-accent/5">
+          <div key={kb.id} className="group/chip flex shrink-0 items-center rounded-lg border border-border bg-card transition-colors hover:bg-secondary">
             <Link
               href={`/knowledge-bases/${kb.id}/chat`}
               onClick={() => pushRecentId(kb.id)}
               className="flex items-center gap-2 px-3.5 py-2"
             >
-              <span className="text-base leading-none">
-                {CARD_EMOJIS[kbIndex(kb) % CARD_EMOJIS.length]}
-              </span>
-              {kb.name}
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--card-accent-0)]" />
+              <span className="font-mono text-xs font-medium text-foreground">{kb.name}</span>
             </Link>
             <button
               onClick={() => onRemove(kb.id)}
-              className="mr-1.5 rounded-full p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-black/8 hover:text-foreground group-hover/chip:opacity-100 dark:hover:bg-white/10"
-              aria-label="Remove from recents"
+              className="mr-1.5 rounded-full p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover/chip:opacity-100"
+              aria-label={t.removeFromRecents}
             >
               <X className="h-3 w-3" />
             </button>
@@ -150,8 +138,8 @@ function KBCard({
   isRecent: boolean
   t: ReturnType<typeof useLanguage>["home"]
 }) {
-  const emoji = CARD_EMOJIS[index % CARD_EMOJIS.length]
-  const color = CARD_COLORS[index % CARD_COLORS.length]
+  const volNum = String(index + 1).padStart(2, "0")
+  const accentVar = `var(--card-accent-${index % 5})`
   const fmtDate = (d: string) =>
     new Date(d).toLocaleDateString(undefined, {
       year: "numeric",
@@ -162,7 +150,7 @@ function KBCard({
   return (
     <div className="group relative">
       {/* Context menu */}
-      <div className="absolute right-2.5 top-2.5 z-10">
+      <div className="absolute right-2.5 top-10 z-10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -182,7 +170,7 @@ function KBCard({
             {!isRecent && (
               <DropdownMenuItem onSelect={() => onAddToRecent(kb)}>
                 <BookmarkPlus className="h-4 w-4" />
-                Add to recent
+                {t.addToRecent}
               </DropdownMenuItem>
             )}
             <DropdownMenuItem
@@ -200,19 +188,23 @@ function KBCard({
         href={`/knowledge-bases/${kb.id}/chat`}
         onClick={() => pushRecentId(kb.id)}
         className={cn(
-          "flex h-44 flex-col justify-between rounded-2xl p-4",
-          "transition-transform duration-150 hover:-translate-y-0.5",
-          color
+          "home-card-enter flex h-[220px] flex-col justify-between rounded-2xl bg-card p-4",
+          "transition-shadow duration-200 hover:shadow-[0_8px_28px_rgba(0,0,0,0.10)] dark:hover:shadow-[0_8px_28px_rgba(0,0,0,0.35)]"
         )}
+        style={{
+          borderTop: `3px solid ${accentVar}`,
+          animationDelay: `${index * 55}ms`,
+        }}
       >
-        <span className="text-3xl leading-none">{emoji}</span>
+        <span className="font-mono text-[11px] font-medium text-muted-foreground">{volNum}</span>
         <div>
-          <p className="line-clamp-2 text-sm font-semibold tracking-[-0.02em] text-zinc-900 dark:text-zinc-100">
+          <p className="font-sans line-clamp-2 text-[18px] font-semibold leading-snug tracking-[-0.015em] text-foreground">
             {kb.name}
           </p>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            {fmtDate(kb.updatedAt)}
-          </p>
+          <div className="mt-2.5 flex items-center justify-between">
+            <p className="font-mono text-[11px] text-muted-foreground">{fmtDate(kb.updatedAt)}</p>
+            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
         </div>
       </Link>
     </div>
@@ -224,12 +216,12 @@ function NewKBCard({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
       onClick={onClick}
-      className="flex h-44 w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-black/12 bg-white/50 text-zinc-500 transition-colors hover:border-black/20 hover:bg-white/70 dark:border-white/10 dark:bg-white/3 dark:text-zinc-400 dark:hover:border-white/20"
+      className="flex h-[220px] w-full flex-col items-center justify-center gap-2.5 rounded-2xl border border-dashed border-black/15 bg-transparent text-muted-foreground transition-colors hover:border-black/25 hover:bg-card/60 dark:border-white/10 dark:hover:border-white/20 dark:hover:bg-card/60"
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/6 dark:bg-white/8">
-        <Plus className="h-6 w-6" />
-      </div>
-      <span className="text-sm font-medium">{label}</span>
+      <span className="font-display text-[44px] font-light italic leading-none text-muted-foreground/50">+</span>
+      <span className="font-mono text-[10px] font-medium uppercase tracking-[0.10em] text-muted-foreground/70">
+        {label}
+      </span>
     </button>
   )
 }
@@ -237,22 +229,13 @@ function NewKBCard({ onClick, label }: { onClick: () => void; label: string }) {
 // ── Empty State ────────────────────────────────────────────────────────────────
 function EmptyState({ onCreate, t }: { onCreate: () => void; t: ReturnType<typeof useLanguage>["home"] }) {
   return (
-    <div className="flex flex-col items-center gap-5 py-20 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-muted text-muted-foreground">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10 9 9 9 8 9"/>
-        </svg>
-      </div>
-      <div>
-        <p className="text-base font-medium text-foreground">{t.noKnowledgeBases}</p>
-        <p className="mt-1.5 text-sm text-muted-foreground">{t.noKnowledgeBasesHint}</p>
-      </div>
-      <Button onClick={onCreate} className="h-9 rounded-full px-5 text-sm font-medium">
-        <Plus className="h-4 w-4" />
+    <div className="flex flex-col items-center gap-6 py-24 text-center">
+      <p className="font-display text-[38px] font-bold italic leading-none tracking-[-0.01em] text-foreground/50 sm:text-[48px]">
+        {t.emptyCollectionTitle}
+      </p>
+      <p className="font-mono text-sm text-muted-foreground">{t.noKnowledgeBasesHint}</p>
+      <Button onClick={onCreate} className="mt-1 h-9 rounded-full px-6 font-mono text-xs font-medium tracking-wide">
+        <Plus className="h-3.5 w-3.5" />
         {t.createKnowledgeBase}
       </Button>
     </div>
@@ -424,41 +407,59 @@ export default function HomePage() {
   }, [knowledgeBases, searchQuery])
 
   return (
-    <div className="min-h-screen bg-[#f8f7f4] dark:bg-[#0e1117]">
+    <div className="home-grain min-h-screen bg-background">
       {/* ── Header ─────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 flex h-[52px] items-center justify-between border-b border-black/6 bg-[#f8f7f4]/90 px-5 backdrop-blur-sm dark:border-white/6 dark:bg-[#0e1117]/90">
-        <BrandLogo name={t.title} iconSize={30} />
+      <header className="sticky top-0 z-20 flex h-[52px] items-center justify-between border-b border-border bg-background px-5">
+        <BrandLogo name={t.title} iconSize={28} />
 
-        <div className="flex items-center gap-2">
-          {/* Inline search */}
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search…"
-              className="h-8 w-44 rounded-full border-black/10 bg-white/80 pl-8 text-sm dark:border-white/10 dark:bg-white/6"
-            />
-          </div>
-
+        <div className="flex items-center gap-1.5">
           <Button
             onClick={() => setIsCreating(true)}
-            className="h-8 rounded-full px-3.5 text-sm font-medium"
+            variant="ghost"
+            className="h-8 rounded-full px-3.5 font-mono text-xs font-medium tracking-wide"
           >
             <Plus className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t.createKnowledgeBase}</span>
-            <span className="sm:hidden">New</span>
+            <span className="hidden sm:inline">{t.newCollection}</span>
+            <span className="sm:hidden">{t.newCollectionShort}</span>
           </Button>
-
           <SettingsMenu />
         </div>
       </header>
 
       {/* ── Main ───────────────────────────────────────────────────── */}
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-        <h1 className="mb-7 text-lg font-semibold tracking-[-0.03em] text-zinc-900 dark:text-zinc-50">
-          {t.knowledgeBases}
-        </h1>
+      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+        {/* Page heading */}
+        <div className="mb-9">
+          <div className="flex items-end justify-between">
+            <h1 className="font-sans text-[38px] font-semibold leading-none tracking-[-0.025em] text-foreground sm:text-[50px]">
+              {t.knowledgeBases}
+            </h1>
+            {!isLoading && filteredKnowledgeBases.length > 0 && (
+              <span className="mb-1.5 font-mono text-[11px] text-muted-foreground">
+                {filteredKnowledgeBases.length} {filteredKnowledgeBases.length === 1 ? t.volume : t.volumes}
+              </span>
+            )}
+          </div>
+
+          {/* Inline editorial search */}
+          <div className="mt-4 flex items-center gap-3 border-b border-border pb-3">
+            <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t.searchPlaceholder}
+              className="flex-1 bg-transparent font-mono text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Recents */}
         {!isLoading && (
@@ -469,21 +470,22 @@ export default function HomePage() {
               removeRecentId(id)
               setRecentIds((prev) => prev.filter((r) => r !== id))
             }}
+            t={t}
           />
         )}
 
         {/* Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <Skeleton key={i} className="h-44 rounded-2xl" />
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-[220px] rounded-2xl" />
             ))}
           </div>
         ) : filteredKnowledgeBases.length === 0 && !searchQuery ? (
           <EmptyState onCreate={() => setIsCreating(true)} t={t} />
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            <NewKBCard onClick={() => setIsCreating(true)} label={t.createKnowledgeBase} />
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <NewKBCard onClick={() => setIsCreating(true)} label={t.newCollection} />
             {filteredKnowledgeBases.map((kb, index) => (
               <KBCard
                 key={kb.id}
@@ -507,8 +509,8 @@ export default function HomePage() {
         )}
 
         {!isLoading && filteredKnowledgeBases.length === 0 && searchQuery && (
-          <p className="mt-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
-            No results for &ldquo;{searchQuery}&rdquo;
+          <p className="mt-12 text-center font-mono text-sm text-muted-foreground">
+            {t.noResults.replace("{query}", searchQuery)}
           </p>
         )}
       </main>
@@ -518,10 +520,10 @@ export default function HomePage() {
         open={isCreating}
         onOpenChange={(open) => !isSubmitting && (open ? setIsCreating(true) : resetCreateState())}
       >
-        <DialogContent className="rounded-[1.8rem] border-white/50 bg-[#fcfbf7] p-0 sm:max-w-xl dark:border-white/10 dark:bg-[#10151d]">
-          <div className="rounded-[1.8rem] border border-black/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0)_100%)] p-6 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0)_100%)]">
+        <DialogContent className="rounded-[1.8rem] border-black/8 bg-popover p-0 sm:max-w-xl dark:border-white/8 dark:bg-popover">
+          <div className="rounded-[1.8rem] border border-black/5 bg-[linear-gradient(180deg,rgba(255,248,230,0.6)_0%,rgba(255,248,230,0)_100%)] p-6 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0)_100%)]">
             <DialogHeader className="text-left">
-              <DialogTitle className="text-2xl font-semibold tracking-[-0.03em]">
+              <DialogTitle className="font-display text-[26px] font-bold italic tracking-[-0.01em]">
                 {t.createKnowledgeBase}
               </DialogTitle>
               <DialogDescription className="mt-2 text-sm leading-6">
@@ -578,10 +580,10 @@ export default function HomePage() {
         open={editingKnowledgeBase !== null}
         onOpenChange={(open) => !isUpdating && !open && resetEditState()}
       >
-        <DialogContent className="rounded-[1.8rem] border-white/50 bg-[#fcfbf7] p-0 sm:max-w-xl dark:border-white/10 dark:bg-[#10151d]">
-          <div className="rounded-[1.8rem] border border-black/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0)_100%)] p-6 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0)_100%)]">
+        <DialogContent className="rounded-[1.8rem] border-black/8 bg-popover p-0 sm:max-w-xl dark:border-white/8 dark:bg-popover">
+          <div className="rounded-[1.8rem] border border-black/5 bg-[linear-gradient(180deg,rgba(255,248,230,0.6)_0%,rgba(255,248,230,0)_100%)] p-6 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0)_100%)]">
             <DialogHeader className="text-left">
-              <DialogTitle className="text-2xl font-semibold tracking-[-0.03em]">
+              <DialogTitle className="font-display text-[26px] font-bold italic tracking-[-0.01em]">
                 {t.editKnowledgeBase}
               </DialogTitle>
               <DialogDescription className="mt-2 text-sm leading-6">
@@ -638,7 +640,7 @@ export default function HomePage() {
         open={deletingKnowledgeBase !== null}
         onOpenChange={(open) => !isDeleting && !open && resetDeleteState()}
       >
-        <DialogContent disableAnimation className="rounded-[1.1rem] border-white/50 bg-[#fcfbf7] dark:border-white/10 dark:bg-[#10151d]">
+        <DialogContent disableAnimation className="rounded-[1.1rem] border-black/8 bg-popover dark:border-white/8 dark:bg-popover">
           <DialogHeader>
             <DialogTitle>{t.confirmDeleteTitle}</DialogTitle>
             <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
