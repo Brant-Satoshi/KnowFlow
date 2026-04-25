@@ -21,7 +21,7 @@ import { KnowledgeBase } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const chatSurfaceClass =
-  "border border-border bg-card shadow-[0_2px_12px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.28)]"
+  "border border-white/60 bg-white/76 shadow-[0_30px_80px_-48px_rgba(19,31,56,0.34)] backdrop-blur-xl dark:border-white/10 dark:bg-[#10161d]/84 dark:shadow-[0_30px_80px_-48px_rgba(0,0,0,0.92)]"
 
 
 export default function ChatPage() {
@@ -136,7 +136,7 @@ export default function ChatPage() {
 
   if (!knowledgeBaseId) {
     return (
-      <div className="home-grain relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-10">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(180deg,#f4efe3_0%,#edf4fb_46%,#fbfbf7_100%)] px-6 py-10 dark:bg-[linear-gradient(180deg,#090b0f_0%,#111824_46%,#0d1117_100%)]">
         <div className="home-mesh pointer-events-none absolute inset-0" />
         <div className={cn("relative w-full max-w-xl rounded-[1.25rem] p-8 text-center", chatSurfaceClass)}>
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-black/[0.04] dark:bg-white/[0.06]">
@@ -157,7 +157,7 @@ export default function ChatPage() {
 
   if (isInitialLoading) {
     return (
-      <div className="home-grain relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-10">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(180deg,#f4efe3_0%,#edf4fb_46%,#fbfbf7_100%)] px-6 py-10 dark:bg-[linear-gradient(180deg,#090b0f_0%,#111824_46%,#0d1117_100%)]">
         <div className="home-mesh pointer-events-none absolute inset-0" />
         <div className={cn("relative flex w-full max-w-sm flex-col items-center rounded-[1.25rem] p-8 text-center", chatSurfaceClass)}>
           <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-black/[0.04] dark:bg-white/[0.06]">
@@ -176,10 +176,10 @@ export default function ChatPage() {
 
   if (isMobile) {
     return (
-      <div className="home-grain relative flex h-dvh flex-col overflow-hidden bg-background p-3">
+      <div className="relative flex h-dvh flex-col overflow-hidden bg-[linear-gradient(180deg,#f4efe3_0%,#edf4fb_46%,#fbfbf7_100%)] p-3 dark:bg-[linear-gradient(180deg,#090b0f_0%,#111824_46%,#0d1117_100%)]">
         <div className="home-mesh pointer-events-none absolute inset-0" />
-        <div className="home-orb-float pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-[#C49A2E]/12 blur-3xl dark:bg-[#C49A2E]/8" />
-        <div className="home-orb-float pointer-events-none absolute right-[-3rem] top-32 h-72 w-72 rounded-full bg-[#4A8A5C]/10 blur-3xl dark:bg-[#4A8A5C]/8 [animation-delay:-5s]" />
+        <div className="home-orb-float pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-[#e4d0a9]/50 blur-3xl dark:bg-[#654a14]/20" />
+        <div className="home-orb-float pointer-events-none absolute right-[-3rem] top-32 h-72 w-72 rounded-full bg-[#c4d9f7]/45 blur-3xl dark:bg-[#19324d]/32 [animation-delay:-5s]" />
 
         <div className="relative flex min-h-0 flex-1 flex-col gap-3">
           <header className={cn("rounded-[1.25rem] px-4 py-3", chatSurfaceClass)}>
@@ -286,11 +286,11 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="home-grain relative flex h-dvh flex-col overflow-hidden bg-background p-3 sm:p-4">
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-[linear-gradient(180deg,#f4efe3_0%,#edf4fb_46%,#fbfbf7_100%)] p-3 dark:bg-[linear-gradient(180deg,#090b0f_0%,#111824_46%,#0d1117_100%)] sm:p-4">
       <div className="home-mesh pointer-events-none absolute inset-0" />
-      <div className="home-orb-float pointer-events-none absolute -left-24 top-8 h-72 w-72 rounded-full bg-[#C49A2E]/12 blur-3xl dark:bg-[#C49A2E]/8" />
-      <div className="home-orb-float pointer-events-none absolute right-[-4rem] top-24 h-96 w-96 rounded-full bg-[#4A8A5C]/10 blur-3xl dark:bg-[#4A8A5C]/8 [animation-delay:-6s]" />
-      <div className="home-orb-float pointer-events-none absolute bottom-[-7rem] left-1/3 h-80 w-80 rounded-full bg-[#C05B3C]/8 blur-3xl dark:bg-[#C05B3C]/6 [animation-delay:-9s]" />
+      <div className="home-orb-float pointer-events-none absolute -left-24 top-8 h-72 w-72 rounded-full bg-[#e4d0a9]/50 blur-3xl dark:bg-[#654a14]/20" />
+      <div className="home-orb-float pointer-events-none absolute right-[-4rem] top-24 h-96 w-96 rounded-full bg-[#c4d9f7]/50 blur-3xl dark:bg-[#19324d]/34 [animation-delay:-6s]" />
+      <div className="home-orb-float pointer-events-none absolute bottom-[-7rem] left-1/3 h-80 w-80 rounded-full bg-[#efcbc2]/40 blur-3xl dark:bg-[#4a2320]/24 [animation-delay:-9s]" />
 
       <div className="relative mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-3 lg:gap-4">
         <header className={cn("rounded-[1.25rem] px-4 py-3 sm:px-5", chatSurfaceClass)}>

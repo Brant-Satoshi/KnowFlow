@@ -34,9 +34,8 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-dm-sans), "SF Pro Text", "Segoe UI", system-ui, sans-serif;
-  --font-mono: var(--font-dm-mono), "Courier New", monospace;
-  --font-display: var(--font-cormorant), "Iowan Old Style", "Palatino Linotype", serif;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 @layer base {
@@ -71,112 +70,102 @@
   :root {
     color-scheme: light;
 
-    /* Core — warm archival parchment */
-    --background:            40 35% 91%;      /* #F2EDE0 parchment */
-    --foreground:            28 12% 9%;       /* #1A1714 warm near-black */
-    --card:                  40 26% 84%;      /* #E6DCCA warm surface */
-    --card-foreground:       28 12% 9%;
-    --popover:               40 30% 93%;
-    --popover-foreground:    28 12% 9%;
+    /* Core */
+    --background:            0 0% 97%;        /* #F7F7F7 */
+    --foreground:            240 8% 10%;      /* #181820 */
+    --card:                  0 0% 100%;
+    --card-foreground:       240 8% 10%;
+    --popover:               0 0% 100%;
+    --popover-foreground:    240 8% 10%;
 
-    /* Primary — deeper forest green */
-    --primary:               106 49% 32%;     /* #3D7A2A */
+    /* Primary — green, hue 94 */
+    --primary:               94 52% 40%;
     --primary-foreground:    0 0% 100%;
 
-    --secondary:             40 20% 87%;
-    --secondary-foreground:  28 12% 20%;
-    --muted:                 40 20% 87%;
-    --muted-foreground:      38 12% 43%;      /* #7A7060 warm muted */
-    --accent:                106 49% 32%;
+    --secondary:             240 6% 94%;
+    --secondary-foreground:  240 6% 25%;
+    --muted:                 240 6% 94%;
+    --muted-foreground:      240 5% 45%;
+    --accent:                94 52% 40%;
     --accent-foreground:     0 0% 100%;
     --destructive:           0 84% 60%;
     --destructive-foreground:0 0% 98%;
-    --border:                40 18% 80%;
-    --input:                 40 18% 80%;
-    --ring:                  106 49% 32%;
+    --border:                240 6% 90%;
+    --input:                 240 6% 90%;
+    --ring:                  94 52% 40%;
     --radius:                0.75rem;
 
     /* Sidebar */
-    --sidebar-background:            40 28% 88%;
-    --sidebar-foreground:            28 12% 20%;
-    --sidebar-primary:               106 49% 32%;
+    --sidebar-background:            0 0% 98%;
+    --sidebar-foreground:            240 6% 20%;
+    --sidebar-primary:               94 52% 40%;
     --sidebar-primary-foreground:    0 0% 100%;
-    --sidebar-accent:                40 20% 84%;
-    --sidebar-accent-foreground:     28 12% 20%;
-    --sidebar-border:                40 18% 78%;
-    --sidebar-ring:                  106 49% 32%;
+    --sidebar-accent:                240 6% 94%;
+    --sidebar-accent-foreground:     240 6% 20%;
+    --sidebar-border:                240 6% 88%;
+    --sidebar-ring:                  94 52% 40%;
 
     /* Chat surface specifics */
-    --theme-user-msg-bg:     106 35% 88%;
-    --theme-user-msg-text:   106 45% 18%;
-    --chat-surface-border:   40 18% 80%;
-    --chat-page-bg:          #EDE7D6;
+    --theme-user-msg-bg:     94 40% 90%;
+    --theme-user-msg-text:   94 50% 18%;
+    --chat-surface-border:   240 6% 88%;
+    --chat-page-bg:          #F0F2F5;
 
-    /* Card accent bars — 5 warm hues */
-    --card-accent-0: #C49A2E;  /* amber */
-    --card-accent-1: #4A8A5C;  /* sage */
-    --card-accent-2: #C05B3C;  /* terracotta */
-    --card-accent-3: #4A6B8A;  /* slate */
-    --card-accent-4: #7A4A8A;  /* plum */
+    /* Font stack */
+    --font-home-display: "DM Sans", "Iowan Old Style", "Palatino Linotype", serif;
+    --font-home-sans:    "DM Sans", "SF Pro Text", "Segoe UI", system-ui, sans-serif;
   }
 
   /* —— Dark tokens —————————————————————————————— */
   .dark {
     color-scheme: dark;
 
-    /* Core — warm near-black */
-    --background:            30 14% 4%;       /* #0C0B09 warm near-black */
-    --foreground:            40 30% 89%;      /* #EDE8D9 warm cream */
-    --card:                  35 16% 8%;       /* #161410 warm dark surface */
-    --card-foreground:       40 30% 89%;
-    --popover:               35 16% 7%;
-    --popover-foreground:    40 30% 89%;
+    /* Core */
+    --background:            226 14% 5%;      /* #0D0D12 */
+    --foreground:            240 10% 93%;     /* #E8E8F0 */
+    --card:                  226 13% 9%;      /* #131318 */
+    --card-foreground:       240 10% 93%;
+    --popover:               226 13% 7%;
+    --popover-foreground:    240 10% 93%;
 
-    /* Primary — bright leaf green */
-    --primary:               104 55% 60%;     /* #7DD45C */
+    /* Primary — green, hue 94 */
+    --primary:               94 55% 52%;
     --primary-foreground:    0 0% 100%;
 
-    --secondary:             35 14% 13%;
-    --secondary-foreground:  40 20% 75%;
-    --muted:                 35 14% 13%;
-    --muted-foreground:      38 11% 42%;      /* warm muted */
-    --accent:                104 55% 60%;
+    --secondary:             226 13% 13%;
+    --secondary-foreground:  240 6% 80%;
+    --muted:                 226 13% 13%;
+    --muted-foreground:      240 5% 52%;
+    --accent:                94 55% 52%;
     --accent-foreground:     0 0% 100%;
     --destructive:           0 72% 51%;
     --destructive-foreground:0 0% 98%;
-    --border:                35 14% 14%;
-    --input:                 35 14% 14%;
-    --ring:                  104 55% 60%;
+    --border:                226 13% 13%;
+    --input:                 226 13% 13%;
+    --ring:                  94 55% 52%;
 
     /* Sidebar */
-    --sidebar-background:            30 14% 6%;
-    --sidebar-foreground:            40 25% 85%;
-    --sidebar-primary:               104 55% 60%;
+    --sidebar-background:            226 13% 7%;
+    --sidebar-foreground:            240 6% 90%;
+    --sidebar-primary:               94 55% 52%;
     --sidebar-primary-foreground:    0 0% 100%;
-    --sidebar-accent:                35 14% 12%;
-    --sidebar-accent-foreground:     40 25% 85%;
-    --sidebar-border:                35 14% 14%;
-    --sidebar-ring:                  104 55% 60%;
+    --sidebar-accent:                226 13% 12%;
+    --sidebar-accent-foreground:     240 6% 90%;
+    --sidebar-border:                226 13% 13%;
+    --sidebar-ring:                  94 55% 52%;
 
     /* Chat surface specifics */
-    --theme-user-msg-bg:     104 35% 20%;
-    --theme-user-msg-text:   104 45% 88%;
-    --chat-surface-border:   35 12% 18%;
-    --chat-page-bg:          #0C0B09;
-
-    /* Card accent bars — brighter in dark mode */
-    --card-accent-0: #D4A847;  /* amber */
-    --card-accent-1: #6EC687;  /* sage */
-    --card-accent-2: #E07A5F;  /* terracotta */
-    --card-accent-3: #6B9AB8;  /* slate */
-    --card-accent-4: #B07AC0;  /* plum */
+    --theme-user-msg-bg:     94 40% 20%;
+    --theme-user-msg-text:   94 50% 88%;
+    --chat-surface-border:   226 10% 18%;
+    --chat-page-bg:          #0D0D12;
   }
 
   * { @apply border-border; }
 
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-sans);
+    font-family: var(--font-home-sans);
   }
 }
 
@@ -217,25 +206,5 @@
     background-image:
       linear-gradient(to right, rgba(148, 163, 184, 0.06) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
-  }
-
-  .home-grain {
-    position: relative;
-  }
-  .home-grain::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 9998;
-    background-image:
-      radial-gradient(circle at 1px 1px, rgba(0,0,0,0.018) 1px, transparent 0),
-      radial-gradient(circle at 4px 4px, rgba(0,0,0,0.012) 1px, transparent 0);
-    background-size: 5px 5px, 7px 7px;
-  }
-  .dark .home-grain::after {
-    background-image:
-      radial-gradient(circle at 1px 1px, rgba(255,255,255,0.014) 1px, transparent 0),
-      radial-gradient(circle at 4px 4px, rgba(255,255,255,0.008) 1px, transparent 0);
   }
 }

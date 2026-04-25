@@ -1,54 +1,33 @@
 # Project Rules
 
 ## Project Overview
-- Next.js App Router project for a RAG + LLM chat application.
-- Uses PostgreSQL + pgvector for vector storage.
-
-## Commands
-```sh
-pnpm dev          # start the development server
-pnpm build        # production build and type-check
-pnpm lint         # run ESLint
-```
-
-No test runner is configured. Use `pnpm build` to catch type errors.
+- Next.js App Router 项目，用于 RAG + LLM 聊天应用
+- 使用 PostgreSQL + pgvector 进行向量存储
 
 ## Routes
-- `/` - Knowledge Base list
-- `/knowledge-bases/:id/chat` - Chat page
-- `/eval` - Evaluation page
+- `/` - 首页（Knowledge Base 列表）
+- `/knowledge-bases/:id/chat` - 聊天页面
+- `/files` - 文件管理页面
+- `/eval` - 评估页面
 
 ## Core Modules
-- `lib/llm/` - LLM calls
-- `lib/rag/` - RAG flow, including chunking, embeddings, and search
-- `lib/db/` - PostgreSQL database operations
-- `lib/telemetry/` - Telemetry
+- `lib/llm/` - LLM 调用（OpenAI/Anthropic）
+- `lib/rag/` - RAG 流程（分块、嵌入、搜索）
+- `lib/db/` - 数据库操作（PostgreSQL）
+- `lib/telemetry/` - 遥测
 
 ## Shared Types (lib/types.ts)
-- `Message`, `Conversation` - chat-related types
-- `FileDoc`, `Chunk`, `Citation` - file and RAG-related types
+- `Message`, `Conversation` - 聊天相关
+- `FileDoc`, `Chunk`, `Citation` - 文件和 RAG 相关
 
 ## API Response Shape
-All API endpoints must include `requestId`:
+所有 API 端点必须包含 requestId：
 ```typescript
 { requestId, ok, data?, error? }
 ```
 
-## i18n
-All user-visible strings must use the translation system. Do not hardcode English or Chinese text in JSX, `aria-label`, placeholders, titles, toast messages, dialog text, buttons, menus, or empty states.
-
-- Translation file: `lib/i18n/translations.ts`.
-- There are two top-level translation sections:
-  - `home`, accessed with `const { home: t } = useLanguage()`.
-  - `chat`, accessed with `const { t } = useLanguage()`.
-- Add keys to both `en` and `zh` whenever introducing new strings.
-- For parameterized strings, use a `{placeholder}` convention and replace at the call site, for example `t.noResults.replace("{query}", searchQuery)`.
-- Sub-components that render text must receive `t` as a prop, typed as `ReturnType<typeof useLanguage>["home" | "chat"]`, rather than calling `useLanguage()` themselves, unless they are already client components with clear ownership.
-- Developer-only messages, such as thrown errors that are not shown to users, do not need translation.
-
 ## Constraints
-- Do NOT add extra pages beyond `/`, `/knowledge-bases/:id/chat`, and `/eval`.
-- Do NOT add a `/files` route unless explicitly requested.
+- Do NOT add extra pages beyond /, /knowledge-bases/:id/chat, /files, /eval
 - Keep changes minimal and runnable
 - Use standard API response shape
 
