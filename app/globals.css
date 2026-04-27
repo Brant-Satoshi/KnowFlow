@@ -74,9 +74,9 @@
     /* Core — soft warm parchment (lighter) */
     --background:            40 40% 96%;      /* #F8F4E9 light parchment */
     --foreground:            28 12% 12%;      /* warm near-black */
-    --card:                  40 38% 95%;      /* #F5F1E5 airy surface */
+    --card:                  40 30% 99%;      /* near-white airy surface */
     --card-foreground:       28 12% 12%;
-    --popover:               40 40% 97%;
+    --popover:               40 30% 99%;
     --popover-foreground:    28 12% 12%;
 
     /* Primary — deeper forest green */
