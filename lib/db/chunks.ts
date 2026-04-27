@@ -42,6 +42,25 @@ export async function deleteChunksByFileId(fileId: string): Promise<number> {
   return execute('DELETE FROM chunks WHERE file_id = $1', [fileId]);
 }
 
+export async function sampleKbChunks(
+  knowledgeBaseId: string,
+  limit: number = 5,
+): Promise<Chunk[]> {
+  return query<Chunk>(
+    `
+    SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text, c.meta, f.name AS "fileName"
+    FROM chunks c
+    JOIN files f ON c.file_id = f.id::uuid
+    WHERE c.embedding IS NOT NULL
+    AND f.knowledge_base_id = $1::uuid
+    AND f.status = 'indexed'
+    ORDER BY c.file_id, c.idx
+    LIMIT $2
+    `,
+    [knowledgeBaseId, limit],
+  );
+}
+
 export async function searchChunks(
   queryEmbedding: number[],
   topK: number = 5,
