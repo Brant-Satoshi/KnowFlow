@@ -3,7 +3,6 @@
 import type { UIMessage } from "ai"
 import type { Components } from "react-markdown"
 import ReactMarkdown from "react-markdown"
-import { Sparkles } from "lucide-react"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { cn } from "@/lib/utils"
 import type { RetrievedChunk } from "@/lib/types"
@@ -70,14 +69,6 @@ function SourceBadge({ chunk }: { chunk: RetrievedChunk }) {
   )
 }
 
-function RoleAvatar() {
-  return (
-    <div className="mt-1 hidden h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border border-primary/25 bg-primary/10 text-primary sm:flex">
-      <Sparkles className="h-3.5 w-3.5" />
-    </div>
-  )
-}
-
 interface ChatMessagesProps {
   messages: UIMessage[]
   isLoading: boolean
@@ -105,22 +96,12 @@ export function ChatMessages({
 
         return (
           <div key={message.id} className={cn("flex items-start gap-3", isUser && "justify-end")}>
-            {!isUser && <RoleAvatar />}
-
             <div className={cn("max-w-[min(100%,54rem)] space-y-2", isUser && "text-right")}>
-              {!isUser && (
-                <div className="flex items-center gap-2 px-0.5">
-                  <span className="text-[9.5px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                    {t.assistantLabel}
-                  </span>
-                </div>
-              )}
-
               <div className={cn(
                 "rounded-[14px] border px-4 py-3",
                 isUser
                   ? "border-transparent theme-user-msg-bg theme-user-msg-text rounded-br-[4px]"
-                  : "rounded-tl-[4px] border-border bg-card text-card-foreground"
+                  : "rounded-tl-[4px] border-border bg-secondary text-card-foreground"
               )}>
                 {isAssistantLoading ? (
                   <div className="flex h-7 items-center gap-1.5" role="status" aria-label="Generating response">

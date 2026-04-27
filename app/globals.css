@@ -71,46 +71,46 @@
   :root {
     color-scheme: light;
 
-    /* Core — warm archival parchment */
-    --background:            40 35% 91%;      /* #F2EDE0 parchment */
-    --foreground:            28 12% 9%;       /* #1A1714 warm near-black */
-    --card:                  40 26% 84%;      /* #E6DCCA warm surface */
-    --card-foreground:       28 12% 9%;
-    --popover:               40 30% 93%;
-    --popover-foreground:    28 12% 9%;
+    /* Core — soft warm parchment (lighter) */
+    --background:            40 40% 96%;      /* #F8F4E9 light parchment */
+    --foreground:            28 12% 12%;      /* warm near-black */
+    --card:                  40 38% 95%;      /* #F5F1E5 airy surface */
+    --card-foreground:       28 12% 12%;
+    --popover:               40 40% 97%;
+    --popover-foreground:    28 12% 12%;
 
     /* Primary — deeper forest green */
     --primary:               106 49% 32%;     /* #3D7A2A */
     --primary-foreground:    0 0% 100%;
 
-    --secondary:             40 20% 87%;
-    --secondary-foreground:  28 12% 20%;
-    --muted:                 40 20% 87%;
-    --muted-foreground:      38 12% 43%;      /* #7A7060 warm muted */
+    --secondary:             40 25% 93%;
+    --secondary-foreground:  28 12% 25%;
+    --muted:                 40 25% 93%;
+    --muted-foreground:      38 12% 48%;      /* slightly softer muted */
     --accent:                106 49% 32%;
     --accent-foreground:     0 0% 100%;
     --destructive:           0 84% 60%;
     --destructive-foreground:0 0% 98%;
-    --border:                40 18% 80%;
-    --input:                 40 18% 80%;
+    --border:                40 20% 88%;
+    --input:                 40 20% 88%;
     --ring:                  106 49% 32%;
     --radius:                0.75rem;
 
     /* Sidebar */
-    --sidebar-background:            40 28% 88%;
-    --sidebar-foreground:            28 12% 20%;
+    --sidebar-background:            40 32% 94%;
+    --sidebar-foreground:            28 12% 25%;
     --sidebar-primary:               106 49% 32%;
     --sidebar-primary-foreground:    0 0% 100%;
-    --sidebar-accent:                40 20% 84%;
-    --sidebar-accent-foreground:     28 12% 20%;
-    --sidebar-border:                40 18% 78%;
+    --sidebar-accent:                40 24% 91%;
+    --sidebar-accent-foreground:     28 12% 25%;
+    --sidebar-border:                40 20% 87%;
     --sidebar-ring:                  106 49% 32%;
 
     /* Chat surface specifics */
-    --theme-user-msg-bg:     106 35% 88%;
-    --theme-user-msg-text:   106 45% 18%;
-    --chat-surface-border:   40 18% 80%;
-    --chat-page-bg:          #EDE7D6;
+    --theme-user-msg-bg:     106 35% 93%;
+    --theme-user-msg-text:   106 45% 22%;
+    --chat-surface-border:   40 20% 88%;
+    --chat-page-bg:          #F5EFE0;
 
     /* Card accent bars — 5 warm hues */
     --card-accent-0: #C49A2E;  /* amber */
