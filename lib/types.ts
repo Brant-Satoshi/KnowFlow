@@ -78,3 +78,54 @@ export interface Citation {
   page?: number;
   quote: string;
 }
+
+// Eval
+export interface EvalCase {
+  id: string;
+  question: string;
+  expectedKeywords: string[];
+  targetFileNames?: string[];
+  targetChunkSubstrings?: string[];
+}
+
+export interface EvalChunkHit {
+  chunkId: string;
+  fileId: string;
+  fileName: string;
+  textPreview: string;
+}
+
+export interface EvalTopKHit {
+  k: number;
+  hit: boolean;
+}
+
+export interface EvalCaseResult {
+  caseId: string;
+  question: string;
+  passed: boolean;
+  failureReasons: string[];
+  retrievalHit: boolean;
+  citationHit: boolean;
+  latencyMs: number;
+  retrievedChunks: EvalChunkHit[];
+  topKHits: EvalTopKHit[];
+  answer: string;
+}
+
+export interface EvalRunResult {
+  runId: string;
+  knowledgeBaseId: string;
+  totalCases: number;
+  passedCases: number;
+  retrievalHitRate: number;
+  citationHitRate: number;
+  avgLatencyMs: number;
+  cases: EvalCaseResult[];
+}
+
+export interface EvalRunComparison {
+  knowledgeBaseId: string;
+  withRerank: EvalRunResult;
+  withoutRerank: EvalRunResult;
+}

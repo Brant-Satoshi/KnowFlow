@@ -1,5 +1,47 @@
 import { Chunk } from "../types";
-import { isSummaryQuery } from '../validation'
+import { isSummaryQuery } from '../validation';
+
+type ChatApiResponse = {
+  choices?: Array<{
+    message?: { content?: string };
+    finish_reason?: string;
+  }>;
+  error?: { message?: string };
+};
+
+type ChatProviderConfig = {
+  url: string;
+  apiKey: string;
+  model: string;
+};
+
+const CHAT_PROVIDERS: Record<string, () => ChatProviderConfig> = {
+  minimax: () => ({
+    url: 'https://api.minimax.chat/v1/chat/completions',
+    apiKey: process.env.MINIMAX_API_KEY ?? '',
+    model: process.env.MINIMAX_CHAT_MODEL ?? 'abab6.5-chat',
+  }),
+  openrouter: () => ({
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    apiKey: process.env.OPENROUTER_API_KEY ?? '',
+    model: process.env.OPENROUTER_CHAT_MODEL ?? 'openrouter/auto',
+  }),
+};
+
+// Fallback order when CHAT_PROVIDER is not set
+const CHAT_PROVIDER_PRIORITY = ['minimax', 'openrouter'];
+
+const CHAT_PROVIDER_API_KEYS: Record<string, string | undefined> = {
+  minimax: process.env.MINIMAX_API_KEY,
+  openrouter: process.env.OPENROUTER_API_KEY,
+};
+
+function resolveChatProvider(): ChatProviderConfig {
+  const name = process.env.CHAT_PROVIDER ?? CHAT_PROVIDER_PRIORITY.find(p => CHAT_PROVIDER_API_KEYS[p]);
+  const factory = name ? CHAT_PROVIDERS[name] : undefined;
+  if (!factory) throw new Error(`No chat provider configured. Set CHAT_PROVIDER or provide an API key.`);
+  return factory();
+}
 
 type SseEventName = 'meta' | 'token' | 'done' | 'error';
 
@@ -54,27 +96,20 @@ export async function streamAnswer(
   requestId: string,
   extraMeta?: Record<string, unknown>,
 ) {
-  const response = await fetch(
-    "https://api.minimax.chat/v1/text/chatcompletion_v2",
-    {
-      method: "POST",
-      signal,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.MINIMAX_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "abab6.5-chat",
-        stream: true,
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      }),
-    }
-  );
+  const provider = resolveChatProvider();
+  const response = await fetch(provider.url, {
+    method: "POST",
+    signal,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${provider.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: provider.model,
+      stream: true,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
 
   // Check for HTTP errors before processing the stream
   if (!response.ok) {
@@ -95,7 +130,6 @@ export async function streamAnswer(
     return errorStream;
   }
   const encoder = new TextEncoder();
-
 
   const stream = new ReadableStream<Uint8Array>({
     start: async (controller) => {
@@ -156,4 +190,38 @@ export async function streamAnswer(
     },
   });
   return stream;
+}
+
+export async function generateAnswer(
+  prompt: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const provider = resolveChatProvider();
+  const response = await fetch(provider.url, {
+    method: 'POST',
+    signal,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${provider.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: provider.model,
+      stream: false,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  if (!response.ok) {
+    let errMsg = `LLM request failed: ${response.status}`;
+    try {
+      const errData = await response.json() as ChatApiResponse;
+      if (errData.error?.message) errMsg = errData.error.message;
+    } catch { }
+    throw new Error(errMsg);
+  }
+
+  const data = await response.json() as ChatApiResponse;
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error('Empty LLM response');
+  return content;
 }

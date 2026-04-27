@@ -64,6 +64,7 @@ function isRerankEnabled(): boolean {
 type RerankOptions = {
     signal?: AbortSignal;
     topN?: number;
+    force?: boolean;
 };
 
 export async function rerankChunks(
@@ -71,7 +72,7 @@ export async function rerankChunks(
     chunks: Chunk[],
     options: RerankOptions = {}
 ): Promise<Chunk[]> {
-    if (!isRerankEnabled() || chunks.length <= 1) {
+    if ((!options.force && !isRerankEnabled()) || chunks.length <= 1) {
         return chunks;
     }
 
