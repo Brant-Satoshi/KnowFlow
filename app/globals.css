@@ -124,45 +124,45 @@
   .dark {
     color-scheme: dark;
 
-    /* Core — warm near-black */
-    --background:            30 14% 4%;       /* #0C0B09 warm near-black */
+    /* Core — warm dark, lifted */
+    --background:            30 12% 16%;      /* warm dark, lifted further */
     --foreground:            40 30% 89%;      /* #EDE8D9 warm cream */
-    --card:                  35 16% 8%;       /* #161410 warm dark surface */
+    --card:                  35 14% 20%;      /* warm dark surface */
     --card-foreground:       40 30% 89%;
-    --popover:               35 16% 7%;
+    --popover:               35 14% 19%;
     --popover-foreground:    40 30% 89%;
 
     /* Primary — bright leaf green */
     --primary:               104 55% 60%;     /* #7DD45C */
     --primary-foreground:    0 0% 100%;
 
-    --secondary:             35 14% 13%;
-    --secondary-foreground:  40 20% 75%;
-    --muted:                 35 14% 13%;
-    --muted-foreground:      38 11% 42%;      /* warm muted */
+    --secondary:             35 12% 24%;
+    --secondary-foreground:  40 20% 78%;
+    --muted:                 35 12% 24%;
+    --muted-foreground:      38 11% 58%;      /* warm muted */
     --accent:                104 55% 60%;
     --accent-foreground:     0 0% 100%;
     --destructive:           0 72% 51%;
     --destructive-foreground:0 0% 98%;
-    --border:                35 14% 14%;
-    --input:                 35 14% 14%;
+    --border:                35 12% 26%;
+    --input:                 35 12% 26%;
     --ring:                  104 55% 60%;
 
     /* Sidebar */
-    --sidebar-background:            30 14% 6%;
+    --sidebar-background:            30 12% 18%;
     --sidebar-foreground:            40 25% 85%;
     --sidebar-primary:               104 55% 60%;
     --sidebar-primary-foreground:    0 0% 100%;
-    --sidebar-accent:                35 14% 12%;
+    --sidebar-accent:                35 12% 23%;
     --sidebar-accent-foreground:     40 25% 85%;
-    --sidebar-border:                35 14% 14%;
+    --sidebar-border:                35 12% 26%;
     --sidebar-ring:                  104 55% 60%;
 
     /* Chat surface specifics */
-    --theme-user-msg-bg:     104 35% 20%;
-    --theme-user-msg-text:   104 45% 88%;
-    --chat-surface-border:   35 12% 18%;
-    --chat-page-bg:          #0C0B09;
+    --theme-user-msg-bg:     104 30% 28%;
+    --theme-user-msg-text:   104 45% 90%;
+    --chat-surface-border:   35 10% 30%;
+    --chat-page-bg:          #2A2620;
 
     /* Card accent bars — brighter in dark mode */
     --card-accent-0: #D4A847;  /* amber */

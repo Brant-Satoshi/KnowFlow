@@ -9,6 +9,9 @@ import type { Chunk, EvalCaseResult, EvalRunComparison, EvalRunResult } from '@/
 
 const EVAL_CASE_COUNT = 5;
 const TOP_K_VALUES = [1, 3, 5];
+const DEFAULT_RETRIEVAL_TOP_K = 20;
+const DEFAULT_RERANK_TOP_K = 5;
+const MAX_TOP_K = 50;
 const QUESTION_TEMPLATE = 'What does the knowledge base say about: {seed}?';
 
 function makeQuestion(text: string): string {
@@ -104,6 +107,7 @@ async function runBranch(args: {
   recalled: Chunk[];
   recallError: boolean;
   useRerank: boolean;
+  rerankTopK: number;
 }): Promise<CaseBranch> {
   const start = Date.now();
   let finalChunks: Chunk[] = [];
@@ -113,9 +117,12 @@ async function runBranch(args: {
   if (!pipelineError) {
     try {
       const ordered = args.useRerank
-        ? await rerankChunks(args.question, args.recalled, { topN: 8, force: true })
+        ? await rerankChunks(args.question, args.recalled, {
+            topN: Math.max(args.rerankTopK, 8),
+            force: true,
+          })
         : args.recalled;
-      finalChunks = ordered.slice(0, 5);
+      finalChunks = ordered.slice(0, args.rerankTopK);
       answer = await generateAnswer(buildPrompt(args.question, finalChunks));
     } catch (e) {
       pipelineError = true;
@@ -150,6 +157,19 @@ export async function POST(request: NextRequest): Promise<Response> {
     return Response.json(error('invalid_request'), { status: 400 });
   }
 
+  const rawTopK = b['topK'];
+  const rawRerankTopK = b['rerankTopK'];
+  const topK = typeof rawTopK === 'number' && Number.isFinite(rawTopK)
+    ? Math.floor(rawTopK)
+    : DEFAULT_RETRIEVAL_TOP_K;
+  const rerankTopK = typeof rawRerankTopK === 'number' && Number.isFinite(rawRerankTopK)
+    ? Math.floor(rawRerankTopK)
+    : DEFAULT_RERANK_TOP_K;
+
+  if (topK < 1 || topK > MAX_TOP_K || rerankTopK < 1 || rerankTopK > topK) {
+    return Response.json(error('invalid_request'), { status: 400 });
+  }
+
   try {
     const seedChunks = await sampleKbChunks(knowledgeBaseId, EVAL_CASE_COUNT);
 
@@ -169,7 +189,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
       try {
         const embedding = await embedText(question);
-        recalled = await searchChunks(embedding, 20, 0.4, undefined, knowledgeBaseId);
+        recalled = await searchChunks(embedding, topK, 0.4, undefined, knowledgeBaseId);
       } catch (e) {
         recallError = true;
         console.error('[eval/run] recall error:', e);
@@ -180,12 +200,14 @@ export async function POST(request: NextRequest): Promise<Response> {
         recalled,
         recallError,
         useRerank: true,
+        rerankTopK,
       });
       const withoutRerankBranch = await runBranch({
         question,
         recalled,
         recallError,
         useRerank: false,
+        rerankTopK,
       });
 
       withRerankCases.push(

@@ -11,6 +11,7 @@ import type {
   EvalCaseResult,
 } from '@/lib/types';
 import type { EvalTranslationKeys } from '@/lib/i18n/translations';
+import Link from 'next/link';
 
 const STYLES = `
   @keyframes eval-reveal {
@@ -116,10 +117,10 @@ function MetricRow({
         <div className="h-px flex-1 bg-border" />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border">
-        <MetricPanel label={evalT.passedCases}      value={passRate}      active={active} delay={baseDelay}       />
-        <MetricPanel label={evalT.retrievalHitRate} value={retrievalRate} active={active} delay={baseDelay + 80}  />
-        <MetricPanel label={evalT.citationHitRate}  value={citationRate}  active={active} delay={baseDelay + 160} />
-        <MetricPanel label={evalT.avgLatency}       value={avgLatency}    active={active} delay={baseDelay + 240} />
+        <MetricPanel label={evalT.passedCases} value={passRate} active={active} delay={baseDelay} />
+        <MetricPanel label={evalT.retrievalHitRate} value={retrievalRate} active={active} delay={baseDelay + 80} />
+        <MetricPanel label={evalT.citationHitRate} value={citationRate} active={active} delay={baseDelay + 160} />
+        <MetricPanel label={evalT.avgLatency} value={avgLatency} active={active} delay={baseDelay + 240} />
       </div>
     </section>
   );
@@ -333,6 +334,8 @@ export default function EvalPage() {
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [loadingKbs, setLoadingKbs] = useState(true);
   const [selectedKbId, setSelectedKbId] = useState('');
+  const [topK, setTopK] = useState(20);
+  const [rerankTopK, setRerankTopK] = useState(5);
   const [isRunning, setIsRunning] = useState(false);
   const [results, setResults] = useState<EvalRunComparison | null>(null);
   const [runError, setRunError] = useState('');
@@ -343,7 +346,7 @@ export default function EvalPage() {
       .then((d: { ok: boolean; data?: { knowledgeBases: KnowledgeBase[] } }) => {
         if (d.ok && d.data) setKnowledgeBases(d.data.knowledgeBases);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoadingKbs(false));
   }, []);
 
@@ -356,7 +359,7 @@ export default function EvalPage() {
       const res = await fetch('/api/eval/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ knowledgeBaseId: selectedKbId }),
+        body: JSON.stringify({ knowledgeBaseId: selectedKbId, topK, rerankTopK }),
       });
       const data = (await res.json()) as { ok: boolean; data?: EvalRunComparison; error?: string };
       if (data.ok && data.data) {
@@ -376,9 +379,9 @@ export default function EvalPage() {
   const pairedCases =
     results && results.withRerank.cases.length === results.withoutRerank.cases.length
       ? results.withRerank.cases.map((c, i) => ({
-          withRerank: c,
-          withoutRerank: results.withoutRerank.cases[i],
-        }))
+        withRerank: c,
+        withoutRerank: results.withoutRerank.cases[i],
+      }))
       : [];
 
   return (
@@ -386,7 +389,13 @@ export default function EvalPage() {
       <style>{STYLES}</style>
       <div className="min-h-screen">
         <header className="sticky top-0 z-20 flex h-[52px] items-center justify-between border-b border-border bg-background px-5">
-          <BrandLogo name={home.title} iconSize={28} />
+          <Link href="/" className="min-w-0">
+            <BrandLogo
+              name={home.title}
+              iconSize={28}
+              className="min-w-0"
+            />
+          </Link>
           <SettingsMenu />
         </header>
         <div className="container mx-auto py-12 px-6 max-w-4xl space-y-10">
@@ -412,8 +421,11 @@ export default function EvalPage() {
           </header>
 
           {/* ── Controls ── */}
-          <div className="flex flex-col sm:flex-row gap-3 items-stretch">
-            <div className="flex-1">
+          <div className="space-y-3">
+            <div className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-3 items-center">
+              <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
+                {evalT.knowledgeBaseLabel}
+              </label>
               {loadingKbs ? (
                 <div className="h-10 border border-border bg-card animate-pulse" />
               ) : knowledgeBases.length === 0 ? (
@@ -433,29 +445,76 @@ export default function EvalPage() {
                   ))}
                 </select>
               )}
+
+              <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
+                {evalT.datasetLabel}
+              </label>
+              <select
+                value="default"
+                disabled
+                className="w-full h-10 border border-input bg-background px-3 text-[13px] font-mono focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-70"
+                style={{ borderRadius: 0 }}
+              >
+                <option value="default">{evalT.defaultDataset}</option>
+              </select>
+
+              <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
+                {evalT.retrievalTopKLabel}
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={topK}
+                onChange={e => {
+                  const next = Number.parseInt(e.target.value, 10);
+                  if (Number.isFinite(next)) setTopK(next);
+                }}
+                className="w-full h-10 border border-input bg-background px-3 text-[13px] font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                style={{ borderRadius: 0 }}
+              />
+
+              <label className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
+                {evalT.rerankTopKLabel}
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={topK}
+                value={rerankTopK}
+                onChange={e => {
+                  const next = Number.parseInt(e.target.value, 10);
+                  if (Number.isFinite(next)) setRerankTopK(next);
+                }}
+                className="w-full h-10 border border-input bg-background px-3 text-[13px] font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                style={{ borderRadius: 0 }}
+              />
             </div>
-            <button
-              onClick={handleRunEval}
-              disabled={!selectedKbId || isRunning}
-              className="h-10 px-7 text-[10px] font-mono uppercase tracking-[0.2em] disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity focus:outline-none"
-              style={{
-                background: !selectedKbId || isRunning ? 'hsl(var(--muted))' : 'var(--card-accent-0)',
-                color: !selectedKbId || isRunning ? 'hsl(var(--muted-foreground))' : 'hsl(0 0% 100%)',
-                borderRadius: 0,
-              }}
-            >
-              {isRunning ? (
-                <span className="flex items-center gap-2.5">
-                  <span
-                    className="w-1.5 h-1.5 rounded-full bg-current"
-                    style={{ animation: 'eval-dot-pulse 0.9s ease-in-out infinite' }}
-                  />
-                  {evalT.running}
-                </span>
-              ) : (
-                evalT.runEval
-              )}
-            </button>
+
+            <div className="flex justify-end">
+              <button
+                onClick={handleRunEval}
+                disabled={!selectedKbId || isRunning || rerankTopK > topK || rerankTopK < 1 || topK < 1}
+                className="h-10 px-7 text-[10px] font-mono uppercase tracking-[0.2em] disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity focus:outline-none"
+                style={{
+                  background: !selectedKbId || isRunning ? 'hsl(var(--muted))' : 'var(--card-accent-0)',
+                  color: !selectedKbId || isRunning ? 'hsl(var(--muted-foreground))' : 'hsl(0 0% 100%)',
+                  borderRadius: 0,
+                }}
+              >
+                {isRunning ? (
+                  <span className="flex items-center gap-2.5">
+                    <span
+                      className="w-1.5 h-1.5 rounded-full bg-current"
+                      style={{ animation: 'eval-dot-pulse 0.9s ease-in-out infinite' }}
+                    />
+                    {evalT.running}
+                  </span>
+                ) : (
+                  evalT.runEval
+                )}
+              </button>
+            </div>
           </div>
 
           {/* ── Comparison hint ── */}
