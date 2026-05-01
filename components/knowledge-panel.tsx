@@ -163,7 +163,7 @@ export function KnowledgePanel({
     <>
       <div
         className={cn(
-          "relative z-10 flex h-full shrink-0 flex-col overflow-hidden rounded-[1rem] border border-border bg-card transition-[width] duration-300 ease-in-out",
+          "relative z-10 flex h-full shrink-0 flex-col overflow-hidden rounded-[1rem] border border-border bg-card",
           widthClass
         )}
       >
@@ -294,7 +294,7 @@ export function KnowledgePanel({
                         {t.panelDocumentsLabel}
                       </p>
                       <span className="font-mono text-[10px] text-muted-foreground">
-                        {files.length} file{files.length !== 1 ? "s" : ""}
+                        {(files.length === 1 ? t.panelFileCount : t.panelFileCountPlural).replace("{count}", String(files.length))}
                       </span>
                     </div>
                   </div>
