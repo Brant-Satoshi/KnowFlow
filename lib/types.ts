@@ -20,6 +20,23 @@ export interface Conversation {
   updatedAt: ISODateString;
 }
 
+export interface ConversationSummary extends Conversation {
+  knowledgeBaseId: string;
+}
+
+export interface StoredMessage {
+  id: string;
+  conversationId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  retrievedChunks: RetrievedChunk[] | null;
+  createdAt: ISODateString;
+}
+
+export interface ConversationWithMessages extends ConversationSummary {
+  messages: StoredMessage[];
+}
+
 // Knowledge Base
 export interface KnowledgeBase {
   id: string;

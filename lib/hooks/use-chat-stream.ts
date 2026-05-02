@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { UIMessage } from "ai"
 import { readSseStream } from "@/lib/chat/sse"
-import type { RetrievedChunk } from "@/lib/types"
+import type { RetrievedChunk, StoredMessage } from "@/lib/types"
 
 interface UseChatStreamParams {
   knowledgeBaseId?: string
+  conversationId?: string
   scrollRef: React.RefObject<HTMLDivElement | null>
   scrollToBottom: () => void
 }
@@ -49,10 +50,36 @@ function parseUsedIndices(text: string): Set<number> {
   return indices
 }
 
-export function useChatStream({ knowledgeBaseId, scrollRef, scrollToBottom }: UseChatStreamParams) {
+function hydrateFromStored(
+  stored: StoredMessage[]
+): { messages: UIMessage[]; citations: Map<string, RetrievedChunk[]> } {
+  const messages: UIMessage[] = []
+  const citations = new Map<string, RetrievedChunk[]>()
+
+  for (const m of stored) {
+    const ui = createTextMessage(m.role, m.content, m.id)
+    messages.push(ui)
+
+    if (m.role === "assistant" && m.retrievedChunks && m.retrievedChunks.length > 0) {
+      const used = parseUsedIndices(m.content)
+      const cited = m.retrievedChunks.filter((c) => used.has(c.index))
+      if (cited.length > 0) citations.set(m.id, cited)
+    }
+  }
+
+  return { messages, citations }
+}
+
+export function useChatStream({
+  knowledgeBaseId,
+  conversationId,
+  scrollRef,
+  scrollToBottom,
+}: UseChatStreamParams) {
   const [messages, setMessages] = useState<UIMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isStreaming, setIsStreaming] = useState(false)
+  const [isHydrating, setIsHydrating] = useState(false)
   const [citationsMap, setCitationsMap] = useState<Map<string, RetrievedChunk[]>>(new Map())
 
   const abortRef = useRef<AbortController | null>(null)
@@ -61,6 +88,7 @@ export function useChatStream({ knowledgeBaseId, scrollRef, scrollToBottom }: Us
   const flushRafRef = useRef<number | null>(null)
   const streamingAssistantIdRef = useRef<string | null>(null)
   const retrievedChunksRef = useRef<RetrievedChunk[]>([])
+  const hydrationGenRef = useRef(0)
 
   const flushAssistantBuffer = useCallback(() => {
     const assistantId = streamingAssistantIdRef.current
@@ -101,6 +129,61 @@ export function useChatStream({ knowledgeBaseId, scrollRef, scrollToBottom }: Us
     })
   }, [flushAssistantBuffer])
 
+  // Hydrate from server when conversation changes.
+  useEffect(() => {
+    abortRef.current?.abort()
+    setIsLoading(false)
+    setIsStreaming(false)
+    streamBufferRef.current = ""
+    fullTextRef.current = ""
+    retrievedChunksRef.current = []
+    streamingAssistantIdRef.current = null
+
+    if (!conversationId) {
+      setMessages([])
+      setCitationsMap(new Map())
+      setIsHydrating(false)
+      return
+    }
+
+    const generation = ++hydrationGenRef.current
+    setIsHydrating(true)
+
+    const controller = new AbortController()
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/conversations/${conversationId}`, {
+          signal: controller.signal,
+        })
+        const json = await res.json()
+        if (generation !== hydrationGenRef.current) return
+        if (!json.ok || !json.data?.conversation) {
+          setMessages([])
+          setCitationsMap(new Map())
+          return
+        }
+        const stored: StoredMessage[] = json.data.conversation.messages ?? []
+        const { messages: hydrated, citations } = hydrateFromStored(stored)
+        setMessages(hydrated)
+        setCitationsMap(citations)
+      } catch (err) {
+        if ((err as Error)?.name === "AbortError") return
+        if (generation !== hydrationGenRef.current) return
+        setMessages([])
+        setCitationsMap(new Map())
+      } finally {
+        if (generation === hydrationGenRef.current) {
+          setIsHydrating(false)
+        }
+      }
+    }
+    void load()
+
+    return () => {
+      controller.abort()
+    }
+  }, [conversationId])
+
   useEffect(() => {
     return () => {
       abortRef.current?.abort()
@@ -119,7 +202,7 @@ export function useChatStream({ knowledgeBaseId, scrollRef, scrollToBottom }: Us
   const sendMessage = useCallback(
     async (text: string) => {
       const trimmedText = text.trim()
-      if (!trimmedText || isLoading) return
+      if (!trimmedText || isLoading || !conversationId) return
 
       abortRef.current?.abort()
       const controller = new AbortController()
@@ -147,11 +230,13 @@ export function useChatStream({ knowledgeBaseId, scrollRef, scrollToBottom }: Us
         const payload: {
           message: string
           clientMessageId: string
+          conversationId: string
           knowledgeBaseId?: string
           debug?: { delayMs: number; repeat: number; chunkBy: "char" | "word" }
         } = {
           message: trimmedText,
           clientMessageId,
+          conversationId,
         }
 
         if (knowledgeBaseId) {
@@ -282,13 +367,14 @@ export function useChatStream({ knowledgeBaseId, scrollRef, scrollToBottom }: Us
       fullTextRef.current = ""
       retrievedChunksRef.current = []
     },
-    [flushAssistantBuffer, isLoading, knowledgeBaseId, scheduleFlush, scrollToBottom]
+    [conversationId, flushAssistantBuffer, isLoading, knowledgeBaseId, scheduleFlush, scrollToBottom]
   )
 
   return {
     messages,
     isLoading,
     isStreaming,
+    isHydrating,
     citationsMap,
     handleStop,
     sendMessage,

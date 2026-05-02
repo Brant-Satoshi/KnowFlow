@@ -1,10 +1,18 @@
 import { searchChunks } from '@/lib/db/chunks';
-import { buildPrompt, streamAnswer } from '@/lib/llm/chat';
+import {
+  appendMessage,
+  getConversationById,
+  listRecentMessages,
+  touchConversation,
+} from '@/lib/db/conversations';
+import { buildPrompt, streamAnswer, type ChatHistoryMessage } from '@/lib/llm/chat';
 import { embedText } from '@/lib/rag/embeddings';
 import { NextRequest } from 'next/server';
 import { isValidUuid } from '@/lib/validation';
 import { rerankChunks } from '@/lib/rag/rerank';
 import type { RetrievedChunk } from '@/lib/types';
+
+const MAX_HISTORY_MESSAGES = 8;
 
 function sseHeaders(): HeadersInit {
   return {
@@ -28,7 +36,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Validate that body has a 'message' property of type string
   const message =
     typeof body === 'object' && body !== null && 'message' in body
       ? (body as { message?: unknown }).message
@@ -60,6 +67,45 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const conversationId =
+    typeof body === 'object' && body !== null && 'conversationId' in body
+      ? (body as { conversationId?: unknown }).conversationId
+      : undefined;
+
+  if (typeof conversationId !== 'string' || !isValidUuid(conversationId)) {
+    return Response.json(
+      { requestId, ok: false, error: 'Valid conversationId is required' },
+      { status: 400 },
+    );
+  }
+
+  const conversation = await getConversationById(conversationId);
+  if (!conversation) {
+    return Response.json(
+      { requestId, ok: false, error: 'Conversation not found' },
+      { status: 404 },
+    );
+  }
+
+  if (
+    typeof knowledgeBaseId === 'string' &&
+    conversation.knowledgeBaseId !== knowledgeBaseId
+  ) {
+    return Response.json(
+      { requestId, ok: false, error: 'Conversation does not belong to this knowledge base' },
+      { status: 400 },
+    );
+  }
+
+  // Fetch history BEFORE persisting the new user message so we send only prior turns.
+  const recentMessages = await listRecentMessages(conversationId, MAX_HISTORY_MESSAGES);
+  const history: ChatHistoryMessage[] = recentMessages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  await appendMessage(conversationId, 'user', message);
+
   try {
     const queryEmbedding = await embedText(message, { signal: request.signal });
     const recalledChunks = await searchChunks(
@@ -67,7 +113,7 @@ export async function POST(request: NextRequest) {
       20,
       0.4,
       undefined,
-      typeof knowledgeBaseId === 'string' ? knowledgeBaseId : undefined
+      conversation.knowledgeBaseId,
     );
 
     const rerankedChunks = await rerankChunks(message, recalledChunks, {
@@ -87,7 +133,16 @@ export async function POST(request: NextRequest) {
     }));
 
     const prompt = buildPrompt(message, finalChunks);
-    const stream = await streamAnswer(prompt, request.signal, requestId, { retrievedChunks });
+    const stream = await streamAnswer(prompt, request.signal, requestId, {
+      history,
+      extraMeta: { retrievedChunks },
+      onComplete: async (fullText) => {
+        if (fullText.length > 0) {
+          await appendMessage(conversationId, 'assistant', fullText, retrievedChunks);
+        }
+        await touchConversation(conversationId);
+      },
+    });
 
     return new Response(stream, { headers: sseHeaders() });
   } catch (e) {

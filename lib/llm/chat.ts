@@ -53,6 +53,17 @@ function splitText(text: string) {
   return text.split(/(\s+)/);
 }
 
+export type ChatHistoryMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+export interface StreamAnswerOptions {
+  history?: ChatHistoryMessage[];
+  extraMeta?: Record<string, unknown>;
+  onComplete?: (fullText: string) => Promise<void> | void;
+}
+
 export function buildPrompt(question: string, chunks: Chunk[]) {
   if (isSummaryQuery(question) && chunks.length === 0) {
     return `Please summarize the conversation so far.`;
@@ -94,9 +105,18 @@ export async function streamAnswer(
   prompt: string,
   signal: AbortSignal,
   requestId: string,
-  extraMeta?: Record<string, unknown>,
+  options?: StreamAnswerOptions,
 ) {
   const provider = resolveChatProvider();
+  const history = options?.history ?? [];
+  const extraMeta = options?.extraMeta;
+  const onComplete = options?.onComplete;
+
+  const llmMessages = [
+    ...history.map((m) => ({ role: m.role, content: m.content })),
+    { role: 'user' as const, content: prompt },
+  ];
+
   const response = await fetch(provider.url, {
     method: "POST",
     signal,
@@ -107,7 +127,7 @@ export async function streamAnswer(
     body: JSON.stringify({
       model: provider.model,
       stream: true,
-      messages: [{ role: "user", content: prompt }],
+      messages: llmMessages,
     }),
   });
 
@@ -130,6 +150,19 @@ export async function streamAnswer(
     return errorStream;
   }
   const encoder = new TextEncoder();
+
+  const accumulated: string[] = [];
+  let completeFired = false;
+  const fireComplete = async () => {
+    if (completeFired) return;
+    completeFired = true;
+    if (!onComplete) return;
+    try {
+      await onComplete(accumulated.join(''));
+    } catch (err) {
+      console.error(`[${requestId}] onComplete failed:`, err);
+    }
+  };
 
   const stream = new ReadableStream<Uint8Array>({
     start: async (controller) => {
@@ -171,10 +204,8 @@ export async function streamAnswer(
             const data = JSON.parse(jsonStr);
             const content = data.choices?.[0]?.delta?.content;
 
-            // if (content.length < 10) → 直接发
-            // if (content.length > 50) → 拆词
-            // if (content.length > 100) → 拆字符
             if (content) {
+              accumulated.push(content);
               const chunks = splitText(content);
 
               for (const chunk of chunks) {
@@ -187,6 +218,10 @@ export async function streamAnswer(
       }
       send('done', { requestId });
       controller.close();
+      await fireComplete();
+    },
+    cancel: async () => {
+      await fireComplete();
     },
   });
   return stream;

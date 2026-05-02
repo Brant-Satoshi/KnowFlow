@@ -17,6 +17,12 @@ migrate:
 	docker exec -i $(CONTAINER) \
 		psql -U $(USER) -d $(DB) \
 		< db/migrations/002_add_meta_and_nullable_embedding.sql
+	docker exec -i $(CONTAINER) \
+		psql -U $(USER) -d $(DB) \
+		< db/migrations/003_add_knowledge_bases.sql
+	docker exec -i $(CONTAINER) \
+		psql -U $(USER) -d $(DB) \
+		< db/migrations/004_add_conversations.sql
 
 seed:
 	docker exec -i $(CONTAINER) \
