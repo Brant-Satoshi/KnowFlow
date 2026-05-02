@@ -63,6 +63,12 @@ function SourceBadge({ chunk }: { chunk: RetrievedChunk }) {
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-80 rounded-[10px] text-xs leading-6 text-muted-foreground" side="top">
+        <div className="mb-2 flex items-center gap-1.5 border-b border-border pb-2">
+          <span className="truncate font-medium text-foreground">{chunk.fileName}</span>
+          {chunk.page != null && (
+            <span className="shrink-0 text-[10px] text-muted-foreground/60">p.{chunk.page}</span>
+          )}
+        </div>
         <p className="line-clamp-6">{chunk.quote}</p>
       </PopoverContent>
     </Popover>
