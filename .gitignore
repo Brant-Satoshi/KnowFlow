@@ -43,3 +43,7 @@ next-env.d.ts
 # local
 .claude
 CLAUDE.local.md
+
+# playwright
+/test-results
+/playwright-report

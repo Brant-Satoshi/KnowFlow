@@ -1,12 +1,10 @@
 "use client"
 
 import type { UIMessage } from "ai"
-import type { Components } from "react-markdown"
-import ReactMarkdown from "react-markdown"
-import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { cn } from "@/lib/utils"
 import type { RetrievedChunk } from "@/lib/types"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import type { AssistantProgress } from "@/lib/hooks/use-chat-stream"
+import { AssistantMessageCard } from "@/components/assistant-message-card"
 
 function getUIMessageText(message: UIMessage): string {
   if (!message.parts || !Array.isArray(message.parts)) return ""
@@ -16,70 +14,13 @@ function getUIMessageText(message: UIMessage): string {
     .join("")
 }
 
-const markdownComponents: Components = {
-  p: ({ children }) => <p className="whitespace-pre-wrap leading-7 [&:not(:first-child)]:mt-4">{children}</p>,
-  ul: ({ children }) => <ul className="mt-4 list-disc space-y-2 pl-5">{children}</ul>,
-  ol: ({ children }) => <ol className="mt-4 list-decimal space-y-2 pl-5">{children}</ol>,
-  li: ({ children }) => <li className="leading-7">{children}</li>,
-  strong: ({ children }) => <strong className="font-semibold text-current">{children}</strong>,
-  a: ({ children, href }) => (
-    <a href={href} target="_blank" rel="noreferrer"
-      className="font-medium text-primary underline decoration-primary/35 underline-offset-4">
-      {children}
-    </a>
-  ),
-  blockquote: ({ children }) => (
-    <blockquote className="mt-4 border-l-2 border-primary/30 pl-4 italic text-foreground/80">
-      {children}
-    </blockquote>
-  ),
-  code: ({ children, className }) => {
-    if (className) {
-      return <code className={cn("font-mono text-[13px]", className)}>{children}</code>
-    }
-    return (
-      <code className="rounded-md bg-primary/8 px-1.5 py-0.5 font-mono text-[13px] text-foreground dark:bg-primary/12">
-        {children}
-      </code>
-    )
-  },
-  pre: ({ children }) => (
-    <pre className="mt-4 overflow-x-auto rounded-xl border border-border bg-secondary p-4 text-sm">
-      {children}
-    </pre>
-  ),
-}
-
-function SourceBadge({ chunk }: { chunk: RetrievedChunk }) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button className="inline-flex items-center gap-1.5 rounded-[7px] border border-border bg-secondary px-2.5 py-1 font-mono text-[10.5px] font-medium text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground">
-          <span className="text-[9.5px] text-muted-foreground/70">[{chunk.index}]</span>
-          <span className="max-w-[18rem] truncate">{chunk.fileName}</span>
-          {chunk.page != null && (
-            <span className="text-[9.5px] text-muted-foreground/60">p.{chunk.page}</span>
-          )}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 rounded-[10px] text-xs leading-6 text-muted-foreground" side="top">
-        <div className="mb-2 flex items-center gap-1.5 border-b border-border pb-2">
-          <span className="truncate font-medium text-foreground">{chunk.fileName}</span>
-          {chunk.page != null && (
-            <span className="shrink-0 text-[10px] text-muted-foreground/60">p.{chunk.page}</span>
-          )}
-        </div>
-        <p className="line-clamp-6">{chunk.quote}</p>
-      </PopoverContent>
-    </Popover>
-  )
-}
-
 interface ChatMessagesProps {
   messages: UIMessage[]
   isLoading: boolean
   isStreaming: boolean
   citationsMap: Map<string, RetrievedChunk[]>
+  progressMap: Map<string, AssistantProgress>
+  onRegenerate?: () => void
 }
 
 export function ChatMessages({
@@ -87,9 +28,16 @@ export function ChatMessages({
   isLoading,
   isStreaming,
   citationsMap,
+  progressMap,
+  onRegenerate,
 }: ChatMessagesProps) {
   const latestMessageId = messages[messages.length - 1]?.id
-  const { t } = useLanguage()
+  const latestAssistantId = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "assistant") return messages[i].id
+    }
+    return null
+  })()
 
   return (
     <div className="flex flex-col gap-6 pb-2">
@@ -98,56 +46,39 @@ export function ChatMessages({
         const isUser = message.role === "user"
         const isStreamingMessage = isStreaming && !isUser && message.id === latestMessageId
         const isAssistantLoading = isLoading && !isUser && message.id === latestMessageId && text.length === 0
-        const citations = isUser ? [] : (citationsMap.get(message.id) ?? [])
+
+        if (isUser) {
+          return (
+            <div key={message.id} className="flex items-start justify-end gap-3">
+              <div className="max-w-[min(100%,54rem)] space-y-2 text-right">
+                <div
+                  className={cn(
+                    "rounded-[14px] rounded-br-[4px] border border-transparent px-4 py-3",
+                    "theme-user-msg-bg theme-user-msg-text",
+                  )}
+                >
+                  <div className="text-sm text-current">
+                    <div className="whitespace-pre-wrap break-words leading-7">{text}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        }
 
         return (
-          <div key={message.id} className={cn("flex items-start gap-3", isUser && "justify-end")}>
-            <div className={cn("max-w-[min(100%,54rem)] space-y-2", isUser && "text-right")}>
-              <div className={cn(
-                "rounded-[14px] border px-4 py-3",
-                isUser
-                  ? "border-transparent theme-user-msg-bg theme-user-msg-text rounded-br-[4px]"
-                  : "rounded-tl-[4px] border-border bg-secondary text-card-foreground"
-              )}>
-                {isAssistantLoading ? (
-                  <div className="flex h-7 items-center gap-1.5" role="status" aria-label="Generating response">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <span
-                        key={i}
-                        className="loading-dot-breathe h-2 w-2 rounded-full bg-primary/60"
-                        style={{ animationDelay: `${i * 140}ms` }}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-sm text-current">
-                    {isStreamingMessage ? (
-                      <div className="whitespace-pre-wrap break-words leading-7">
-                        {text}
-                        <span
-                          aria-hidden="true"
-                          className="streaming-cursor ml-1 inline-block h-[1.05em] w-0.5 translate-y-0.5 rounded-full bg-primary align-[-0.1em]"
-                        />
-                      </div>
-                    ) : (
-                      <ReactMarkdown components={markdownComponents}>{text}</ReactMarkdown>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {citations.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 px-0.5">
-                  <span className="text-[9.5px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                    {t.sourcesLabel}
-                  </span>
-                  {citations.map(chunk => (
-                    <SourceBadge key={`${message.id}-${chunk.index}`} chunk={chunk} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <AssistantMessageCard
+            key={message.id}
+            messageId={message.id}
+            text={text}
+            isStreaming={isStreamingMessage}
+            isLoading={isAssistantLoading}
+            citations={citationsMap.get(message.id) ?? []}
+            progress={progressMap.get(message.id)}
+            isLatestAssistant={message.id === latestAssistantId}
+            onRegenerate={onRegenerate}
+            regenerateDisabled={isLoading || isStreaming}
+          />
         )
       })}
     </div>

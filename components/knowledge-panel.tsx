@@ -35,6 +35,7 @@ interface KnowledgePanelProps {
   initialLoading?: boolean
   onToggle: () => void
   fullWidth?: boolean
+  side?: "left" | "right"
 }
 
 function formatSize(bytes: number): string {
@@ -115,6 +116,7 @@ export function KnowledgePanel({
   initialLoading = false,
   onToggle,
   fullWidth = false,
+  side = "left",
 }: KnowledgePanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
@@ -123,6 +125,8 @@ export function KnowledgePanel({
   const { t } = useLanguage()
 
   const widthClass = fullWidth ? "w-full" : collapsed ? "w-[64px]" : "w-[17rem] xl:w-[18.5rem]"
+  const CollapseIcon = side === "right" ? ChevronRight : ChevronLeft
+  const ExpandIcon = side === "right" ? ChevronLeft : ChevronRight
 
   const handleFileSelect = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -188,7 +192,7 @@ export function KnowledgePanel({
               aria-label={t.togglePanel}
               aria-expanded={!collapsed}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ExpandIcon className="h-4 w-4" />
             </Button>
 
             <div className="h-px w-7 bg-border" />
@@ -224,7 +228,7 @@ export function KnowledgePanel({
                     aria-label={t.togglePanel}
                     aria-expanded={!collapsed}
                   >
-                    <ChevronLeft className="h-3.5 w-3.5" />
+                    <CollapseIcon className="h-3.5 w-3.5" />
                   </Button>
                 )}
               </div>

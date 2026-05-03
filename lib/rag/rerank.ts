@@ -131,7 +131,12 @@ export async function rerankChunks(
         if (!Number.isInteger(idx) || idx < 0 || idx >= chunks.length || used.has(idx)) {
             continue;
         }
-        reranked.push(chunks[idx]);
+        const original = chunks[idx];
+        const rerankScore = typeof item.relevance_score === 'number' ? item.relevance_score : undefined;
+        reranked.push({
+            ...original,
+            meta: { ...(original.meta ?? {}), _rerankScore: rerankScore },
+        });
         used.add(idx);
     }
 

@@ -7,6 +7,7 @@ import { ArrowLeft, Database, Loader2 } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { ChatInput } from "@/components/chat-input"
 import { ChatMessages } from "@/components/chat-messages"
+import { ConversationSidebar } from "@/components/conversation-sidebar"
 import { EmptyState } from "@/components/empty-state"
 import { KnowledgePanel } from "@/components/knowledge-panel"
 import { SettingsMenu } from "@/components/settings-menu"
@@ -17,7 +18,7 @@ import { useChatStream } from "@/lib/hooks/use-chat-stream"
 import { useErrorToast } from "@/lib/hooks/use-error-toast"
 import { useFileState } from "@/lib/hooks/use-file-state"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
-import { KnowledgeBase } from "@/lib/types"
+import type { ConversationSummary, KnowledgeBase } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const chatSurfaceClass =
@@ -33,8 +34,14 @@ export default function ChatPage() {
   const [isKnowledgeBaseLoading, setIsKnowledgeBaseLoading] = useState(true)
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   const [input, setInput] = useState("")
-  const [mobileTab, setMobileTab] = useState<"knowledge" | "ask">("ask")
+  const [mobileTab, setMobileTab] = useState<"chats" | "knowledge" | "ask">("ask")
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  const [conversations, setConversations] = useState<ConversationSummary[]>([])
+  const [conversationsLoading, setConversationsLoading] = useState(true)
+  const [creatingConversation, setCreatingConversation] = useState(false)
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
+  const conversationBootstrapRef = useRef<string | null>(null)
 
   const { t } = useLanguage()
   const showErrorToast = useErrorToast()
@@ -73,8 +80,19 @@ export default function ChatPage() {
     deleteSuccessDesc: t.deleteSuccessDesc,
   })
 
-  const { messages, isLoading, isStreaming, citationsMap, handleStop, sendMessage } = useChatStream({
+  const {
+    messages,
+    isLoading,
+    isStreaming,
+    isHydrating,
+    citationsMap,
+    progressMap,
+    handleStop,
+    sendMessage,
+    regenerateLast,
+  } = useChatStream({
     knowledgeBaseId,
+    conversationId: currentConversationId ?? undefined,
     scrollRef,
     scrollToBottom,
   })
@@ -110,22 +128,153 @@ export default function ChatPage() {
     void fetchKnowledgeBase()
   }, [knowledgeBaseId, router, showErrorToast, t.failedToLoadKnowledgeBase, t.knowledgeBaseNotFound])
 
+  useEffect(() => {
+    if (!knowledgeBaseId) return
+
+    setConversationsLoading(true)
+    setCurrentConversationId(null)
+    conversationBootstrapRef.current = null
+
+    const controller = new AbortController()
+    const load = async () => {
+      try {
+        const res = await fetch(
+          `/api/conversations?knowledgeBaseId=${knowledgeBaseId}`,
+          { signal: controller.signal }
+        )
+        const json = await res.json()
+        if (!json.ok) throw new Error(json.error || t.conversationListLoadFailed)
+        const list: ConversationSummary[] = json.data?.conversations ?? []
+        setConversations(list)
+        if (list.length > 0) {
+          setCurrentConversationId(list[0].id)
+        }
+      } catch (err) {
+        if ((err as Error)?.name === "AbortError") return
+        console.error("Failed to load conversations:", err)
+        showErrorToast(t.conversationListLoadFailed)
+      } finally {
+        setConversationsLoading(false)
+      }
+    }
+    void load()
+
+    return () => {
+      controller.abort()
+    }
+  }, [knowledgeBaseId, showErrorToast, t.conversationListLoadFailed])
+
+  const handleCreateConversation = useCallback(async (): Promise<string | null> => {
+    if (!knowledgeBaseId || creatingConversation) return null
+    setCreatingConversation(true)
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ knowledgeBaseId }),
+      })
+      const json = await res.json()
+      if (!json.ok || !json.data?.conversation) {
+        throw new Error(json.error || t.conversationCreateFailed)
+      }
+      const created: ConversationSummary = json.data.conversation
+      setConversations((prev) => [created, ...prev])
+      setCurrentConversationId(created.id)
+      return created.id
+    } catch (err) {
+      console.error("Failed to create conversation:", err)
+      showErrorToast(t.conversationCreateFailed)
+      return null
+    } finally {
+      setCreatingConversation(false)
+    }
+  }, [creatingConversation, knowledgeBaseId, showErrorToast, t.conversationCreateFailed])
+
+  // Auto-create one conversation if the KB has none, so the user lands on a usable thread.
+  useEffect(() => {
+    if (conversationsLoading) return
+    if (conversations.length > 0) return
+    if (!knowledgeBaseId) return
+    if (conversationBootstrapRef.current === knowledgeBaseId) return
+    conversationBootstrapRef.current = knowledgeBaseId
+    void handleCreateConversation()
+  }, [conversations.length, conversationsLoading, handleCreateConversation, knowledgeBaseId])
+
+  const handleSelectConversation = useCallback(
+    (id: string) => {
+      setCurrentConversationId(id)
+      if (isMobile) setMobileTab("ask")
+    },
+    [isMobile]
+  )
+
+  const handleRenameConversation = useCallback(
+    async (id: string, title: string): Promise<boolean> => {
+      try {
+        const res = await fetch(`/api/conversations/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title }),
+        })
+        const json = await res.json()
+        if (!json.ok || !json.data?.conversation) {
+          throw new Error(json.error || t.conversationRenameFailed)
+        }
+        const updated: ConversationSummary = json.data.conversation
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === id ? { ...c, title: updated.title, updatedAt: updated.updatedAt } : c
+          )
+        )
+        return true
+      } catch (err) {
+        console.error("Failed to rename conversation:", err)
+        showErrorToast(t.conversationRenameFailed)
+        return false
+      }
+    },
+    [showErrorToast, t.conversationRenameFailed]
+  )
+
+  const handleDeleteConversation = useCallback(
+    async (id: string): Promise<boolean> => {
+      try {
+        const res = await fetch(`/api/conversations/${id}`, { method: "DELETE" })
+        const json = await res.json()
+        if (!json.ok) throw new Error(json.error || t.conversationDeleteFailed)
+        setConversations((prev) => {
+          const next = prev.filter((c) => c.id !== id)
+          if (currentConversationId === id) {
+            setCurrentConversationId(next[0]?.id ?? null)
+          }
+          return next
+        })
+        return true
+      } catch (err) {
+        console.error("Failed to delete conversation:", err)
+        showErrorToast(t.conversationDeleteFailed)
+        return false
+      }
+    },
+    [currentConversationId, showErrorToast, t.conversationDeleteFailed]
+  )
+
   const handleSubmit = useCallback(() => {
-    if (!input.trim() || isLoading) return
+    if (!input.trim() || isLoading || !currentConversationId) return
     const nextInput = input
     setInput("")
     void sendMessage(nextInput)
-  }, [input, isLoading, sendMessage])
+  }, [currentConversationId, input, isLoading, sendMessage])
 
   const handleSuggestionClick = useCallback(
     (text: string) => {
-      if (isLoading) return
+      if (isLoading || !currentConversationId) return
       void sendMessage(text)
     },
-    [isLoading, sendMessage]
+    [currentConversationId, isLoading, sendMessage]
   )
 
-  const isInitialLoading = isKnowledgeBaseLoading || isFilesLoading
+  const isInitialLoading = isKnowledgeBaseLoading || isFilesLoading || conversationsLoading
   const isParsingOrUploading = uploading || parsingIds.size > 0
   const hasKnowledge = files.some((file) => file.status === "indexed") && !isParsingOrUploading
   const hasMessages = messages.length > 0
@@ -197,10 +346,16 @@ export default function ChatPage() {
 
           <Tabs
             value={mobileTab}
-            onValueChange={(value) => setMobileTab(value as "knowledge" | "ask")}
+            onValueChange={(value) => setMobileTab(value as "chats" | "knowledge" | "ask")}
             className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <TabsList className={cn("h-auto rounded-[1rem] p-1", chatSurfaceClass)}>
+              <TabsTrigger
+                value="chats"
+                className="flex-1 rounded-[0.85rem] py-2.5 data-[state=active]:shadow-none"
+              >
+                {t.chatsTab}
+              </TabsTrigger>
               <TabsTrigger
                 value="knowledge"
                 className="flex-1 rounded-[0.85rem] py-2.5 data-[state=active]:shadow-none"
@@ -221,9 +376,20 @@ export default function ChatPage() {
                   ref={scrollRef}
                   className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
                 >
-                  {hasMessages ? (
+                  {isHydrating && !hasMessages ? (
+                    <div className="flex h-full items-center justify-center">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : hasMessages ? (
                     <div className="px-4 py-5">
-                      <ChatMessages messages={messages} isLoading={isLoading} isStreaming={isStreaming} citationsMap={citationsMap} />
+                      <ChatMessages
+                        messages={messages}
+                        isLoading={isLoading}
+                        isStreaming={isStreaming}
+                        citationsMap={citationsMap}
+                        progressMap={progressMap}
+                        onRegenerate={regenerateLast}
+                      />
                     </div>
                   ) : (
                     <EmptyState
@@ -262,6 +428,20 @@ export default function ChatPage() {
                 fullWidth={true}
               />
             </TabsContent>
+
+            <TabsContent value="chats" className="mt-3 flex min-h-0 flex-1 overflow-hidden">
+              <ConversationSidebar
+                conversations={conversations}
+                currentId={currentConversationId}
+                isLoading={conversationsLoading}
+                isCreating={creatingConversation}
+                onSelect={handleSelectConversation}
+                onCreate={() => void handleCreateConversation()}
+                onRename={handleRenameConversation}
+                onDelete={handleDeleteConversation}
+                fullWidth
+              />
+            </TabsContent>
           </Tabs>
         </div>
       </div>
@@ -290,28 +470,37 @@ export default function ChatPage() {
         </header>
 
         <div className="flex min-h-0 min-w-0 flex-1 gap-4 lg:gap-5">
-          <KnowledgePanel
-            files={files}
-            onUpload={handleUpload}
-            onParse={handleParse}
-            onDelete={handleDelete}
-            parsingIds={parsingIds}
-            deletingIds={deletingIds}
-            uploading={uploading}
-            collapsed={panelCollapsed}
-            initialLoading={isInitialLoading}
-            onToggle={() => setPanelCollapsed((prev) => !prev)}
+          <ConversationSidebar
+            conversations={conversations}
+            currentId={currentConversationId}
+            isLoading={conversationsLoading}
+            isCreating={creatingConversation}
+            onSelect={handleSelectConversation}
+            onCreate={() => void handleCreateConversation()}
+            onRename={handleRenameConversation}
+            onDelete={handleDeleteConversation}
           />
 
           <section className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[1.25rem]", chatSurfaceClass)}>
             <div className="min-h-0 flex-1">
-              {hasMessages ? (
+              {isHydrating && !hasMessages ? (
+                <div className="flex h-full items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : hasMessages ? (
                 <div
                   ref={scrollRef}
                   className="h-full overflow-y-auto overscroll-contain px-5 py-6 [-webkit-overflow-scrolling:touch] sm:px-6"
                 >
                   <div className="mx-auto max-w-5xl">
-                    <ChatMessages messages={messages} isLoading={isLoading} isStreaming={isStreaming} citationsMap={citationsMap} />
+                    <ChatMessages
+                      messages={messages}
+                      isLoading={isLoading}
+                      isStreaming={isStreaming}
+                      citationsMap={citationsMap}
+                      progressMap={progressMap}
+                      onRegenerate={regenerateLast}
+                    />
                   </div>
                 </div>
               ) : (
@@ -338,6 +527,20 @@ export default function ChatPage() {
               sourceCount={latestAssistantSourceCount}
             />
           </section>
+
+          <KnowledgePanel
+            files={files}
+            onUpload={handleUpload}
+            onParse={handleParse}
+            onDelete={handleDelete}
+            parsingIds={parsingIds}
+            deletingIds={deletingIds}
+            uploading={uploading}
+            collapsed={panelCollapsed}
+            initialLoading={isInitialLoading}
+            onToggle={() => setPanelCollapsed((prev) => !prev)}
+            side="right"
+          />
         </div>
       </div>
     </div>

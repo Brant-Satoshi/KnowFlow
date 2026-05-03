@@ -43,14 +43,27 @@ function resolveChatProvider(): ChatProviderConfig {
   return factory();
 }
 
-type SseEventName = 'meta' | 'token' | 'done' | 'error';
+export type SseEventName = 'meta' | 'token' | 'done' | 'error' | 'progress';
 
-function formatSse(event: SseEventName, data: unknown): string {
+export function formatSse(event: SseEventName, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
+export type SseSend = (event: SseEventName, data: unknown) => void;
+
 function splitText(text: string) {
   return text.split(/(\s+)/);
+}
+
+export type ChatHistoryMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+export interface StreamAnswerOptions {
+  history?: ChatHistoryMessage[];
+  extraMeta?: Record<string, unknown>;
+  onComplete?: (fullText: string) => Promise<void> | void;
 }
 
 export function buildPrompt(question: string, chunks: Chunk[]) {
@@ -90,106 +103,151 @@ Question:
 ${question}`;
 }
 
-export async function streamAnswer(
+export interface StreamLlmAnswerOptions {
+  history?: ChatHistoryMessage[];
+  onComplete?: (fullText: string) => Promise<void> | void;
+}
+
+/**
+ * Drives a Chat Completions stream and forwards `token` / `done` / `error` events
+ * via the supplied `send` callback. Does NOT emit `meta` — the caller owns the
+ * outer stream and is responsible for `meta` ordering.
+ */
+export async function streamLlmAnswer(
+  send: SseSend,
   prompt: string,
   signal: AbortSignal,
   requestId: string,
-  extraMeta?: Record<string, unknown>,
-) {
+  options?: StreamLlmAnswerOptions,
+): Promise<void> {
   const provider = resolveChatProvider();
+  const history = options?.history ?? [];
+  const onComplete = options?.onComplete;
+
+  const llmMessages = [
+    ...history.map((m) => ({ role: m.role, content: m.content })),
+    { role: 'user' as const, content: prompt },
+  ];
+
   const response = await fetch(provider.url, {
-    method: "POST",
+    method: 'POST',
     signal,
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       Authorization: `Bearer ${provider.apiKey}`,
     },
     body: JSON.stringify({
       model: provider.model,
       stream: true,
-      messages: [{ role: "user", content: prompt }],
+      messages: llmMessages,
     }),
   });
 
-  // Check for HTTP errors before processing the stream
   if (!response.ok) {
-    const encoder = new TextEncoder();
     let errorData: unknown = null;
     try {
       errorData = await response.json();
     } catch {
       errorData = await response.text();
     }
-    const errorStream = new ReadableStream<Uint8Array>({
-      start: (controller) => {
-        controller.enqueue(encoder.encode(formatSse('meta', { requestId, ...extraMeta })));
-        controller.enqueue(encoder.encode(formatSse('error', { requestId, status: response.status, error: errorData })));
-        controller.close();
-      },
-    });
-    return errorStream;
+    send('error', { requestId, status: response.status, error: errorData });
+    return;
   }
-  const encoder = new TextEncoder();
 
-  const stream = new ReadableStream<Uint8Array>({
-    start: async (controller) => {
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
+  const accumulated: string[] = [];
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('No response body');
 
-      const decoder = new TextDecoder();
-      const send = (event: SseEventName, data: unknown) => {
-        controller.enqueue(encoder.encode(formatSse(event, data)));
-      };
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let streamDone = false;
 
-      send('meta', { requestId, ...extraMeta });
+  try {
+    while (!streamDone) {
+      const { done, value } = await reader.read();
+      if (done) {
+        streamDone = true;
+        break;
+      }
 
-      let buffer = '';
-      let streamDone = false;
-      while (!streamDone) {
-        const { done, value } = await reader.read();
-        if (done) {
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+
+        const jsonStr = line.slice(6);
+
+        if (jsonStr === '[DONE]') {
           streamDone = true;
           break;
         }
 
-        buffer += decoder.decode(value, { stream: true });
+        try {
+          const data = JSON.parse(jsonStr);
+          const content = data.choices?.[0]?.delta?.content;
 
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
+          if (content) {
+            accumulated.push(content);
+            const chunks = splitText(content);
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-
-          const jsonStr = line.slice(6);
-
-          if (jsonStr === '[DONE]') {
-            streamDone = true;
-            break;
-          }
-
-          try {
-            const data = JSON.parse(jsonStr);
-            const content = data.choices?.[0]?.delta?.content;
-
-            // if (content.length < 10) → 直接发
-            // if (content.length > 50) → 拆词
-            // if (content.length > 100) → 拆字符
-            if (content) {
-              const chunks = splitText(content);
-
-              for (const chunk of chunks) {
-                send('token', { delta: chunk });
-                await new Promise(r => setTimeout(r, 10));
-              }
+            for (const chunk of chunks) {
+              send('token', { delta: chunk });
+              await new Promise((r) => setTimeout(r, 10));
             }
-          } catch { }
-        }
+          }
+        } catch { }
       }
-      send('done', { requestId });
-      controller.close();
+    }
+    send('done', { requestId });
+  } finally {
+    if (onComplete) {
+      try {
+        await onComplete(accumulated.join(''));
+      } catch (err) {
+        console.error(`[${requestId}] onComplete failed:`, err);
+      }
+    }
+  }
+}
+
+/**
+ * Backwards-compatible wrapper around streamLlmAnswer that returns a complete
+ * SSE ReadableStream including the `meta` event. Kept for non-chat callers
+ * (e.g. /eval) that don't need fine-grained progress signalling.
+ */
+export async function streamAnswer(
+  prompt: string,
+  signal: AbortSignal,
+  requestId: string,
+  options?: StreamAnswerOptions,
+): Promise<ReadableStream<Uint8Array>> {
+  const extraMeta = options?.extraMeta;
+  const encoder = new TextEncoder();
+
+  return new ReadableStream<Uint8Array>({
+    start: async (controller) => {
+      const send: SseSend = (event, data) => {
+        controller.enqueue(encoder.encode(formatSse(event, data)));
+      };
+      send('meta', { requestId, ...extraMeta });
+      try {
+        await streamLlmAnswer(send, prompt, signal, requestId, {
+          history: options?.history,
+          onComplete: options?.onComplete,
+        });
+      } catch (err) {
+        send('error', {
+          requestId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      } finally {
+        controller.close();
+      }
     },
   });
-  return stream;
 }
 
 export async function generateAnswer(
