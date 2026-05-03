@@ -61,10 +61,19 @@ export async function sampleKbChunks(
   );
 }
 
+type ChunkWithDistance = Chunk & { distance: number };
+
+function attachDistance(rows: ChunkWithDistance[]): Chunk[] {
+  return rows.map(({ distance, ...chunk }) => ({
+    ...chunk,
+    meta: { ...(chunk.meta ?? {}), _distance: distance },
+  }));
+}
+
 export async function searchChunks(
   queryEmbedding: number[],
   topK: number = 5,
-  maxScore: number = 0.4,
+  maxDistance: number = 0.4,
   fileId?: string,
   knowledgeBaseId?: string,
 ): Promise<Chunk[]> {
@@ -72,9 +81,10 @@ export async function searchChunks(
 
   // If knowledgeBaseId is provided, join with files to filter by knowledge base
   if (knowledgeBaseId) {
-    return query<Chunk>(
+    const rows = await query<ChunkWithDistance>(
       `
-      SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text, c.meta, f.name AS "fileName"
+      SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text, c.meta, f.name AS "fileName",
+             c.embedding <=> $1::vector AS distance
       FROM chunks c
       JOIN files f ON c.file_id = f.id::uuid
       WHERE c.embedding IS NOT NULL
@@ -83,13 +93,15 @@ export async function searchChunks(
       ORDER BY c.embedding <=> $1::vector
       LIMIT $4
       `,
-      [vectorStr, maxScore, knowledgeBaseId, topK]
+      [vectorStr, maxDistance, knowledgeBaseId, topK]
     );
+    return attachDistance(rows);
   }
 
-  return query<Chunk>(
+  const rows = await query<ChunkWithDistance>(
     `
-    SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text, c.meta, f.name AS "fileName"
+    SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text, c.meta, f.name AS "fileName",
+           c.embedding <=> $1::vector AS distance
     FROM chunks c
     JOIN files f ON c.file_id = f.id::uuid
     WHERE c.embedding IS NOT NULL
@@ -99,7 +111,8 @@ export async function searchChunks(
     LIMIT ${fileId ? '$4' : '$3'}
     `,
     fileId
-      ? [vectorStr, maxScore, fileId, topK]
-      : [vectorStr, maxScore, topK]
+      ? [vectorStr, maxDistance, fileId, topK]
+      : [vectorStr, maxDistance, topK]
   );
+  return attachDistance(rows);
 }

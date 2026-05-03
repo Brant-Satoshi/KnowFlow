@@ -12,6 +12,70 @@ interface UseChatStreamParams {
   scrollToBottom: () => void
 }
 
+export type ProgressStage =
+  | "understanding"
+  | "searching"
+  | "searched"
+  | "reranking"
+  | "reranked"
+  | "generating"
+  | "done"
+  | "error"
+  | "stopped"
+
+export type ActiveProgressStage =
+  | "understanding"
+  | "searching"
+  | "reranking"
+  | "generating"
+
+export interface ProgressStep {
+  stage: ProgressStage
+  at: number
+  meta?: { count?: number; skipped?: boolean }
+  inferred?: boolean
+}
+
+export interface AssistantProgress {
+  startedAt: number
+  completedAt?: number
+  steps: ProgressStep[]
+  currentStage: ProgressStage
+  failedStage?: ActiveProgressStage
+  rerankSkipped?: boolean
+}
+
+function isProgressStage(stage: string): stage is ProgressStage {
+  return (
+    stage === "understanding" ||
+    stage === "searching" ||
+    stage === "searched" ||
+    stage === "reranking" ||
+    stage === "reranked" ||
+    stage === "generating" ||
+    stage === "done" ||
+    stage === "error" ||
+    stage === "stopped"
+  )
+}
+
+function getLastActiveStage(progress: AssistantProgress): ActiveProgressStage {
+  for (let i = progress.steps.length - 1; i >= 0; i--) {
+    const stage = progress.steps[i].stage
+    if (stage === "searched") return "searching"
+    if (stage === "reranked") return "reranking"
+    if (
+      stage === "understanding" ||
+      stage === "searching" ||
+      stage === "reranking" ||
+      stage === "generating"
+    ) {
+      return stage
+    }
+  }
+  return "understanding"
+}
+
 function createTextMessage(
   role: "user" | "assistant",
   text: string,
@@ -81,6 +145,7 @@ export function useChatStream({
   const [isStreaming, setIsStreaming] = useState(false)
   const [isHydrating, setIsHydrating] = useState(false)
   const [citationsMap, setCitationsMap] = useState<Map<string, RetrievedChunk[]>>(new Map())
+  const [progressMap, setProgressMap] = useState<Map<string, AssistantProgress>>(new Map())
 
   const abortRef = useRef<AbortController | null>(null)
   const streamBufferRef = useRef("")
@@ -89,6 +154,33 @@ export function useChatStream({
   const streamingAssistantIdRef = useRef<string | null>(null)
   const retrievedChunksRef = useRef<RetrievedChunk[]>([])
   const hydrationGenRef = useRef(0)
+  const lastUserTextRef = useRef<string | null>(null)
+
+  const updateProgress = useCallback(
+    (assistantId: string, mutator: (prev: AssistantProgress) => AssistantProgress) => {
+      setProgressMap((prev) => {
+        const current = prev.get(assistantId)
+        if (!current) return prev
+        const next = new Map(prev)
+        next.set(assistantId, mutator(current))
+        return next
+      })
+    },
+    []
+  )
+
+  const appendStep = useCallback(
+    (assistantId: string, step: ProgressStep) => {
+      updateProgress(assistantId, (prev) => ({
+        ...prev,
+        steps: [...prev.steps, step],
+        currentStage: step.stage,
+        rerankSkipped:
+          step.stage === "reranked" && step.meta?.skipped === true ? true : prev.rerankSkipped,
+      }))
+    },
+    [updateProgress]
+  )
 
   const flushAssistantBuffer = useCallback(() => {
     const assistantId = streamingAssistantIdRef.current
@@ -138,10 +230,12 @@ export function useChatStream({
     fullTextRef.current = ""
     retrievedChunksRef.current = []
     streamingAssistantIdRef.current = null
+    lastUserTextRef.current = null
 
     if (!conversationId) {
       setMessages([])
       setCitationsMap(new Map())
+      setProgressMap(new Map())
       setIsHydrating(false)
       return
     }
@@ -160,17 +254,20 @@ export function useChatStream({
         if (!json.ok || !json.data?.conversation) {
           setMessages([])
           setCitationsMap(new Map())
+          setProgressMap(new Map())
           return
         }
         const stored: StoredMessage[] = json.data.conversation.messages ?? []
         const { messages: hydrated, citations } = hydrateFromStored(stored)
         setMessages(hydrated)
         setCitationsMap(citations)
+        setProgressMap(new Map())
       } catch (err) {
         if ((err as Error)?.name === "AbortError") return
         if (generation !== hydrationGenRef.current) return
         setMessages([])
         setCitationsMap(new Map())
+        setProgressMap(new Map())
       } finally {
         if (generation === hydrationGenRef.current) {
           setIsHydrating(false)
@@ -208,12 +305,27 @@ export function useChatStream({
       const controller = new AbortController()
       abortRef.current = controller
 
-      const userMessage = createTextMessage("user", trimmedText)
+      const userMessageId = crypto.randomUUID()
+      const userMessage = createTextMessage("user", trimmedText, userMessageId)
+      // Single id used as: assistant message id, requestId on the wire, and progressMap key.
       const assistantId = crypto.randomUUID()
       const assistantMessage = createTextMessage("assistant", "", assistantId)
 
       streamingAssistantIdRef.current = assistantId
+      lastUserTextRef.current = trimmedText
       setMessages((prev) => [...prev, userMessage, assistantMessage])
+
+      const startedAt = Date.now()
+      setProgressMap((prev) => {
+        const next = new Map(prev)
+        next.set(assistantId, {
+          startedAt,
+          steps: [{ stage: "understanding", at: startedAt }],
+          currentStage: "understanding",
+        })
+        return next
+      })
+
       requestAnimationFrame(() => {
         scrollToBottom()
       })
@@ -221,34 +333,21 @@ export function useChatStream({
       setIsStreaming(true)
 
       try {
-        const clientMessageId = crypto.randomUUID()
-        const shouldDebugStream =
-          process.env.NODE_ENV === "development" &&
-          typeof window !== "undefined" &&
-          new URLSearchParams(window.location.search).get("debugStream") === "1"
-
         const payload: {
           message: string
-          clientMessageId: string
+          requestId: string
+          userMessageId: string
           conversationId: string
           knowledgeBaseId?: string
-          debug?: { delayMs: number; repeat: number; chunkBy: "char" | "word" }
         } = {
           message: trimmedText,
-          clientMessageId,
+          requestId: assistantId,
+          userMessageId,
           conversationId,
         }
 
         if (knowledgeBaseId) {
           payload.knowledgeBaseId = knowledgeBaseId
-        }
-
-        if (shouldDebugStream) {
-          payload.debug = {
-            delayMs: 120,
-            repeat: 200,
-            chunkBy: "char",
-          }
         }
 
         const response = await fetch("/api/chat/stream", {
@@ -259,15 +358,15 @@ export function useChatStream({
         })
 
         if (!response.ok) {
-          const payload = await response.json().catch(() => ({ error: "Request failed" }))
-          const message =
-            payload &&
-            typeof payload === "object" &&
-            "error" in payload &&
-            typeof payload.error === "string"
-              ? payload.error
+          const errPayload = await response.json().catch(() => ({ error: "Request failed" }))
+          const errorMessage =
+            errPayload &&
+            typeof errPayload === "object" &&
+            "error" in errPayload &&
+            typeof errPayload.error === "string"
+              ? errPayload.error
               : response.statusText
-          throw new Error(message)
+          throw new Error(errorMessage)
         }
 
         if (!response.body) {
@@ -275,14 +374,11 @@ export function useChatStream({
         }
 
         let streamError: string | null = null
-        let requestId: string | undefined
+        let firstTokenSeen = false
+        let generatingSeen = false
 
         await readSseStream(response.body as ReadableStream<Uint8Array>, ({ event, data }) => {
           if (event === "meta") {
-            requestId =
-              data && typeof data === "object" && "requestId" in data && typeof data.requestId === "string"
-                ? data.requestId
-                : undefined
             if (
               data &&
               typeof data === "object" &&
@@ -294,11 +390,46 @@ export function useChatStream({
             return
           }
 
+          if (event === "progress") {
+            if (!data || typeof data !== "object" || !("stage" in data)) return
+            const stage = (data as { stage?: unknown }).stage
+            if (typeof stage !== "string" || !isProgressStage(stage)) return
+            const at = Date.now()
+            const meta = (() => {
+              const d = data as {
+                recalledCount?: number
+                finalCount?: number
+                rerankSkipped?: boolean
+              }
+              const nextMeta: ProgressStep["meta"] = {}
+              if (typeof d.recalledCount === "number") nextMeta.count = d.recalledCount
+              if (typeof d.finalCount === "number") nextMeta.count = d.finalCount
+              if (d.rerankSkipped === true) nextMeta.skipped = true
+              return Object.keys(nextMeta).length > 0 ? nextMeta : undefined
+            })()
+            if (stage === "generating") generatingSeen = true
+            appendStep(assistantId, { stage, at, meta })
+            return
+          }
+
           if (event === "token") {
             const delta =
               data && typeof data === "object" && "delta" in data && typeof data.delta === "string"
                 ? data.delta
                 : ""
+
+            if (!firstTokenSeen) {
+              firstTokenSeen = true
+              if (!generatingSeen) {
+                if (process.env.NODE_ENV === "development") {
+                  console.warn(
+                    "[chat-stream] first token arrived before progress { stage: 'generating' } — falling back to client-side inference"
+                  )
+                }
+                appendStep(assistantId, { stage: "generating", at: Date.now(), inferred: true })
+                generatingSeen = true
+              }
+            }
 
             if (delta.length > 0) {
               streamBufferRef.current += delta
@@ -316,11 +447,17 @@ export function useChatStream({
         })
 
         if (streamError) {
-          const prefix = requestId ? `[${requestId}] ` : ""
-          throw new Error(prefix + streamError)
+          throw new Error(streamError)
         }
+
+        updateProgress(assistantId, (prev) => ({
+          ...prev,
+          completedAt: Date.now(),
+          currentStage: "done",
+        }))
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
+        const isStopped = error instanceof DOMException && error.name === "AbortError"
+        if (isStopped) {
           setMessages((prev) =>
             prev.map((message) =>
               message.id === assistantId
@@ -343,6 +480,12 @@ export function useChatStream({
             })
           )
         }
+        updateProgress(assistantId, (prev) => ({
+          ...prev,
+          completedAt: Date.now(),
+          currentStage: isStopped ? "stopped" : "error",
+          failedStage: getLastActiveStage(prev),
+        }))
       } finally {
         if (abortRef.current === controller) {
           abortRef.current = null
@@ -367,8 +510,59 @@ export function useChatStream({
       fullTextRef.current = ""
       retrievedChunksRef.current = []
     },
-    [conversationId, flushAssistantBuffer, isLoading, knowledgeBaseId, scheduleFlush, scrollToBottom]
+    [appendStep, conversationId, flushAssistantBuffer, isLoading, knowledgeBaseId, scheduleFlush, scrollToBottom, updateProgress]
   )
+
+  // v1: regenerate the LAST assistant turn only. Removes the trailing user +
+  // assistant pair from both local state and the DB, then re-issues the same
+  // user query so a fresh turn is appended.
+  const regenerateLast = useCallback(async () => {
+    if (isLoading || !conversationId) return
+    let lastUserId: string | null = null
+    let lastUserText: string | null = null
+    let lastAssistantId: string | null = null
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m.role === "assistant" && lastAssistantId === null) {
+        lastAssistantId = m.id
+        continue
+      }
+      if (m.role === "user") {
+        lastUserId = m.id
+        lastUserText = getMessageText(m)
+        break
+      }
+    }
+    if (!lastUserText || !lastUserId || !lastAssistantId) return
+
+    const idsToDelete = [lastUserId, lastAssistantId]
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageIds: idsToDelete }),
+      })
+      if (!res.ok) throw new Error("Failed to delete messages")
+    } catch (err) {
+      console.error("[chat-stream] regenerate: delete failed, aborting", err)
+      return
+    }
+
+    setMessages((prev) => prev.filter((m) => m.id !== lastUserId && m.id !== lastAssistantId))
+    setProgressMap((prev) => {
+      if (!prev.has(lastAssistantId!)) return prev
+      const next = new Map(prev)
+      next.delete(lastAssistantId!)
+      return next
+    })
+    setCitationsMap((prev) => {
+      if (!prev.has(lastAssistantId!)) return prev
+      const next = new Map(prev)
+      next.delete(lastAssistantId!)
+      return next
+    })
+    void sendMessage(lastUserText)
+  }, [conversationId, isLoading, messages, sendMessage])
 
   return {
     messages,
@@ -376,7 +570,9 @@ export function useChatStream({
     isStreaming,
     isHydrating,
     citationsMap,
+    progressMap,
     handleStop,
     sendMessage,
+    regenerateLast,
   }
 }

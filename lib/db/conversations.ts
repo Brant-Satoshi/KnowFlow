@@ -113,22 +113,44 @@ export async function appendMessage(
   conversationId: string,
   role: 'user' | 'assistant',
   content: string,
-  retrievedChunks?: RetrievedChunk[]
+  retrievedChunks?: RetrievedChunk[],
+  id?: string,
 ): Promise<StoredMessage> {
+  const chunks =
+    retrievedChunks && retrievedChunks.length > 0
+      ? JSON.stringify(retrievedChunks)
+      : null;
+
+  if (id) {
+    const rows = await query<StoredMessage>(
+      `INSERT INTO messages (id, conversation_id, role, content, retrieved_chunks)
+       VALUES ($1::uuid, $2::uuid, $3, $4, $5::jsonb)
+       RETURNING ${MESSAGE_SELECT};`,
+      [id, conversationId, role, content, chunks]
+    );
+    return rows[0];
+  }
+
   const rows = await query<StoredMessage>(
     `INSERT INTO messages (conversation_id, role, content, retrieved_chunks)
      VALUES ($1::uuid, $2, $3, $4::jsonb)
      RETURNING ${MESSAGE_SELECT};`,
-    [
-      conversationId,
-      role,
-      content,
-      retrievedChunks && retrievedChunks.length > 0
-        ? JSON.stringify(retrievedChunks)
-        : null,
-    ]
+    [conversationId, role, content, chunks]
   );
   return rows[0];
+}
+
+export async function deleteMessages(
+  conversationId: string,
+  messageIds: string[],
+): Promise<number> {
+  if (messageIds.length === 0) return 0;
+  return execute(
+    `DELETE FROM messages
+     WHERE conversation_id = $1::uuid
+     AND id = ANY($2::uuid[]);`,
+    [conversationId, messageIds]
+  );
 }
 
 export async function listRecentMessages(

@@ -68,6 +68,9 @@ export interface ChunkMeta {
   page?: number;
   start?: number;
   end?: number;
+  // Derived at retrieval time, not persisted to DB.
+  _distance?: number;
+  _rerankScore?: number;
 }
 
 export interface Chunk {
@@ -80,6 +83,8 @@ export interface Chunk {
   fileName?: string;
 }
 
+export type RetrievedChunkScoreType = 'rerank' | 'vector';
+
 export interface RetrievedChunk {
   index: number;
   chunkId: string;
@@ -87,6 +92,8 @@ export interface RetrievedChunk {
   fileName: string;
   page?: number;
   quote: string;
+  score?: number;
+  scoreType?: RetrievedChunkScoreType;
 }
 
 export interface Citation {

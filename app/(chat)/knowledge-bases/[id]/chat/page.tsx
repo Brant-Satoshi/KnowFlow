@@ -80,13 +80,22 @@ export default function ChatPage() {
     deleteSuccessDesc: t.deleteSuccessDesc,
   })
 
-  const { messages, isLoading, isStreaming, isHydrating, citationsMap, handleStop, sendMessage } =
-    useChatStream({
-      knowledgeBaseId,
-      conversationId: currentConversationId ?? undefined,
-      scrollRef,
-      scrollToBottom,
-    })
+  const {
+    messages,
+    isLoading,
+    isStreaming,
+    isHydrating,
+    citationsMap,
+    progressMap,
+    handleStop,
+    sendMessage,
+    regenerateLast,
+  } = useChatStream({
+    knowledgeBaseId,
+    conversationId: currentConversationId ?? undefined,
+    scrollRef,
+    scrollToBottom,
+  })
 
   useEffect(() => {
     if (!knowledgeBaseId) {
@@ -373,7 +382,14 @@ export default function ChatPage() {
                     </div>
                   ) : hasMessages ? (
                     <div className="px-4 py-5">
-                      <ChatMessages messages={messages} isLoading={isLoading} isStreaming={isStreaming} citationsMap={citationsMap} />
+                      <ChatMessages
+                        messages={messages}
+                        isLoading={isLoading}
+                        isStreaming={isStreaming}
+                        citationsMap={citationsMap}
+                        progressMap={progressMap}
+                        onRegenerate={regenerateLast}
+                      />
                     </div>
                   ) : (
                     <EmptyState
@@ -465,19 +481,6 @@ export default function ChatPage() {
             onDelete={handleDeleteConversation}
           />
 
-          <KnowledgePanel
-            files={files}
-            onUpload={handleUpload}
-            onParse={handleParse}
-            onDelete={handleDelete}
-            parsingIds={parsingIds}
-            deletingIds={deletingIds}
-            uploading={uploading}
-            collapsed={panelCollapsed}
-            initialLoading={isInitialLoading}
-            onToggle={() => setPanelCollapsed((prev) => !prev)}
-          />
-
           <section className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[1.25rem]", chatSurfaceClass)}>
             <div className="min-h-0 flex-1">
               {isHydrating && !hasMessages ? (
@@ -490,7 +493,14 @@ export default function ChatPage() {
                   className="h-full overflow-y-auto overscroll-contain px-5 py-6 [-webkit-overflow-scrolling:touch] sm:px-6"
                 >
                   <div className="mx-auto max-w-5xl">
-                    <ChatMessages messages={messages} isLoading={isLoading} isStreaming={isStreaming} citationsMap={citationsMap} />
+                    <ChatMessages
+                      messages={messages}
+                      isLoading={isLoading}
+                      isStreaming={isStreaming}
+                      citationsMap={citationsMap}
+                      progressMap={progressMap}
+                      onRegenerate={regenerateLast}
+                    />
                   </div>
                 </div>
               ) : (
@@ -517,6 +527,20 @@ export default function ChatPage() {
               sourceCount={latestAssistantSourceCount}
             />
           </section>
+
+          <KnowledgePanel
+            files={files}
+            onUpload={handleUpload}
+            onParse={handleParse}
+            onDelete={handleDelete}
+            parsingIds={parsingIds}
+            deletingIds={deletingIds}
+            uploading={uploading}
+            collapsed={panelCollapsed}
+            initialLoading={isInitialLoading}
+            onToggle={() => setPanelCollapsed((prev) => !prev)}
+            side="right"
+          />
         </div>
       </div>
     </div>
