@@ -147,19 +147,17 @@ export function KnowledgePanel({
     [onUpload]
   )
 
-  const isDeleting = deleteFileId ? deletingIds.has(deleteFileId) : false
-
-  const handleConfirmDelete = useCallback(async () => {
-    if (!deleteFileId || isDeleting) return
-    const deleted = await onDelete(deleteFileId)
-    if (deleted) { setDeleteFileId(null); setDeleteFileName("") }
-  }, [deleteFileId, isDeleting, onDelete])
-
-  const handleCloseDeleteDialog = useCallback(() => {
-    if (isDeleting) return
+  const handleConfirmDelete = useCallback(() => {
+    if (!deleteFileId) return
+    void onDelete(deleteFileId)
     setDeleteFileId(null)
     setDeleteFileName("")
-  }, [isDeleting])
+  }, [deleteFileId, onDelete])
+
+  const handleCloseDeleteDialog = useCallback(() => {
+    setDeleteFileId(null)
+    setDeleteFileName("")
+  }, [])
 
   const indexedCount = files.filter(f => f.status === "indexed").length
 
@@ -392,12 +390,11 @@ export function KnowledgePanel({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={handleCloseDeleteDialog} disabled={isDeleting} className="rounded-lg">
+            <Button variant="outline" onClick={handleCloseDeleteDialog} className="rounded-lg">
               {t.confirmDeleteCancel}
             </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete} disabled={isDeleting} className="rounded-lg">
-              {isDeleting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-              {isDeleting ? t.deleteLoadingAction : t.confirmDeleteAction}
+            <Button variant="destructive" onClick={handleConfirmDelete} className="rounded-lg">
+              {t.confirmDeleteAction}
             </Button>
           </DialogFooter>
         </DialogContent>

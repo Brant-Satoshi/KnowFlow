@@ -169,53 +169,38 @@ export function useFileState({
 
   const handleDelete = useCallback(
     async (id: string) => {
-      const deletingToast = toast({
-        title: deleteLoadingTitle,
-        description: deleteLoadingDesc,
+      let removed: { file: FileDoc; index: number } | null = null
+      setFiles((prev) => {
+        const index = prev.findIndex((file) => file.id === id)
+        if (index === -1) return prev
+        removed = { file: prev[index], index }
+        return [...prev.slice(0, index), ...prev.slice(index + 1)]
       })
 
-      setDeletingIds((prev) => new Set(prev).add(id))
+      if (!removed) return false
 
       try {
         const res = await fetch(`/api/files/${id}`, { method: "DELETE" })
         const json = await res.json()
-        if (json.ok) {
-          setFiles((prev) => prev.filter((file) => file.id !== id))
-          deletingToast.dismiss()
-          toast({
-            title: deleteSuccessTitle,
-            description: deleteSuccessDesc,
-            variant: "success",
-          })
-          return true
-        }
-
-        deletingToast.dismiss()
-        showErrorToast(undefined, {
-          title: deleteFailedTitle,
-          description: deleteFailedDesc,
-        })
-        return false
+        if (!json.ok) throw new Error(json.error)
+        return true
       } catch {
-        deletingToast.dismiss()
-        showErrorToast(undefined, {
-          title: deleteFailedTitle,
-          description: deleteFailedDesc,
-        })
-        return false
-      } finally {
-        setDeletingIds((prev) => {
-          const next = new Set(prev)
-          next.delete(id)
+        const snapshot = removed as { file: FileDoc; index: number }
+        setFiles((curr) => {
+          const next = [...curr]
+          next.splice(snapshot.index, 0, snapshot.file)
           return next
         })
+        showErrorToast(undefined, {
+          title: deleteFailedTitle,
+          description: deleteFailedDesc,
+        })
+        return false
       }
     },
     [
       deleteFailedDesc,
       deleteFailedTitle,
-      deleteLoadingDesc,
-      deleteLoadingTitle,
       deleteSuccessDesc,
       deleteSuccessTitle,
       showErrorToast,
