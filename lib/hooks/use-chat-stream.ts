@@ -10,6 +10,7 @@ interface UseChatStreamParams {
   conversationId?: string
   scrollRef: React.RefObject<HTMLDivElement | null>
   scrollToBottom: () => void
+  onCreateConversation?: () => Promise<string | null>
 }
 
 export type ProgressStage =
@@ -139,6 +140,7 @@ export function useChatStream({
   conversationId,
   scrollRef,
   scrollToBottom,
+  onCreateConversation,
 }: UseChatStreamParams) {
   const [messages, setMessages] = useState<UIMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -155,6 +157,11 @@ export function useChatStream({
   const retrievedChunksRef = useRef<RetrievedChunk[]>([])
   const hydrationGenRef = useRef(0)
   const lastUserTextRef = useRef<string | null>(null)
+  // Tracks the conversation id of an in-flight stream that this hook itself
+  // initiated (typically via on-the-fly creation in sendMessage). Lets the
+  // hydration effect skip its destructive abort/refetch when the parent
+  // updates `conversationId` to match what we're already streaming to.
+  const activeStreamConversationIdRef = useRef<string | null>(null)
 
   const updateProgress = useCallback(
     (assistantId: string, mutator: (prev: AssistantProgress) => AssistantProgress) => {
@@ -223,6 +230,13 @@ export function useChatStream({
 
   // Hydrate from server when conversation changes.
   useEffect(() => {
+    // If the parent just synced `conversationId` to a value we created
+    // ourselves inside sendMessage, the local state is already correct and
+    // re-hydrating would abort our in-flight stream.
+    if (conversationId && conversationId === activeStreamConversationIdRef.current) {
+      return
+    }
+
     abortRef.current?.abort()
     setIsLoading(false)
     setIsStreaming(false)
@@ -299,11 +313,23 @@ export function useChatStream({
   const sendMessage = useCallback(
     async (text: string) => {
       const trimmedText = text.trim()
-      if (!trimmedText || isLoading || !conversationId) return
+      if (!trimmedText || isLoading) return
+
+      // Resolve the target conversation. In draft mode (no conversationId)
+      // create one on demand so the user's first send produces both the
+      // conversation and its first turn atomically.
+      let effectiveConversationId = conversationId
+      if (!effectiveConversationId) {
+        if (!onCreateConversation) return
+        const created = await onCreateConversation()
+        if (!created) return
+        effectiveConversationId = created
+      }
 
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
+      activeStreamConversationIdRef.current = effectiveConversationId
 
       const userMessageId = crypto.randomUUID()
       const userMessage = createTextMessage("user", trimmedText, userMessageId)
@@ -343,7 +369,7 @@ export function useChatStream({
           message: trimmedText,
           requestId: assistantId,
           userMessageId,
-          conversationId,
+          conversationId: effectiveConversationId,
         }
 
         if (knowledgeBaseId) {
@@ -490,6 +516,9 @@ export function useChatStream({
         if (abortRef.current === controller) {
           abortRef.current = null
         }
+        if (activeStreamConversationIdRef.current === effectiveConversationId) {
+          activeStreamConversationIdRef.current = null
+        }
         setIsLoading(false)
         setIsStreaming(false)
       }
@@ -510,7 +539,7 @@ export function useChatStream({
       fullTextRef.current = ""
       retrievedChunksRef.current = []
     },
-    [appendStep, conversationId, flushAssistantBuffer, isLoading, knowledgeBaseId, scheduleFlush, scrollToBottom, updateProgress]
+    [appendStep, conversationId, flushAssistantBuffer, isLoading, knowledgeBaseId, onCreateConversation, scheduleFlush, scrollToBottom, updateProgress]
   )
 
   // v1: regenerate the LAST assistant turn only. Removes the trailing user +

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { isValidElement, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import type { Components } from "react-markdown"
 import ReactMarkdown from "react-markdown"
 import { AlertCircle, Check, ChevronDown, Copy, Loader2, RefreshCw } from "lucide-react"
@@ -10,7 +10,83 @@ import type { RetrievedChunk } from "@/lib/types"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
+function extractText(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return ""
+  if (typeof node === "string") return node
+  if (typeof node === "number") return String(node)
+  if (Array.isArray(node)) return node.map(extractText).join("")
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return extractText(node.props.children)
+  }
+  return ""
+}
+
+const CodeBlock: Components["pre"] = ({ children, className, node, ...rest }) => {
+  void node
+  const { t } = useLanguage()
+  const [copied, setCopied] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    },
+    [],
+  )
+
+  const rawText = extractText(children)
+  let language: string | null = null
+  if (isValidElement<{ className?: string }>(children)) {
+    const cls = children.props.className ?? ""
+    const match = /language-([\w-]+)/.exec(cls)
+    language = match ? match[1] : null
+  }
+
+  const handleCopy = async () => {
+    if (!rawText) return
+    try {
+      await navigator.clipboard.writeText(rawText)
+      if (timerRef.current) clearTimeout(timerRef.current)
+      setCopied(true)
+      timerRef.current = setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // clipboard may be unavailable in insecure contexts; silently no-op.
+    }
+  }
+
+  return (
+    <div className="mt-4 overflow-hidden rounded-xl border border-border bg-secondary">
+      <div className="flex items-center justify-between border-b border-border bg-muted/40 px-3 py-1.5 text-[11.5px] text-muted-foreground">
+        <span className="font-mono">{language ?? ""}</span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 transition-colors hover:bg-muted/50 hover:text-foreground"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+          <span>{copied ? t.messageActions.copied : t.messageActions.copy}</span>
+        </button>
+      </div>
+      <pre className={cn("overflow-x-auto p-4 text-sm", className)} {...rest}>
+        {children}
+      </pre>
+    </div>
+  )
+}
+
 const markdownComponents: Components = {
+  h1: ({ children }) => (
+    <h1 className="mt-6 text-lg font-semibold leading-7 [&:first-child]:mt-0">{children}</h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="mt-6 text-base font-semibold leading-7 [&:first-child]:mt-0">{children}</h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="mt-5 text-sm font-semibold leading-6 [&:first-child]:mt-0">{children}</h3>
+  ),
+  h4: ({ children }) => (
+    <h4 className="mt-4 text-sm font-medium leading-6 [&:first-child]:mt-0">{children}</h4>
+  ),
   p: ({ children }) => (
     <p className="whitespace-pre-wrap leading-7 [&:not(:first-child)]:mt-4">{children}</p>
   ),
@@ -43,11 +119,7 @@ const markdownComponents: Components = {
       </code>
     )
   },
-  pre: ({ children }) => (
-    <pre className="mt-4 overflow-x-auto rounded-xl border border-border bg-secondary p-4 text-sm">
-      {children}
-    </pre>
-  ),
+  pre: CodeBlock,
 }
 
 type ChatT = ReturnType<typeof useLanguage>["t"]
@@ -430,16 +502,16 @@ export function AssistantMessageCard({
             </div>
           ) : (
             <div className="text-sm text-current">
-              {isStreaming ? (
-                <div className="whitespace-pre-wrap break-words leading-7">
-                  {text}
-                  <span
-                    aria-hidden="true"
-                    className="streaming-cursor ml-1 inline-block h-[1.05em] w-0.5 translate-y-0.5 rounded-full bg-primary align-[-0.1em]"
-                  />
-                </div>
-              ) : hasBody ? (
-                <ReactMarkdown components={markdownComponents}>{text}</ReactMarkdown>
+              {hasBody ? (
+                <>
+                  <ReactMarkdown components={markdownComponents}>{text}</ReactMarkdown>
+                  {isStreaming && (
+                    <span
+                      aria-hidden="true"
+                      className="streaming-cursor ml-1 inline-block h-[1.05em] w-0.5 translate-y-0.5 rounded-full bg-primary align-[-0.1em]"
+                    />
+                  )}
+                </>
               ) : isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               ) : null}

@@ -54,21 +54,32 @@ const EXT_COLORS: Record<string, string> = {
   csv:  "#7FE0B0",
 }
 
-function FileExtBadge({ name }: { name: string }) {
+function FileExtBadge({
+  name,
+  size = 30,
+  radius = 7,
+  fontSize = 9,
+}: {
+  name: string
+  size?: number
+  radius?: number
+  fontSize?: number
+}) {
   const ext = name.split(".").pop()?.toLowerCase() ?? ""
   const color = EXT_COLORS[ext] ?? "#A0A8C0"
   return (
     <div
-      className="flex shrink-0 items-center justify-center rounded-[7px]"
+      className="flex shrink-0 items-center justify-center"
       style={{
-        width: 30, height: 30,
+        width: size, height: size,
+        borderRadius: radius,
         background: `${color}18`,
         border: `1px solid ${color}28`,
       }}
     >
       <span
-        className="font-mono text-[9px] font-semibold tracking-tight"
-        style={{ color }}
+        className="font-mono font-semibold tracking-tight"
+        style={{ color, fontSize }}
       >
         {ext.toUpperCase().slice(0, 4) || "—"}
       </span>
@@ -147,19 +158,17 @@ export function KnowledgePanel({
     [onUpload]
   )
 
-  const isDeleting = deleteFileId ? deletingIds.has(deleteFileId) : false
-
-  const handleConfirmDelete = useCallback(async () => {
-    if (!deleteFileId || isDeleting) return
-    const deleted = await onDelete(deleteFileId)
-    if (deleted) { setDeleteFileId(null); setDeleteFileName("") }
-  }, [deleteFileId, isDeleting, onDelete])
-
-  const handleCloseDeleteDialog = useCallback(() => {
-    if (isDeleting) return
+  const handleConfirmDelete = useCallback(() => {
+    if (!deleteFileId) return
+    void onDelete(deleteFileId)
     setDeleteFileId(null)
     setDeleteFileName("")
-  }, [isDeleting])
+  }, [deleteFileId, onDelete])
+
+  const handleCloseDeleteDialog = useCallback(() => {
+    setDeleteFileId(null)
+    setDeleteFileName("")
+  }, [])
 
   const indexedCount = files.filter(f => f.status === "indexed").length
 
@@ -208,6 +217,35 @@ export function KnowledgePanel({
               >
                 {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
               </Button>
+
+              {files.length > 0 && (
+                <>
+                  <div className="h-px w-7 bg-border" />
+                  <div className="flex min-h-0 flex-1 flex-col items-center gap-2 overflow-y-auto pb-1">
+                    {files.map((file) => {
+                      const isParsing      = parsingIds.has(file.id)
+                      const isUploading    = file.clientStatus === "uploading"
+                      const isDeletingFile = deletingIds.has(file.id)
+                      const isLoading      = isUploading || isParsing || file.status === "parsing"
+                      return (
+                        <div key={file.id} className="relative" title={file.name}>
+                          <FileExtBadge name={file.name} size={36} radius={9} fontSize={10} />
+                          {isLoading && (
+                            <span className="absolute -right-0.5 -top-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-card">
+                              <Loader2 className="h-2.5 w-2.5 animate-spin text-primary" />
+                            </span>
+                          )}
+                          {isDeletingFile && (
+                            <span className="absolute -right-0.5 -top-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-card">
+                              <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground" />
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         ) : (
@@ -392,12 +430,11 @@ export function KnowledgePanel({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={handleCloseDeleteDialog} disabled={isDeleting} className="rounded-lg">
+            <Button variant="outline" onClick={handleCloseDeleteDialog} className="rounded-lg">
               {t.confirmDeleteCancel}
             </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete} disabled={isDeleting} className="rounded-lg">
-              {isDeleting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-              {isDeleting ? t.deleteLoadingAction : t.confirmDeleteAction}
+            <Button variant="destructive" onClick={handleConfirmDelete} className="rounded-lg">
+              {t.confirmDeleteAction}
             </Button>
           </DialogFooter>
         </DialogContent>
