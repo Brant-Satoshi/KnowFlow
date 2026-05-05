@@ -41,7 +41,6 @@ export default function ChatPage() {
   const [conversationsLoading, setConversationsLoading] = useState(true)
   const [creatingConversation, setCreatingConversation] = useState(false)
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
-  const conversationBootstrapRef = useRef<string | null>(null)
 
   const { t } = useLanguage()
   const showErrorToast = useErrorToast()
@@ -80,6 +79,32 @@ export default function ChatPage() {
     deleteSuccessDesc: t.deleteSuccessDesc,
   })
 
+  const handleCreateConversation = useCallback(async (): Promise<string | null> => {
+    if (!knowledgeBaseId) return null
+    setCreatingConversation(true)
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ knowledgeBaseId }),
+      })
+      const json = await res.json()
+      if (!json.ok || !json.data?.conversation) {
+        throw new Error(json.error || t.conversationCreateFailed)
+      }
+      const created: ConversationSummary = json.data.conversation
+      setConversations((prev) => [created, ...prev])
+      setCurrentConversationId(created.id)
+      return created.id
+    } catch (err) {
+      console.error("Failed to create conversation:", err)
+      showErrorToast(t.conversationCreateFailed)
+      return null
+    } finally {
+      setCreatingConversation(false)
+    }
+  }, [knowledgeBaseId, showErrorToast, t.conversationCreateFailed])
+
   const {
     messages,
     isLoading,
@@ -95,6 +120,7 @@ export default function ChatPage() {
     conversationId: currentConversationId ?? undefined,
     scrollRef,
     scrollToBottom,
+    onCreateConversation: handleCreateConversation,
   })
 
   useEffect(() => {
@@ -133,7 +159,6 @@ export default function ChatPage() {
 
     setConversationsLoading(true)
     setCurrentConversationId(null)
-    conversationBootstrapRef.current = null
 
     const controller = new AbortController()
     const load = async () => {
@@ -163,42 +188,6 @@ export default function ChatPage() {
       controller.abort()
     }
   }, [knowledgeBaseId, showErrorToast, t.conversationListLoadFailed])
-
-  const handleCreateConversation = useCallback(async (): Promise<string | null> => {
-    if (!knowledgeBaseId || creatingConversation) return null
-    setCreatingConversation(true)
-    try {
-      const res = await fetch("/api/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ knowledgeBaseId }),
-      })
-      const json = await res.json()
-      if (!json.ok || !json.data?.conversation) {
-        throw new Error(json.error || t.conversationCreateFailed)
-      }
-      const created: ConversationSummary = json.data.conversation
-      setConversations((prev) => [created, ...prev])
-      setCurrentConversationId(created.id)
-      return created.id
-    } catch (err) {
-      console.error("Failed to create conversation:", err)
-      showErrorToast(t.conversationCreateFailed)
-      return null
-    } finally {
-      setCreatingConversation(false)
-    }
-  }, [creatingConversation, knowledgeBaseId, showErrorToast, t.conversationCreateFailed])
-
-  // Auto-create one conversation if the KB has none, so the user lands on a usable thread.
-  useEffect(() => {
-    if (conversationsLoading) return
-    if (conversations.length > 0) return
-    if (!knowledgeBaseId) return
-    if (conversationBootstrapRef.current === knowledgeBaseId) return
-    conversationBootstrapRef.current = knowledgeBaseId
-    void handleCreateConversation()
-  }, [conversations.length, conversationsLoading, handleCreateConversation, knowledgeBaseId])
 
   const handleSelectConversation = useCallback(
     (id: string) => {
@@ -260,19 +249,26 @@ export default function ChatPage() {
   )
 
   const handleSubmit = useCallback(() => {
-    if (!input.trim() || isLoading || !currentConversationId) return
+    if (!input.trim() || isLoading) return
     const nextInput = input
     setInput("")
     void sendMessage(nextInput)
-  }, [currentConversationId, input, isLoading, sendMessage])
+  }, [input, isLoading, sendMessage])
 
   const handleSuggestionClick = useCallback(
     (text: string) => {
-      if (isLoading || !currentConversationId) return
+      if (isLoading) return
       void sendMessage(text)
     },
-    [currentConversationId, isLoading, sendMessage]
+    [isLoading, sendMessage]
   )
+
+  // "+ New chat" enters draft mode; the conversation is created on first send.
+  const handleStartDraftConversation = useCallback(() => {
+    if (currentConversationId === null) return
+    setCurrentConversationId(null)
+    if (isMobile) setMobileTab("ask")
+  }, [currentConversationId, isMobile])
 
   const isInitialLoading = isKnowledgeBaseLoading || isFilesLoading || conversationsLoading
   const isParsingOrUploading = uploading || parsingIds.size > 0
@@ -436,7 +432,7 @@ export default function ChatPage() {
                 isLoading={conversationsLoading}
                 isCreating={creatingConversation}
                 onSelect={handleSelectConversation}
-                onCreate={() => void handleCreateConversation()}
+                onCreate={handleStartDraftConversation}
                 onRename={handleRenameConversation}
                 onDelete={handleDeleteConversation}
                 fullWidth
@@ -476,7 +472,7 @@ export default function ChatPage() {
             isLoading={conversationsLoading}
             isCreating={creatingConversation}
             onSelect={handleSelectConversation}
-            onCreate={() => void handleCreateConversation()}
+            onCreate={handleStartDraftConversation}
             onRename={handleRenameConversation}
             onDelete={handleDeleteConversation}
           />

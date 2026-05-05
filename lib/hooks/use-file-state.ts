@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { toast } from "@/components/ui/use-toast"
 import { FileDoc, FileListItem } from "@/lib/types"
 
 type ErrorToast = (
@@ -34,17 +33,13 @@ export function useFileState({
   parseFailedMessage,
   deleteFailedTitle,
   deleteFailedDesc,
-  deleteLoadingTitle,
-  deleteLoadingDesc,
-  deleteSuccessTitle,
-  deleteSuccessDesc,
 }: UseFileStateParams) {
   const [files, setFiles] = useState<FileDoc[]>([])
   const [optimisticFiles, setOptimisticFiles] = useState<FileListItem[]>([])
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [parsingIds, setParsingIds] = useState<Set<string>>(new Set())
-  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
+  const [deletingIds,] = useState<Set<string>>(new Set())
 
   const refreshFiles = useCallback(async () => {
     const res = await fetch(`/api/files?knowledgeBaseId=${encodeURIComponent(knowledgeBaseId || "")}`)
@@ -198,13 +193,7 @@ export function useFileState({
         return false
       }
     },
-    [
-      deleteFailedDesc,
-      deleteFailedTitle,
-      deleteSuccessDesc,
-      deleteSuccessTitle,
-      showErrorToast,
-    ]
+    [deleteFailedDesc, deleteFailedTitle, showErrorToast]
   )
 
   return {
