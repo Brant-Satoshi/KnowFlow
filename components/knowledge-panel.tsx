@@ -303,7 +303,7 @@ export function KnowledgePanel({
                     </div>
                   </div>
 
-                  <div className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
+                  <div className="mt-1 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
                     {files.length === 0 ? (
                       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-4 py-8 text-center">
                         <p className="text-[12.5px] font-medium text-foreground">{t.panelEmptyTitle}</p>
@@ -322,7 +322,7 @@ export function KnowledgePanel({
                           <div
                             key={file.id}
                             className={cn(
-                              "group relative overflow-hidden rounded-[10px] border p-2 transition-all hover:-translate-y-px",
+                              "group relative overflow-hidden rounded-[10px] border p-2 transition-all hover:-translate-y-px mt-1",
                               isLoading
                                 ? "border-primary/25 bg-primary/5"
                                 : "border-border bg-card hover:bg-secondary"
@@ -335,7 +335,6 @@ export function KnowledgePanel({
 
                             <div className="relative z-10 flex items-center gap-2.5">
                               <FileExtBadge name={file.name} />
-
                               <div className="min-w-0 flex-1">
                                 <p
                                   className="truncate font-mono text-[12.5px] font-medium text-foreground"

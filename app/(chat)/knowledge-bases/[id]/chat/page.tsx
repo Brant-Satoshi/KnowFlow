@@ -41,7 +41,7 @@ export default function ChatPage() {
   const [conversationsLoading, setConversationsLoading] = useState(true)
   const [creatingConversation, setCreatingConversation] = useState(false)
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
-  const conversationBootstrapRef = useRef<string | null>(null)
+  const creatingConversationRef = useRef(false)
 
   const { t } = useLanguage()
   const showErrorToast = useErrorToast()
@@ -74,8 +74,6 @@ export default function ChatPage() {
     parseFailedMessage: t.parseFailed,
     deleteFailedTitle: t.deleteFailedTitle,
     deleteFailedDesc: t.deleteFailedDesc,
-    deleteLoadingTitle: t.deleteLoadingTitle,
-    deleteLoadingDesc: t.deleteLoadingDesc,
     deleteSuccessTitle: t.deleteSuccessTitle,
     deleteSuccessDesc: t.deleteSuccessDesc,
   })
@@ -90,6 +88,7 @@ export default function ChatPage() {
     handleStop,
     sendMessage,
     regenerateLast,
+    skipNextHydration,
   } = useChatStream({
     knowledgeBaseId,
     conversationId: currentConversationId ?? undefined,
@@ -133,7 +132,6 @@ export default function ChatPage() {
 
     setConversationsLoading(true)
     setCurrentConversationId(null)
-    conversationBootstrapRef.current = null
 
     const controller = new AbortController()
     const load = async () => {
@@ -164,8 +162,10 @@ export default function ChatPage() {
     }
   }, [knowledgeBaseId, showErrorToast, t.conversationListLoadFailed])
 
-  const handleCreateConversation = useCallback(async (): Promise<string | null> => {
-    if (!knowledgeBaseId || creatingConversation) return null
+  const ensureConversation = useCallback(async (): Promise<string | null> => {
+    if (currentConversationId) return currentConversationId
+    if (creatingConversationRef.current) return null
+    creatingConversationRef.current = true
     setCreatingConversation(true)
     try {
       const res = await fetch("/api/conversations", {
@@ -179,6 +179,7 @@ export default function ChatPage() {
       }
       const created: ConversationSummary = json.data.conversation
       setConversations((prev) => [created, ...prev])
+      skipNextHydration()
       setCurrentConversationId(created.id)
       return created.id
     } catch (err) {
@@ -186,19 +187,10 @@ export default function ChatPage() {
       showErrorToast(t.conversationCreateFailed)
       return null
     } finally {
+      creatingConversationRef.current = false
       setCreatingConversation(false)
     }
-  }, [creatingConversation, knowledgeBaseId, showErrorToast, t.conversationCreateFailed])
-
-  // Auto-create one conversation if the KB has none, so the user lands on a usable thread.
-  useEffect(() => {
-    if (conversationsLoading) return
-    if (conversations.length > 0) return
-    if (!knowledgeBaseId) return
-    if (conversationBootstrapRef.current === knowledgeBaseId) return
-    conversationBootstrapRef.current = knowledgeBaseId
-    void handleCreateConversation()
-  }, [conversations.length, conversationsLoading, handleCreateConversation, knowledgeBaseId])
+  }, [currentConversationId, knowledgeBaseId, skipNextHydration, showErrorToast, t.conversationCreateFailed])
 
   const handleSelectConversation = useCallback(
     (id: string) => {
@@ -238,40 +230,47 @@ export default function ChatPage() {
 
   const handleDeleteConversation = useCallback(
     async (id: string): Promise<boolean> => {
-      try {
-        const res = await fetch(`/api/conversations/${id}`, { method: "DELETE" })
-        const json = await res.json()
-        if (!json.ok) throw new Error(json.error || t.conversationDeleteFailed)
-        setConversations((prev) => {
-          const next = prev.filter((c) => c.id !== id)
-          if (currentConversationId === id) {
-            setCurrentConversationId(next[0]?.id ?? null)
-          }
-          return next
+      const snapshot = [...conversations]
+      const wasActive = currentConversationId === id
+      const next = conversations.filter((c) => c.id !== id)
+
+      setConversations(next)
+      if (wasActive) setCurrentConversationId(next[0]?.id ?? null)
+
+      fetch(`/api/conversations/${id}`, { method: "DELETE" })
+        .then((res) => res.json())
+        .then((json) => {
+          if (!json.ok) throw new Error(json.error || t.conversationDeleteFailed)
         })
-        return true
-      } catch (err) {
-        console.error("Failed to delete conversation:", err)
-        showErrorToast(t.conversationDeleteFailed)
-        return false
-      }
+        .catch((err) => {
+          console.error("Failed to delete conversation:", err)
+          setConversations(snapshot)
+          if (wasActive) setCurrentConversationId(id)
+          showErrorToast(t.conversationDeleteFailed)
+        })
+
+      return true
     },
-    [currentConversationId, showErrorToast, t.conversationDeleteFailed]
+    [conversations, currentConversationId, showErrorToast, t.conversationDeleteFailed]
   )
 
-  const handleSubmit = useCallback(() => {
-    if (!input.trim() || isLoading || !currentConversationId) return
+  const handleSubmit = useCallback(async () => {
+    if (!input.trim() || isLoading || creatingConversationRef.current) return
     const nextInput = input
+    const convId = await ensureConversation()
+    if (!convId) return
     setInput("")
-    void sendMessage(nextInput)
-  }, [currentConversationId, input, isLoading, sendMessage])
+    void sendMessage(nextInput, convId)
+  }, [ensureConversation, input, isLoading, sendMessage])
 
   const handleSuggestionClick = useCallback(
-    (text: string) => {
-      if (isLoading || !currentConversationId) return
-      void sendMessage(text)
+    async (text: string) => {
+      if (isLoading || creatingConversationRef.current) return
+      const convId = await ensureConversation()
+      if (!convId) return
+      void sendMessage(text, convId)
     },
-    [currentConversationId, isLoading, sendMessage]
+    [ensureConversation, isLoading, sendMessage]
   )
 
   const isInitialLoading = isKnowledgeBaseLoading || isFilesLoading || conversationsLoading
@@ -436,7 +435,7 @@ export default function ChatPage() {
                 isLoading={conversationsLoading}
                 isCreating={creatingConversation}
                 onSelect={handleSelectConversation}
-                onCreate={() => void handleCreateConversation()}
+                onCreate={() => { setCurrentConversationId(null); setInput("") }}
                 onRename={handleRenameConversation}
                 onDelete={handleDeleteConversation}
                 fullWidth
@@ -476,7 +475,7 @@ export default function ChatPage() {
             isLoading={conversationsLoading}
             isCreating={creatingConversation}
             onSelect={handleSelectConversation}
-            onCreate={() => void handleCreateConversation()}
+            onCreate={() => { setCurrentConversationId(null); setInput("") }}
             onRename={handleRenameConversation}
             onDelete={handleDeleteConversation}
           />

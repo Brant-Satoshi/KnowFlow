@@ -45,6 +45,10 @@ export interface AssistantProgress {
   rerankSkipped?: boolean
 }
 
+function isObject(x: unknown): x is Record<string, unknown> {
+  return typeof x === "object" && x !== null
+}
+
 function isProgressStage(stage: string): stage is ProgressStage {
   return (
     stage === "understanding" ||
@@ -155,6 +159,8 @@ export function useChatStream({
   const retrievedChunksRef = useRef<RetrievedChunk[]>([])
   const hydrationGenRef = useRef(0)
   const lastUserTextRef = useRef<string | null>(null)
+  const isRegeneratingRef = useRef(false)
+  const skipNextHydrationRef = useRef(false)
 
   const updateProgress = useCallback(
     (assistantId: string, mutator: (prev: AssistantProgress) => AssistantProgress) => {
@@ -240,6 +246,11 @@ export function useChatStream({
       return
     }
 
+    if (skipNextHydrationRef.current) {
+      skipNextHydrationRef.current = false
+      return
+    }
+
     const generation = ++hydrationGenRef.current
     setIsHydrating(true)
 
@@ -296,10 +307,15 @@ export function useChatStream({
     setIsStreaming(false)
   }, [isLoading])
 
+  const skipNextHydration = useCallback(() => {
+    skipNextHydrationRef.current = true
+  }, [])
+
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, overrideConversationId?: string) => {
       const trimmedText = text.trim()
-      if (!trimmedText || isLoading || !conversationId) return
+      const effectiveConvId = overrideConversationId ?? conversationId
+      if (!trimmedText || isLoading || !effectiveConvId) return
 
       abortRef.current?.abort()
       const controller = new AbortController()
@@ -343,7 +359,7 @@ export function useChatStream({
           message: trimmedText,
           requestId: assistantId,
           userMessageId,
-          conversationId,
+          conversationId: effectiveConvId,
         }
 
         if (knowledgeBaseId) {
@@ -379,34 +395,22 @@ export function useChatStream({
 
         await readSseStream(response.body as ReadableStream<Uint8Array>, ({ event, data }) => {
           if (event === "meta") {
-            if (
-              data &&
-              typeof data === "object" &&
-              "retrievedChunks" in data &&
-              Array.isArray(data.retrievedChunks)
-            ) {
+            if (isObject(data) && Array.isArray(data.retrievedChunks)) {
               retrievedChunksRef.current = data.retrievedChunks as RetrievedChunk[]
             }
             return
           }
 
           if (event === "progress") {
-            if (!data || typeof data !== "object" || !("stage" in data)) return
-            const stage = (data as { stage?: unknown }).stage
+            if (!isObject(data)) return
+            const stage = data.stage
             if (typeof stage !== "string" || !isProgressStage(stage)) return
             const at = Date.now()
-            const meta = (() => {
-              const d = data as {
-                recalledCount?: number
-                finalCount?: number
-                rerankSkipped?: boolean
-              }
-              const nextMeta: ProgressStep["meta"] = {}
-              if (typeof d.recalledCount === "number") nextMeta.count = d.recalledCount
-              if (typeof d.finalCount === "number") nextMeta.count = d.finalCount
-              if (d.rerankSkipped === true) nextMeta.skipped = true
-              return Object.keys(nextMeta).length > 0 ? nextMeta : undefined
-            })()
+            const nextMeta: ProgressStep["meta"] = {}
+            if (typeof data.recalledCount === "number") nextMeta.count = data.recalledCount
+            if (typeof data.finalCount === "number") nextMeta.count = data.finalCount
+            if (data.rerankSkipped === true) nextMeta.skipped = true
+            const meta = Object.keys(nextMeta).length > 0 ? nextMeta : undefined
             if (stage === "generating") generatingSeen = true
             appendStep(assistantId, { stage, at, meta })
             return
@@ -414,9 +418,7 @@ export function useChatStream({
 
           if (event === "token") {
             const delta =
-              data && typeof data === "object" && "delta" in data && typeof data.delta === "string"
-                ? data.delta
-                : ""
+              isObject(data) && typeof data.delta === "string" ? data.delta : ""
 
             if (!firstTokenSeen) {
               firstTokenSeen = true
@@ -440,9 +442,7 @@ export function useChatStream({
 
           if (event === "error") {
             streamError =
-              data && typeof data === "object" && "message" in data && typeof data.message === "string"
-                ? data.message
-                : "Stream error"
+              isObject(data) && typeof data.message === "string" ? data.message : "Stream error"
           }
         })
 
@@ -517,51 +517,56 @@ export function useChatStream({
   // assistant pair from both local state and the DB, then re-issues the same
   // user query so a fresh turn is appended.
   const regenerateLast = useCallback(async () => {
-    if (isLoading || !conversationId) return
-    let lastUserId: string | null = null
-    let lastUserText: string | null = null
-    let lastAssistantId: string | null = null
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const m = messages[i]
-      if (m.role === "assistant" && lastAssistantId === null) {
-        lastAssistantId = m.id
-        continue
-      }
-      if (m.role === "user") {
-        lastUserId = m.id
-        lastUserText = getMessageText(m)
-        break
-      }
-    }
-    if (!lastUserText || !lastUserId || !lastAssistantId) return
-
-    const idsToDelete = [lastUserId, lastAssistantId]
+    if (isLoading || !conversationId || isRegeneratingRef.current) return
+    isRegeneratingRef.current = true
     try {
-      const res = await fetch(`/api/conversations/${conversationId}/messages`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messageIds: idsToDelete }),
-      })
-      if (!res.ok) throw new Error("Failed to delete messages")
-    } catch (err) {
-      console.error("[chat-stream] regenerate: delete failed, aborting", err)
-      return
-    }
+      let lastUserId: string | null = null
+      let lastUserText: string | null = null
+      let lastAssistantId: string | null = null
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const m = messages[i]
+        if (m.role === "assistant" && lastAssistantId === null) {
+          lastAssistantId = m.id
+          continue
+        }
+        if (m.role === "user") {
+          lastUserId = m.id
+          lastUserText = getMessageText(m)
+          break
+        }
+      }
+      if (!lastUserText || !lastUserId || !lastAssistantId) return
 
-    setMessages((prev) => prev.filter((m) => m.id !== lastUserId && m.id !== lastAssistantId))
-    setProgressMap((prev) => {
-      if (!prev.has(lastAssistantId!)) return prev
-      const next = new Map(prev)
-      next.delete(lastAssistantId!)
-      return next
-    })
-    setCitationsMap((prev) => {
-      if (!prev.has(lastAssistantId!)) return prev
-      const next = new Map(prev)
-      next.delete(lastAssistantId!)
-      return next
-    })
-    void sendMessage(lastUserText)
+      const idsToDelete = [lastUserId, lastAssistantId]
+      try {
+        const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messageIds: idsToDelete }),
+        })
+        if (!res.ok) throw new Error("Failed to delete messages")
+      } catch (err) {
+        console.error("[chat-stream] regenerate: delete failed, aborting", err)
+        return
+      }
+
+      setMessages((prev) => prev.filter((m) => m.id !== lastUserId && m.id !== lastAssistantId))
+      setProgressMap((prev) => {
+        if (!prev.has(lastAssistantId!)) return prev
+        const next = new Map(prev)
+        next.delete(lastAssistantId!)
+        return next
+      })
+      setCitationsMap((prev) => {
+        if (!prev.has(lastAssistantId!)) return prev
+        const next = new Map(prev)
+        next.delete(lastAssistantId!)
+        return next
+      })
+      await sendMessage(lastUserText)
+    } finally {
+      isRegeneratingRef.current = false
+    }
   }, [conversationId, isLoading, messages, sendMessage])
 
   return {
@@ -574,5 +579,6 @@ export function useChatStream({
     handleStop,
     sendMessage,
     regenerateLast,
+    skipNextHydration,
   }
 }
