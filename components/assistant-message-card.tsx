@@ -513,14 +513,10 @@ export function AssistantMessageCard({
           ) : (
             <div className="text-sm text-current">
               {isStreaming ? (
-                <div className="whitespace-pre-wrap break-words leading-7">
+                <div className="streaming-active break-words leading-7">
                   <ReactMarkdown components={markdownComponents}>
                     {text}
                   </ReactMarkdown>
-                  <span
-                    aria-hidden="true"
-                    className="streaming-cursor ml-1 inline-block h-[1.05em] w-0.5 translate-y-0.5 rounded-full bg-primary align-[-0.1em]"
-                  />
                 </div>
               ) : hasBody ? (
                 <ReactMarkdown components={markdownComponents}>{text}</ReactMarkdown>
