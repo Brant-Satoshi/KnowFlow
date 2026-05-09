@@ -183,6 +183,18 @@
 @layer utilities {
   .loading-dot-breathe   { animation: loading-dot-breathe 1.2s ease-in-out infinite; }
   .streaming-cursor      { animation: streaming-cursor-blink 1s steps(1, end) infinite; }
+  .streaming-active > *:last-child::after {
+    content: '';
+    display: inline-block;
+    width: 0.125rem;
+    height: 1.05em;
+    background-color: hsl(var(--primary));
+    border-radius: 9999px;
+    transform: translateY(0.125rem);
+    vertical-align: -0.1em;
+    margin-left: 0.25rem;
+    animation: streaming-cursor-blink 1s steps(1, end) infinite;
+  }
   .theme-user-msg-bg     { background-color: hsl(var(--theme-user-msg-bg)); }
   .theme-user-msg-text   { color: hsl(var(--theme-user-msg-text)); }
   .chat-surface-border   { border-color: hsl(var(--chat-surface-border)); }

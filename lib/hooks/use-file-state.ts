@@ -20,8 +20,6 @@ interface UseFileStateParams {
   parseFailedMessage: string
   deleteFailedTitle: string
   deleteFailedDesc: string
-  deleteLoadingTitle: string
-  deleteLoadingDesc: string
   deleteSuccessTitle: string
   deleteSuccessDesc: string
 }
@@ -34,8 +32,6 @@ export function useFileState({
   parseFailedMessage,
   deleteFailedTitle,
   deleteFailedDesc,
-  deleteLoadingTitle,
-  deleteLoadingDesc,
   deleteSuccessTitle,
   deleteSuccessDesc,
 }: UseFileStateParams) {
@@ -169,55 +165,37 @@ export function useFileState({
 
   const handleDelete = useCallback(
     async (id: string) => {
-      const deletingToast = toast({
-        title: deleteLoadingTitle,
-        description: deleteLoadingDesc,
-      })
+      const snapshot = [...files]
 
+      setFiles((prev) => prev.filter((file) => file.id !== id))
       setDeletingIds((prev) => new Set(prev).add(id))
 
-      try {
-        const res = await fetch(`/api/files/${id}`, { method: "DELETE" })
-        const json = await res.json()
-        if (json.ok) {
-          setFiles((prev) => prev.filter((file) => file.id !== id))
-          deletingToast.dismiss()
-          toast({
-            title: deleteSuccessTitle,
-            description: deleteSuccessDesc,
-            variant: "success",
+      fetch(`/api/files/${id}`, { method: "DELETE" })
+        .then((res) => res.json())
+        .then((json) => {
+          if (!json.ok) throw new Error()
+          toast({ title: deleteSuccessTitle, description: deleteSuccessDesc, variant: "success" })
+        })
+        .catch(() => {
+          setFiles(snapshot)
+          showErrorToast(undefined, { title: deleteFailedTitle, description: deleteFailedDesc })
+        })
+        .finally(() => {
+          setDeletingIds((prev) => {
+            const next = new Set(prev)
+            next.delete(id)
+            return next
           })
-          return true
-        }
+        })
 
-        deletingToast.dismiss()
-        showErrorToast(undefined, {
-          title: deleteFailedTitle,
-          description: deleteFailedDesc,
-        })
-        return false
-      } catch {
-        deletingToast.dismiss()
-        showErrorToast(undefined, {
-          title: deleteFailedTitle,
-          description: deleteFailedDesc,
-        })
-        return false
-      } finally {
-        setDeletingIds((prev) => {
-          const next = new Set(prev)
-          next.delete(id)
-          return next
-        })
-      }
+      return true
     },
     [
       deleteFailedDesc,
       deleteFailedTitle,
-      deleteLoadingDesc,
-      deleteLoadingTitle,
       deleteSuccessDesc,
       deleteSuccessTitle,
+      files,
       showErrorToast,
     ]
   )
