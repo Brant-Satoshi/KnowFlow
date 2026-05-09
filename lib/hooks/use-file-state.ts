@@ -40,7 +40,6 @@ export function useFileState({
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [parsingIds, setParsingIds] = useState<Set<string>>(new Set())
-  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
 
   const refreshFiles = useCallback(async () => {
     const res = await fetch(`/api/files?knowledgeBaseId=${encodeURIComponent(knowledgeBaseId || "")}`)
@@ -164,11 +163,13 @@ export function useFileState({
   )
 
   const handleDelete = useCallback(
-    async (id: string) => {
-      const snapshot = [...files]
+    (id: string) => {
+      let snapshot: FileDoc[] = []
 
-      setFiles((prev) => prev.filter((file) => file.id !== id))
-      setDeletingIds((prev) => new Set(prev).add(id))
+      setFiles((prev) => {
+        snapshot = [...prev]
+        return prev.filter((file) => file.id !== id)
+      })
 
       fetch(`/api/files/${id}`, { method: "DELETE" })
         .then((res) => res.json())
@@ -180,22 +181,12 @@ export function useFileState({
           setFiles(snapshot)
           showErrorToast(undefined, { title: deleteFailedTitle, description: deleteFailedDesc })
         })
-        .finally(() => {
-          setDeletingIds((prev) => {
-            const next = new Set(prev)
-            next.delete(id)
-            return next
-          })
-        })
-
-      return true
     },
     [
       deleteFailedDesc,
       deleteFailedTitle,
       deleteSuccessDesc,
       deleteSuccessTitle,
-      files,
       showErrorToast,
     ]
   )
@@ -204,7 +195,6 @@ export function useFileState({
     files: [...optimisticFiles, ...files],
     uploading,
     parsingIds,
-    deletingIds,
     isInitialLoading,
     handleUpload,
     handleParse,

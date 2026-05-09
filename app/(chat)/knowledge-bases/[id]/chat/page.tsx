@@ -61,7 +61,6 @@ export default function ChatPage() {
     files,
     uploading,
     parsingIds,
-    deletingIds,
     isInitialLoading: isFilesLoading,
     handleUpload,
     handleParse,
@@ -230,12 +229,17 @@ export default function ChatPage() {
 
   const handleDeleteConversation = useCallback(
     async (id: string): Promise<boolean> => {
-      const snapshot = [...conversations]
       const wasActive = currentConversationId === id
-      const next = conversations.filter((c) => c.id !== id)
+      let snapshot: ConversationSummary[] = []
 
-      setConversations(next)
-      if (wasActive) setCurrentConversationId(next[0]?.id ?? null)
+      setConversations((prev) => {
+        snapshot = [...prev]
+        return prev.filter((c) => c.id !== id)
+      })
+      if (wasActive) {
+        const next = conversations.filter((c) => c.id !== id)
+        setCurrentConversationId(next[0]?.id ?? null)
+      }
 
       fetch(`/api/conversations/${id}`, { method: "DELETE" })
         .then((res) => res.json())
@@ -419,7 +423,6 @@ export default function ChatPage() {
                 onParse={handleParse}
                 onDelete={handleDelete}
                 parsingIds={parsingIds}
-                deletingIds={deletingIds}
                 uploading={uploading}
                 collapsed={false}
                 initialLoading={isInitialLoading}
@@ -533,7 +536,6 @@ export default function ChatPage() {
             onParse={handleParse}
             onDelete={handleDelete}
             parsingIds={parsingIds}
-            deletingIds={deletingIds}
             uploading={uploading}
             collapsed={panelCollapsed}
             initialLoading={isInitialLoading}

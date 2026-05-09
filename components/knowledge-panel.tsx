@@ -27,9 +27,8 @@ interface KnowledgePanelProps {
   files: FileListItem[]
   onUpload: (file: File) => void
   onParse: (id: string) => void
-  onDelete: (id: string) => Promise<boolean>
+  onDelete: (id: string) => void
   parsingIds: Set<string>
-  deletingIds: Set<string>
   uploading: boolean
   collapsed: boolean
   initialLoading?: boolean
@@ -110,7 +109,6 @@ export function KnowledgePanel({
   onParse,
   onDelete,
   parsingIds,
-  deletingIds,
   uploading,
   collapsed,
   initialLoading = false,
@@ -147,19 +145,17 @@ export function KnowledgePanel({
     [onUpload]
   )
 
-  const isDeleting = deleteFileId ? deletingIds.has(deleteFileId) : false
-
-  const handleConfirmDelete = useCallback(async () => {
-    if (!deleteFileId || isDeleting) return
-    const deleted = await onDelete(deleteFileId)
-    if (deleted) { setDeleteFileId(null); setDeleteFileName("") }
-  }, [deleteFileId, isDeleting, onDelete])
-
-  const handleCloseDeleteDialog = useCallback(() => {
-    if (isDeleting) return
+  const handleConfirmDelete = useCallback(() => {
+    if (!deleteFileId) return
+    onDelete(deleteFileId)
     setDeleteFileId(null)
     setDeleteFileName("")
-  }, [isDeleting])
+  }, [deleteFileId, onDelete])
+
+  const handleCloseDeleteDialog = useCallback(() => {
+    setDeleteFileId(null)
+    setDeleteFileName("")
+  }, [])
 
   const indexedCount = files.filter(f => f.status === "indexed").length
 
@@ -313,9 +309,8 @@ export function KnowledgePanel({
                       files.map((file) => {
                         const isParsing     = parsingIds.has(file.id)
                         const isUploading   = file.clientStatus === "uploading"
-                        const isDeletingFile = deletingIds.has(file.id)
                         const isLoading     = isUploading || isParsing || file.status === "parsing"
-                        const displayStatus = isDeletingFile ? "deleting" : isUploading ? "uploading" : file.status
+                        const displayStatus = isUploading ? "uploading" : file.status
                         const canRetry      = !isUploading && file.status === "failed"
 
                         return (
@@ -350,7 +345,7 @@ export function KnowledgePanel({
                                     {canRetry && (
                                       <button
                                         onClick={() => onParse(file.id)}
-                                        disabled={isParsing || isDeletingFile}
+                                        disabled={isParsing}
                                         className="inline-flex h-6 cursor-pointer items-center gap-1 rounded-[6px] border border-border bg-card px-2 text-[10.5px] font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
                                       >
                                         {isParsing ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileCode className="h-3 w-3" />}
@@ -359,11 +354,11 @@ export function KnowledgePanel({
                                     )}
                                     <button
                                       onClick={() => { setDeleteFileId(file.id); setDeleteFileName(file.name) }}
-                                      disabled={isDeletingFile || isUploading}
+                                      disabled={isUploading}
                                       className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-[6px] border border-border bg-card text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:opacity-50"
                                       aria-label={t.deleteFile}
                                     >
-                                      {isDeletingFile ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                                      <Trash2 className="h-3 w-3" />
                                     </button>
                                   </div>
                                 </div>
@@ -391,12 +386,11 @@ export function KnowledgePanel({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={handleCloseDeleteDialog} disabled={isDeleting} className="rounded-lg">
+            <Button variant="outline" onClick={handleCloseDeleteDialog} className="rounded-lg">
               {t.confirmDeleteCancel}
             </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete} disabled={isDeleting} className="rounded-lg">
-              {isDeleting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-              {isDeleting ? t.deleteLoadingAction : t.confirmDeleteAction}
+            <Button variant="destructive" onClick={handleConfirmDelete} className="rounded-lg">
+              {t.confirmDeleteAction}
             </Button>
           </DialogFooter>
         </DialogContent>
