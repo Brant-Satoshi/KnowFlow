@@ -229,6 +229,15 @@ export function useChatStream({
 
   // Hydrate from server when conversation changes.
   useEffect(() => {
+    // When ensureConversation() flips a freshly-created id into state right
+    // before firing sendMessage(), the in-flight stream's AbortController is
+    // already on abortRef. Bail out before touching it, or we cancel our own
+    // request and the user sees "[Stopped]".
+    if (conversationId && skipNextHydrationRef.current) {
+      skipNextHydrationRef.current = false
+      return
+    }
+
     abortRef.current?.abort()
     setIsLoading(false)
     setIsStreaming(false)
@@ -243,11 +252,6 @@ export function useChatStream({
       setCitationsMap(new Map())
       setProgressMap(new Map())
       setIsHydrating(false)
-      return
-    }
-
-    if (skipNextHydrationRef.current) {
-      skipNextHydrationRef.current = false
       return
     }
 
