@@ -39,11 +39,11 @@ export function ChatInput({
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
-      onSubmit()
+      if (canSend) onSubmit()
     }
   }
 
-  const isDisabled = isLoading || !hasKnowledge
+  const isDisabled = isLoading
   const helperText = hasKnowledge
     ? t.inputReadyHint
     : isPreparingKnowledge

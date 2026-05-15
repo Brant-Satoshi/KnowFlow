@@ -19,8 +19,8 @@ test.describe("Home page — create knowledge base", () => {
     // Wait for the page to finish loading (skeleton gone)
     await expect(page.locator("main h1")).toBeVisible()
 
-    // Click the "+ Create Knowledge Base" button in the header
-    await page.getByRole("button", { name: /create knowledge base/i }).first().click()
+    // Click the "New Collection" button in the header
+    await page.locator("header").getByRole("button", { name: /new collection/i }).click()
 
     // Dialog should appear with a title
     const dialog = page.getByRole("dialog")
@@ -55,7 +55,7 @@ test.describe("Home page — create knowledge base", () => {
     await page.goto("/")
     await expect(page.locator("main h1")).toBeVisible()
 
-    await page.getByRole("button", { name: /create knowledge base/i }).first().click()
+    await page.locator("header").getByRole("button", { name: /new collection/i }).click()
 
     const dialog = page.getByRole("dialog")
     await expect(dialog).toBeVisible()
@@ -69,7 +69,7 @@ test.describe("Home page — create knowledge base", () => {
     await page.goto("/")
     await expect(page.locator("main h1")).toBeVisible()
 
-    await page.getByRole("button", { name: /create knowledge base/i }).first().click()
+    await page.locator("header").getByRole("button", { name: /new collection/i }).click()
 
     const dialog = page.getByRole("dialog")
     await expect(dialog).toBeVisible()
@@ -95,8 +95,8 @@ test.describe("Home page — create knowledge base", () => {
     // Wait for KB grid to appear (contains the NewKBCard)
     await expect(page.locator("main .grid")).toBeVisible()
 
-    // The "+ Create Knowledge Base" card in the grid
-    await page.getByRole("button", { name: /create knowledge base/i }).first().click()
+    // The "New Collection" card in the grid
+    await page.locator("main .grid").getByRole("button", { name: /new collection/i }).click()
 
     const dialog = page.getByRole("dialog")
     await expect(dialog).toBeVisible()

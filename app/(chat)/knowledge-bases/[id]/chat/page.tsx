@@ -73,8 +73,6 @@ export default function ChatPage() {
     parseFailedMessage: t.parseFailed,
     deleteFailedTitle: t.deleteFailedTitle,
     deleteFailedDesc: t.deleteFailedDesc,
-    deleteSuccessTitle: t.deleteSuccessTitle,
-    deleteSuccessDesc: t.deleteSuccessDesc,
   })
 
   const {
@@ -279,7 +277,7 @@ export default function ChatPage() {
 
   const isInitialLoading = isKnowledgeBaseLoading || isFilesLoading || conversationsLoading
   const isParsingOrUploading = uploading || parsingIds.size > 0
-  const hasKnowledge = files.some((file) => file.status === "indexed") && !isParsingOrUploading
+  const hasKnowledge = files.some((file) => file.status === "indexed")
   const hasMessages = messages.length > 0
   const latestAssistantMessage = [...messages].reverse().find((message) => message.role === "assistant")
   const latestAssistantSourceCount = latestAssistantMessage

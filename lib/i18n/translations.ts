@@ -80,9 +80,6 @@ export const translations = {
         "This action can’t be undone. Parsed content and vector indexes related to \"{fileName}\" will also be removed.",
       confirmDeleteAction: "Delete file",
       confirmDeleteCancel: "Keep file",
-      deleteSuccessTitle: "File deleted",
-      deleteSuccessDesc:
-        "The file, parsed content, and related indexes were removed successfully.",
       cancel: "Cancel",
       parseFile: "Parse file",
       autoParseFile: "Auto-parse file",
@@ -310,8 +307,6 @@ export const translations = {
       confirmDeleteDesc: "删除后将无法恢复，文件“{fileName}”的解析结果和向量索引也会一并移除。",
       confirmDeleteAction: "删除文件",
       confirmDeleteCancel: "暂不删除",
-      deleteSuccessTitle: "文件已删除",
-      deleteSuccessDesc: "文件、解析结果和关联索引已成功移除。",
       cancel: "取消",
       parseFile: "解析文件",
       autoParseFile: "自动解析",

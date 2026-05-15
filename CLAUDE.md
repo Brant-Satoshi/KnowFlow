@@ -62,6 +62,10 @@ All user-visible strings must use the translation system — no hardcoded Englis
 - For parameterised strings use a `{placeholder}` convention and replace at call site (e.g. `t.noResults.replace("{query}", searchQuery)`).
 - Sub-components that render text must receive `t` as a prop (typed `ReturnType<typeof useLanguage>["home" | "chat"]`) rather than calling `useLanguage()` themselves, unless they are already client components with clear ownership.
 
+## Frontend Conventions
+
+- Interactive elements (`button`, `a`, clickable `div`s) must include `cursor-pointer`.
+
 ## Constraints
 
 - Do not add new top-level routes (pages are fixed to the three above)

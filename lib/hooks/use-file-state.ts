@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { toast } from "@/components/ui/use-toast"
 import { FileDoc, FileListItem } from "@/lib/types"
 
 type ErrorToast = (
@@ -20,8 +19,6 @@ interface UseFileStateParams {
   parseFailedMessage: string
   deleteFailedTitle: string
   deleteFailedDesc: string
-  deleteSuccessTitle: string
-  deleteSuccessDesc: string
 }
 
 export function useFileState({
@@ -32,8 +29,6 @@ export function useFileState({
   parseFailedMessage,
   deleteFailedTitle,
   deleteFailedDesc,
-  deleteSuccessTitle,
-  deleteSuccessDesc,
 }: UseFileStateParams) {
   const [files, setFiles] = useState<FileDoc[]>([])
   const [optimisticFiles, setOptimisticFiles] = useState<FileListItem[]>([])
@@ -175,7 +170,6 @@ export function useFileState({
         .then((res) => res.json())
         .then((json) => {
           if (!json.ok) throw new Error()
-          toast({ title: deleteSuccessTitle, description: deleteSuccessDesc, variant: "success" })
         })
         .catch(() => {
           setFiles(snapshot)
@@ -185,8 +179,6 @@ export function useFileState({
     [
       deleteFailedDesc,
       deleteFailedTitle,
-      deleteSuccessDesc,
-      deleteSuccessTitle,
       showErrorToast,
     ]
   )
