@@ -35,6 +35,7 @@ interface KnowledgePanelProps {
   onToggle: () => void
   fullWidth?: boolean
   side?: "left" | "right"
+  className?: string
 }
 
 function formatSize(bytes: number): string {
@@ -115,6 +116,7 @@ export function KnowledgePanel({
   onToggle,
   fullWidth = false,
   side = "left",
+  className,
 }: KnowledgePanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
@@ -164,7 +166,8 @@ export function KnowledgePanel({
       <div
         className={cn(
           "relative z-10 flex h-full shrink-0 flex-col overflow-hidden rounded-[1rem] border border-border bg-card",
-          widthClass
+          widthClass,
+          className
         )}
       >
         <input

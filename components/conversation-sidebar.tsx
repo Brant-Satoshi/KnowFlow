@@ -33,6 +33,7 @@ interface ConversationSidebarProps {
   onRename: (id: string, title: string) => Promise<boolean>
   onDelete: (id: string) => Promise<boolean>
   fullWidth?: boolean
+  className?: string
 }
 
 export function ConversationSidebar({
@@ -45,6 +46,7 @@ export function ConversationSidebar({
   onRename,
   onDelete,
   fullWidth = false,
+  className,
 }: ConversationSidebarProps) {
   const { t } = useLanguage()
 
@@ -120,7 +122,8 @@ export function ConversationSidebar({
       <div
         className={cn(
           "relative z-10 flex h-full shrink-0 flex-col overflow-hidden rounded-[1rem] border border-border bg-card",
-          widthClass
+          widthClass,
+          className
         )}
       >
         <div className="border-b border-border px-4 py-3.5">
