@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react"
 import { Monitor, Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
+import { useThemeWithTransition } from "@/components/theme-provider"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 
@@ -26,7 +26,7 @@ const THEME_LABELS = {
 const emptySubscribe = () => () => {}
 
 export function ThemeSwitcher() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme } = useThemeWithTransition()
   const { language } = useLanguage()
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false)
 

@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react"
 import { Globe, Monitor, Moon, Settings, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
+import { useThemeWithTransition } from "@/components/theme-provider"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -44,7 +44,7 @@ const emptySubscribe = () => () => {}
 
 export function SettingsMenu() {
   const { language, setLanguage } = useLanguage()
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme } = useThemeWithTransition()
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false)
   const labels = language === "zh" ? LABELS.zh : LABELS.en
   const currentTheme = mounted ? ((theme as ThemeMode | undefined) ?? "system") : "system"
