@@ -95,20 +95,20 @@ function RecentsStrip({
       <p className="mb-3 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
         {t.recentlyOpened}
       </p>
-      <div className="flex gap-2 overflow-x-auto pb-0.5">
+      <div className="flex flex-wrap gap-2">
         {recents.map((kb) => (
-          <div key={kb.id} className="group/chip flex shrink-0 items-center rounded-lg border border-border bg-card transition-colors hover:bg-secondary">
+          <div key={kb.id} className="group/chip flex items-center rounded-lg border border-border bg-card transition-colors hover:bg-secondary">
             <Link
               href={`/knowledge-bases/${kb.id}/chat`}
               onClick={() => pushRecentId(kb.id)}
-              className="flex items-center gap-2 px-3.5 py-2"
+              className="flex cursor-pointer items-center gap-2 px-3.5 py-2"
             >
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--card-accent-0)]" />
-              <span className="font-mono text-xs font-medium text-foreground">{kb.name}</span>
+              <span className="max-w-[160px] truncate font-mono text-xs font-medium text-foreground">{kb.name}</span>
             </Link>
             <button
               onClick={() => onRemove(kb.id)}
-              className="mr-1.5 rounded-full p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover/chip:opacity-100"
+              className="mr-1.5 cursor-pointer rounded-full p-0.5 text-muted-foreground transition-opacity hover:text-foreground md:opacity-0 md:group-hover/chip:opacity-100"
               aria-label={t.removeFromRecents}
             >
               <X className="h-3 w-3" />
@@ -150,13 +150,13 @@ function KBCard({
   return (
     <div className="group relative">
       {/* Context menu */}
-      <div className="absolute right-2.5 top-10 z-10">
+      <div className="absolute right-2 top-2 z-10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-full opacity-0 transition-opacity hover:bg-black/8 group-hover:opacity-100 dark:hover:bg-white/10"
+              className="h-7 w-7 rounded-full transition-opacity hover:bg-black/8 md:opacity-0 md:group-hover:opacity-100 dark:hover:bg-white/10"
               aria-label={t.actions}
             >
               <MoreHorizontal className="h-4 w-4" />
@@ -188,7 +188,7 @@ function KBCard({
         href={`/knowledge-bases/${kb.id}/chat`}
         onClick={() => pushRecentId(kb.id)}
         className={cn(
-          "home-card-enter flex h-[220px] flex-col justify-between rounded-2xl bg-card p-4",
+          "home-card-enter flex h-[160px] cursor-pointer flex-col justify-between rounded-2xl bg-card p-4 sm:h-[220px]",
           "transition-shadow duration-200 hover:shadow-[0_8px_28px_rgba(0,0,0,0.10)] dark:hover:shadow-[0_8px_28px_rgba(0,0,0,0.35)]"
         )}
         style={{
@@ -216,7 +216,7 @@ function NewKBCard({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
       onClick={onClick}
-      className="flex h-[220px] w-full flex-col items-center justify-center gap-2.5 rounded-2xl border border-dashed border-black/15 bg-transparent text-muted-foreground transition-colors hover:border-black/25 hover:bg-card/60 dark:border-white/10 dark:hover:border-white/20 dark:hover:bg-card/60"
+      className="flex h-[160px] w-full cursor-pointer flex-col items-center justify-center gap-2.5 rounded-2xl border border-dashed border-black/15 bg-transparent text-muted-foreground transition-colors hover:border-black/25 hover:bg-card/60 sm:h-[220px] dark:border-white/10 dark:hover:border-white/20 dark:hover:bg-card/60"
     >
       <span className="font-display text-[44px] font-light italic leading-none text-muted-foreground/50">+</span>
       <span className="font-mono text-[10px] font-medium uppercase tracking-[0.10em] text-muted-foreground/70">
@@ -435,7 +435,7 @@ export default function HomePage() {
               {t.knowledgeBases}
             </h1>
             {!isLoading && filteredKnowledgeBases.length > 0 && (
-              <span className="mb-1.5 font-mono text-[11px] text-muted-foreground">
+              <span className="mb-1.5 shrink-0 whitespace-nowrap pl-3 font-mono text-[11px] text-muted-foreground">
                 {filteredKnowledgeBases.length} {filteredKnowledgeBases.length === 1 ? t.volume : t.volumes}
               </span>
             )}
@@ -453,7 +453,7 @@ export default function HomePage() {
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="text-muted-foreground transition-colors hover:text-foreground"
+                className="cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -478,7 +478,7 @@ export default function HomePage() {
         {isLoading ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-[220px] rounded-2xl" />
+              <Skeleton key={i} className="h-[160px] rounded-2xl sm:h-[220px]" />
             ))}
           </div>
         ) : filteredKnowledgeBases.length === 0 && !searchQuery ? (
@@ -523,15 +523,15 @@ export default function HomePage() {
         <DialogContent className="rounded-[1.8rem] border-black/8 bg-popover p-0 sm:max-w-xl dark:border-white/8 dark:bg-popover">
           <div className="rounded-[1.8rem] border border-black/5 bg-[linear-gradient(180deg,rgba(255,248,230,0.6)_0%,rgba(255,248,230,0)_100%)] p-6 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0)_100%)]">
             <DialogHeader className="text-left">
-              <DialogTitle className="font-display text-[26px] font-bold italic tracking-[-0.01em]">
+              <DialogTitle className="text-[22px] font-semibold tracking-tight">
                 {t.createKnowledgeBase}
               </DialogTitle>
               <DialogDescription className="mt-2 text-sm leading-6">
                 {t.dialogDescription}
               </DialogDescription>
             </DialogHeader>
-            <div className="mt-6 space-y-4">
-              <div className="space-y-2">
+            <div className="mt-7 space-y-5">
+              <div className="space-y-2.5">
                 <label className="text-sm font-medium text-foreground">{t.name}</label>
                 <Input
                   placeholder={t.namePlaceholder}
@@ -541,7 +541,7 @@ export default function HomePage() {
                   className="h-11 rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <label className="text-sm font-medium text-foreground">{t.description}</label>
                 <Textarea
                   placeholder={t.descriptionPlaceholder}
@@ -583,15 +583,15 @@ export default function HomePage() {
         <DialogContent className="rounded-[1.8rem] border-black/8 bg-popover p-0 sm:max-w-xl dark:border-white/8 dark:bg-popover">
           <div className="rounded-[1.8rem] border border-black/5 bg-[linear-gradient(180deg,rgba(255,248,230,0.6)_0%,rgba(255,248,230,0)_100%)] p-6 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0)_100%)]">
             <DialogHeader className="text-left">
-              <DialogTitle className="font-display text-[26px] font-bold italic tracking-[-0.01em]">
+              <DialogTitle className="text-[22px] font-semibold tracking-tight">
                 {t.editKnowledgeBase}
               </DialogTitle>
               <DialogDescription className="mt-2 text-sm leading-6">
                 {t.editDialogDescription}
               </DialogDescription>
             </DialogHeader>
-            <div className="mt-6 space-y-4">
-              <div className="space-y-2">
+            <div className="mt-7 space-y-5">
+              <div className="space-y-2.5">
                 <label className="text-sm font-medium text-foreground">{t.name}</label>
                 <Input
                   placeholder={t.namePlaceholder}
@@ -601,7 +601,7 @@ export default function HomePage() {
                   className="h-11 rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <label className="text-sm font-medium text-foreground">{t.description}</label>
                 <Textarea
                   placeholder={t.descriptionPlaceholder}
