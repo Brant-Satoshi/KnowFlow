@@ -50,7 +50,7 @@ export function ChatMessages({
         if (isUser) {
           return (
             <div key={message.id} className="flex items-start justify-end gap-3">
-              <div className="max-w-[min(100%,54rem)] space-y-2 text-right">
+              <div className="max-w-[min(100%,54rem)] space-y-2 text-left">
                 <div
                   className={cn(
                     "rounded-[14px] rounded-br-[4px] border border-transparent px-4 py-3",
