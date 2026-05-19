@@ -65,11 +65,10 @@ function FileExtBadge({ name }: { name: string }) {
   const color = EXT_COLORS[ext] ?? "#A0A8C0"
   return (
     <div
-      className="flex shrink-0 items-center justify-center rounded-[7px]"
+      className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[7px]"
       style={{
-        width: 30, height: 30,
-        background: `${color}18`,
-        border: `1px solid ${color}28`,
+        background: `color-mix(in srgb, ${color} 10%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${color} 16%, transparent)`,
       }}
     >
       <span
@@ -171,7 +170,7 @@ export function KnowledgePanel({
     <>
       <div
         className={cn(
-          "relative z-10 flex h-full shrink-0 flex-col overflow-hidden rounded-[1rem] border border-border bg-card",
+          "relative z-10 flex h-full shrink-0 flex-col overflow-hidden border border-border bg-card",
           widthClass,
           className
         )}

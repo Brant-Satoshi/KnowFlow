@@ -407,7 +407,7 @@ export default function HomePage() {
   }, [knowledgeBases, searchQuery])
 
   return (
-    <div className="home-grain min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
       {/* ── Header ─────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 flex h-[52px] items-center justify-between border-b border-border bg-background px-5">
         <BrandLogo name={t.title} iconSize={28} />

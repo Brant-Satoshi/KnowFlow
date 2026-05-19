@@ -286,8 +286,7 @@ export default function ChatPage() {
 
   if (!knowledgeBaseId) {
     return (
-      <div className="home-grain relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-10">
-        <div className="home-mesh pointer-events-none absolute inset-0" />
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-10">
         <div className={cn("relative w-full max-w-xl rounded-[1.25rem] p-8 text-center", chatSurfaceClass)}>
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-black/[0.04] dark:bg-white/[0.06]">
             <Database className="h-7 w-7 text-muted-foreground" />
@@ -307,8 +306,7 @@ export default function ChatPage() {
 
   if (isInitialLoading) {
     return (
-      <div className="home-grain relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-10">
-        <div className="home-mesh pointer-events-none absolute inset-0" />
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-10">
         <div className={cn("relative flex w-full max-w-sm flex-col items-center rounded-[1.25rem] p-8 text-center", chatSurfaceClass)}>
           <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-black/[0.04] dark:bg-white/[0.06]">
             <Loader2 className="h-7 w-7 animate-spin text-primary" />
@@ -326,8 +324,7 @@ export default function ChatPage() {
 
   if (isMobile) {
     return (
-      <div className="home-grain relative flex h-dvh flex-col overflow-hidden bg-background">
-        <div className="home-mesh pointer-events-none absolute inset-0" />
+      <div className="relative flex h-dvh flex-col overflow-hidden bg-background">
         <div className="home-orb-float pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-[#C49A2E]/[0.06] blur-3xl dark:bg-[#C49A2E]/8" />
         <div className="home-orb-float pointer-events-none absolute right-[-3rem] top-32 h-72 w-72 rounded-full bg-[#4A8A5C]/[0.05] blur-3xl dark:bg-[#4A8A5C]/8 [animation-delay:-5s]" />
 
@@ -452,8 +449,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="home-grain relative flex h-dvh flex-col overflow-hidden bg-background">
-      <div className="home-mesh pointer-events-none absolute inset-0" />
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-background">
       <div className="home-orb-float pointer-events-none absolute -left-24 top-8 h-72 w-72 rounded-full bg-[#C49A2E]/[0.06] blur-3xl dark:bg-[#C49A2E]/8" />
       <div className="home-orb-float pointer-events-none absolute right-[-4rem] top-24 h-96 w-96 rounded-full bg-[#4A8A5C]/[0.05] blur-3xl dark:bg-[#4A8A5C]/8 [animation-delay:-6s]" />
       <div className="home-orb-float pointer-events-none absolute bottom-[-7rem] left-1/3 h-80 w-80 rounded-full bg-[#C05B3C]/[0.04] blur-3xl dark:bg-[#C05B3C]/6 [animation-delay:-9s]" />
