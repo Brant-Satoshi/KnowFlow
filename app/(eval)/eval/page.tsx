@@ -224,7 +224,7 @@ function CaseEntry({
         <div>
           <button
             onClick={() => setShowChunks(v => !v)}
-            className="text-[10px] font-mono uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors focus:outline-none flex items-center gap-2"
+            className="cursor-pointer text-[10px] font-mono uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors focus:outline-none flex items-center gap-2"
           >
             <span className="w-2.5 inline-block">{showChunks ? '−' : '+'}</span>
             {evalT.retrievedChunksLabel} ({caseResult.retrievedChunks.length})
@@ -255,7 +255,7 @@ function CaseEntry({
           <div>
             <button
               onClick={() => setShowAnswer(v => !v)}
-              className="text-[10px] font-mono uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors focus:outline-none flex items-center gap-2"
+              className="cursor-pointer text-[10px] font-mono uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors focus:outline-none flex items-center gap-2"
             >
               <span className="w-2.5 inline-block">{showAnswer ? '−' : '+'}</span>
               {evalT.answerLabel}
@@ -437,7 +437,7 @@ export default function EvalPage() {
             <button
               onClick={handleRunEval}
               disabled={!selectedKbId || isRunning}
-              className="h-10 px-7 text-[10px] font-mono uppercase tracking-[0.2em] disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity focus:outline-none"
+              className="h-10 cursor-pointer px-7 text-[10px] font-mono uppercase tracking-[0.2em] disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity focus:outline-none"
               style={{
                 background: !selectedKbId || isRunning ? 'hsl(var(--muted))' : 'var(--card-accent-0)',
                 color: !selectedKbId || isRunning ? 'hsl(var(--muted-foreground))' : 'hsl(0 0% 100%)',

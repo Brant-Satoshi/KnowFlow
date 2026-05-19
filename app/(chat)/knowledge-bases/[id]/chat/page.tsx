@@ -279,10 +279,6 @@ export default function ChatPage() {
   const isParsingOrUploading = uploading || parsingIds.size > 0
   const hasKnowledge = files.some((file) => file.status === "indexed")
   const hasMessages = messages.length > 0
-  const latestAssistantMessage = [...messages].reverse().find((message) => message.role === "assistant")
-  const latestAssistantSourceCount = latestAssistantMessage
-    ? (citationsMap.get(latestAssistantMessage.id)?.length ?? 0)
-    : 0
 
   if (!knowledgeBaseId) {
     return (
@@ -407,7 +403,6 @@ export default function ChatPage() {
                   isLoading={isLoading}
                   hasKnowledge={hasKnowledge}
                   isPreparingKnowledge={isParsingOrUploading}
-                  sourceCount={latestAssistantSourceCount}
                 />
               </section>
             </TabsContent>
@@ -526,7 +521,6 @@ export default function ChatPage() {
               isLoading={isLoading}
               hasKnowledge={hasKnowledge}
               isPreparingKnowledge={isParsingOrUploading}
-              sourceCount={latestAssistantSourceCount}
             />
           </section>
 

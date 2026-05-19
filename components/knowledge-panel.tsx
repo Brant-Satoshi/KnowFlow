@@ -60,12 +60,13 @@ const EXT_COLORS: Record<string, string> = {
   csv:  "#7FE0B0",
 }
 
-function FileExtBadge({ name }: { name: string }) {
+function FileExtBadge({ name, size = "sm" }: { name: string; size?: "sm" | "md" }) {
   const ext = name.split(".").pop()?.toLowerCase() ?? ""
   const color = EXT_COLORS[ext] ?? "#A0A8C0"
+  const sizeClass = size === "md" ? "h-9 w-9 rounded-[9px]" : "h-[30px] w-[30px] rounded-[7px]"
   return (
     <div
-      className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[7px]"
+      className={cn("flex shrink-0 items-center justify-center", sizeClass)}
       style={{
         background: `color-mix(in srgb, ${color} 10%, transparent)`,
         border: `1px solid color-mix(in srgb, ${color} 16%, transparent)`,
@@ -164,8 +165,6 @@ export function KnowledgePanel({
     setDeleteFileName("")
   }, [])
 
-  const indexedCount = files.filter(f => f.status === "indexed").length
-
   return (
     <>
       <div
@@ -224,9 +223,9 @@ export function KnowledgePanel({
                             type="button"
                             onClick={onToggle}
                             aria-label={file.name}
-                            className="cursor-pointer rounded-[7px] transition-transform hover:scale-[1.06]"
+                            className="cursor-pointer rounded-[9px] transition-transform hover:scale-[1.06]"
                           >
-                            <FileExtBadge name={file.name} />
+                            <FileExtBadge name={file.name} size="md" />
                           </button>
                         </TooltipTrigger>
                         <TooltipContent
@@ -263,16 +262,6 @@ export function KnowledgePanel({
                     <CollapseIcon className="h-3.5 w-3.5" />
                   </Button>
                 )}
-              </div>
-
-              <div className="mt-2.5 flex items-center gap-2.5 rounded-[9px] bg-secondary px-2.5 py-2">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] bg-primary/10 text-primary">
-                  <Upload className="h-3.5 w-3.5" />
-                </div>
-                <div>
-                  <p className="text-[13px] font-semibold leading-none text-foreground">{t.knowledgePanel}</p>
-                  <p className="mt-1 text-[10.5px] text-muted-foreground">{indexedCount} {t.indexedLabel}</p>
-                </div>
               </div>
             </div>
 

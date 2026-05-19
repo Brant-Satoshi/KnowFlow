@@ -61,7 +61,7 @@ const CodeBlock: Components["pre"] = ({ children, className, node, ...rest }) =>
         <button
           type="button"
           onClick={handleCopy}
-          className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 transition-colors hover:bg-muted/50 hover:text-foreground"
+          className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 transition-colors hover:bg-muted/50 hover:text-foreground"
         >
           {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
           <span>{copied ? t.messageActions.copied : t.messageActions.copy}</span>
@@ -264,7 +264,7 @@ function ProcessTimeline({ progress, sourceCount, t }: ProcessTimelineProps) {
         type="button"
         onClick={() => setIsExpanded(true)}
         aria-expanded={false}
-        className="group inline-flex min-h-7 max-w-full items-center gap-1.5 self-start rounded-md px-2 py-1 text-[11.5px] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+        className="group inline-flex min-h-7 max-w-full cursor-pointer items-center gap-1.5 self-start rounded-md px-2 py-1 text-[11.5px] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
       >
         {!isFinal && activeStep ? (
           <StageIcon state="active" />
@@ -287,7 +287,7 @@ function ProcessTimeline({ progress, sourceCount, t }: ProcessTimelineProps) {
         type="button"
         onClick={() => setIsExpanded(false)}
         aria-expanded={true}
-        className="mb-1.5 inline-flex min-h-6 max-w-full items-center gap-1.5 text-[11.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+        className="mb-1.5 inline-flex min-h-6 max-w-full cursor-pointer items-center gap-1.5 text-[11.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         <ChevronDown className="h-3 w-3 shrink-0" />
         <span className={cn("truncate", isError && "text-destructive")}>
@@ -338,7 +338,7 @@ function SourceBadge({ chunk, t }: { chunk: RetrievedChunk; t: ChatT }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button className="inline-flex items-center gap-1.5 rounded-[7px] border border-border bg-secondary px-2.5 py-1 font-mono text-[10.5px] font-medium text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground">
+        <button className="inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-border bg-secondary px-2.5 py-1 font-mono text-[10.5px] font-medium text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground">
           <span className="text-[9.5px] text-muted-foreground/70">[{chunk.index}]</span>
           <span className="max-w-[18rem] truncate">{chunk.fileName}</span>
           {chunk.page != null && (
@@ -436,7 +436,7 @@ function MessageActions({
       <button
         type="button"
         onClick={handleCopy}
-        className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[11.5px] transition-colors hover:bg-muted/50 hover:text-foreground"
+        className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-[11.5px] transition-colors hover:bg-muted/50 hover:text-foreground"
       >
         {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
         <span>{copied ? t.messageActions.copied : t.messageActions.copy}</span>
@@ -446,7 +446,7 @@ function MessageActions({
           type="button"
           onClick={onRegenerate}
           disabled={regenerateDisabled}
-          className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[11.5px] transition-colors hover:bg-muted/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-[11.5px] transition-colors hover:bg-muted/50 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
         >
           <RefreshCw className="h-3.5 w-3.5" />
           <span>{t.messageActions.regenerate}</span>

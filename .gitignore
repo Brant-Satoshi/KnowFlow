@@ -47,3 +47,11 @@ CLAUDE.local.md
 # playwright
 /test-results
 /playwright-report
+/.playwright-mcp
+/home-*.png
+
+# pnpm local store (project-scoped cache)
+/.pnpm-store
+
+# agent worktrees
+/.trees

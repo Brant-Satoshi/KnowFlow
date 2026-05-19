@@ -215,7 +215,7 @@ export function ConversationSidebar({
                       >
                         <button
                           onClick={() => onSelect(conv.id)}
-                          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
                         >
                           <MessageSquare
                             className={cn(
@@ -237,7 +237,7 @@ export function ConversationSidebar({
                           <DropdownMenuTrigger asChild>
                             <button
                               className={cn(
-                                "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] text-muted-foreground transition-colors hover:bg-card hover:text-foreground",
+                                "inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-[6px] text-muted-foreground transition-colors hover:bg-card hover:text-foreground",
                                 "opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100",
                                 isActive && "opacity-100"
                               )}
