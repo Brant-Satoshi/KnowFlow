@@ -286,8 +286,7 @@ export default function ChatPage() {
 
   if (!knowledgeBaseId) {
     return (
-      <div className="home-grain relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-10">
-        <div className="home-mesh pointer-events-none absolute inset-0" />
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-10">
         <div className={cn("relative w-full max-w-xl rounded-[1.25rem] p-8 text-center", chatSurfaceClass)}>
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-black/[0.04] dark:bg-white/[0.06]">
             <Database className="h-7 w-7 text-muted-foreground" />
@@ -307,8 +306,7 @@ export default function ChatPage() {
 
   if (isInitialLoading) {
     return (
-      <div className="home-grain relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-10">
-        <div className="home-mesh pointer-events-none absolute inset-0" />
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-10">
         <div className={cn("relative flex w-full max-w-sm flex-col items-center rounded-[1.25rem] p-8 text-center", chatSurfaceClass)}>
           <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-black/[0.04] dark:bg-white/[0.06]">
             <Loader2 className="h-7 w-7 animate-spin text-primary" />
@@ -326,13 +324,12 @@ export default function ChatPage() {
 
   if (isMobile) {
     return (
-      <div className="home-grain relative flex h-dvh flex-col overflow-hidden bg-background p-3">
-        <div className="home-mesh pointer-events-none absolute inset-0" />
+      <div className="relative flex h-dvh flex-col overflow-hidden bg-background">
         <div className="home-orb-float pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-[#C49A2E]/[0.06] blur-3xl dark:bg-[#C49A2E]/8" />
         <div className="home-orb-float pointer-events-none absolute right-[-3rem] top-32 h-72 w-72 rounded-full bg-[#4A8A5C]/[0.05] blur-3xl dark:bg-[#4A8A5C]/8 [animation-delay:-5s]" />
 
-        <div className="relative flex min-h-0 flex-1 flex-col gap-px">
-          <header className={cn("rounded-t-[1.25rem] px-4 py-3", chatSurfaceClass)}>
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <header className={cn("px-4 py-3", chatSurfaceClass)}>
             <div className="flex items-center justify-between gap-3">
               <Link href="/" className="min-w-0">
                 <BrandLogo
@@ -348,7 +345,7 @@ export default function ChatPage() {
           <Tabs
             value={mobileTab}
             onValueChange={(value) => setMobileTab(value as "chats" | "knowledge" | "ask")}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+            className="-mt-px flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <TabsList className={cn("h-auto rounded-none p-1", chatSurfaceClass)}>
               <TabsTrigger
@@ -371,8 +368,8 @@ export default function ChatPage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="ask" className="mt-px flex min-h-0 flex-1 flex-col overflow-hidden">
-              <section className={cn("flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-[1.25rem]", chatSurfaceClass)}>
+            <TabsContent value="ask" className="-mt-px flex min-h-0 flex-1 flex-col overflow-hidden">
+              <section className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", chatSurfaceClass)}>
                 <div
                   ref={scrollRef}
                   className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
@@ -397,6 +394,7 @@ export default function ChatPage() {
                       hasKnowledge={hasKnowledge}
                       isPreparingKnowledge={isParsingOrUploading}
                       onSuggestionClick={handleSuggestionClick}
+                      onUpload={handleUpload}
                     />
                   )}
                 </div>
@@ -414,7 +412,7 @@ export default function ChatPage() {
               </section>
             </TabsContent>
 
-            <TabsContent value="knowledge" className="mt-px flex min-h-0 flex-1 overflow-hidden">
+            <TabsContent value="knowledge" className="-mt-px flex min-h-0 flex-1 overflow-hidden">
               <KnowledgePanel
                 files={files}
                 onUpload={handleUpload}
@@ -426,11 +424,11 @@ export default function ChatPage() {
                 initialLoading={isInitialLoading}
                 onToggle={() => undefined}
                 fullWidth={true}
-                className="rounded-none rounded-b-[1.25rem]"
+                className="rounded-none"
               />
             </TabsContent>
 
-            <TabsContent value="chats" className="mt-px flex min-h-0 flex-1 overflow-hidden">
+            <TabsContent value="chats" className="-mt-px flex min-h-0 flex-1 overflow-hidden">
               <ConversationSidebar
                 conversations={conversations}
                 currentId={currentConversationId}
@@ -441,7 +439,7 @@ export default function ChatPage() {
                 onRename={handleRenameConversation}
                 onDelete={handleDeleteConversation}
                 fullWidth
-                className="rounded-none rounded-b-[1.25rem]"
+                className="rounded-none"
               />
             </TabsContent>
           </Tabs>
@@ -451,14 +449,13 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="home-grain relative flex h-dvh flex-col overflow-hidden bg-background p-3 sm:p-4">
-      <div className="home-mesh pointer-events-none absolute inset-0" />
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-background">
       <div className="home-orb-float pointer-events-none absolute -left-24 top-8 h-72 w-72 rounded-full bg-[#C49A2E]/[0.06] blur-3xl dark:bg-[#C49A2E]/8" />
       <div className="home-orb-float pointer-events-none absolute right-[-4rem] top-24 h-96 w-96 rounded-full bg-[#4A8A5C]/[0.05] blur-3xl dark:bg-[#4A8A5C]/8 [animation-delay:-6s]" />
       <div className="home-orb-float pointer-events-none absolute bottom-[-7rem] left-1/3 h-80 w-80 rounded-full bg-[#C05B3C]/[0.04] blur-3xl dark:bg-[#C05B3C]/6 [animation-delay:-9s]" />
 
-      <div className="relative mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-px">
-        <header className={cn("rounded-t-[1.25rem] px-4 py-3 sm:px-5", chatSurfaceClass)}>
+      <div className="relative flex min-h-0 w-full flex-1 flex-col">
+        <header className={cn("px-4 py-3 sm:px-5", chatSurfaceClass)}>
           <div className="flex items-center justify-between gap-4">
             <Link href="/" className="min-w-0">
               <BrandLogo
@@ -471,7 +468,7 @@ export default function ChatPage() {
           </div>
         </header>
 
-        <div className="flex min-h-0 min-w-0 flex-1 gap-px">
+        <div className="-mt-px flex min-h-0 min-w-0 flex-1">
           <ConversationSidebar
             conversations={conversations}
             currentId={currentConversationId}
@@ -481,10 +478,10 @@ export default function ChatPage() {
             onCreate={() => { setCurrentConversationId(null); setInput("") }}
             onRename={handleRenameConversation}
             onDelete={handleDeleteConversation}
-            className="rounded-none rounded-bl-[1.25rem]"
+            className="rounded-none"
           />
 
-          <section className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none", chatSurfaceClass)}>
+          <section className={cn("-ml-px flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none", chatSurfaceClass)}>
             <div className="min-h-0 flex-1">
               {isHydrating && !hasMessages ? (
                 <div className="flex h-full items-center justify-center">
@@ -513,7 +510,9 @@ export default function ChatPage() {
                 >
                   <EmptyState
                     hasKnowledge={hasKnowledge}
+                    isPreparingKnowledge={isParsingOrUploading}
                     onSuggestionClick={handleSuggestionClick}
+                    onUpload={handleUpload}
                   />
                 </div>
               )}
@@ -542,7 +541,7 @@ export default function ChatPage() {
             initialLoading={isInitialLoading}
             onToggle={() => setPanelCollapsed((prev) => !prev)}
             side="right"
-            className="rounded-none rounded-br-[1.25rem]"
+            className="-ml-px rounded-none"
           />
         </div>
       </div>

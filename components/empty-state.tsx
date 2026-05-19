@@ -1,6 +1,8 @@
 "use client"
 
-import { FileText, Loader2, MessageSquare, Sparkles, Zap } from "lucide-react"
+import { useCallback, useRef } from "react"
+import { FileText, Loader2, MessageSquare, Sparkles, Upload, Zap } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { cn } from "@/lib/utils"
 
@@ -8,15 +10,29 @@ interface EmptyStateProps {
   hasKnowledge: boolean
   isPreparingKnowledge?: boolean
   onSuggestionClick: (text: string) => void
+  onUpload?: (file: File) => void
 }
 
 export function EmptyState({
   hasKnowledge,
   isPreparingKnowledge = false,
   onSuggestionClick,
+  onUpload,
 }: EmptyStateProps) {
   const { t, language } = useLanguage()
   const isPreparing = isPreparingKnowledge && !hasKnowledge
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileSelect = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (file && onUpload) onUpload(file)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    },
+    [onUpload]
+  )
+
+  const showUploadCta = !hasKnowledge && !isPreparing && Boolean(onUpload)
 
   const suggestions = [
     { icon: FileText,     text: t.suggestions.summarize, description: t.suggestions.summarizeDesc },
@@ -137,6 +153,25 @@ export function EmptyState({
                 <span className="text-[12.5px] text-foreground">{step}</span>
               </div>
             ))}
+          </div>
+        )}
+
+        {showUploadCta && (
+          <div className="mt-5 flex justify-center">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".md,.txt,.pdf,.doc,.docx"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              className="cursor-pointer rounded-xl px-5"
+            >
+              <Upload className="h-4 w-4" />
+              {t.uploadFile}
+            </Button>
           </div>
         )}
       </div>

@@ -19,6 +19,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { FileListItem } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -59,11 +65,10 @@ function FileExtBadge({ name }: { name: string }) {
   const color = EXT_COLORS[ext] ?? "#A0A8C0"
   return (
     <div
-      className="flex shrink-0 items-center justify-center rounded-[7px]"
+      className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[7px]"
       style={{
-        width: 30, height: 30,
-        background: `${color}18`,
-        border: `1px solid ${color}28`,
+        background: `color-mix(in srgb, ${color} 10%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${color} 16%, transparent)`,
       }}
     >
       <span
@@ -165,7 +170,7 @@ export function KnowledgePanel({
     <>
       <div
         className={cn(
-          "relative z-10 flex h-full shrink-0 flex-col overflow-hidden rounded-[1rem] border border-border bg-card",
+          "relative z-10 flex h-full shrink-0 flex-col overflow-hidden border border-border bg-card",
           widthClass,
           className
         )}
@@ -182,7 +187,7 @@ export function KnowledgePanel({
 
         {/* —— Collapsed —— */}
         {collapsed && !fullWidth ? (
-          <div className="flex flex-1 flex-col items-center gap-3 px-2 py-4">
+          <div className="flex min-h-0 flex-1 flex-col items-center gap-3 px-2 py-4">
             <Button
               variant="outline"
               size="icon"
@@ -196,18 +201,46 @@ export function KnowledgePanel({
 
             <div className="h-px w-7 bg-border" />
 
-            <div className="flex flex-1 flex-col items-center justify-start gap-3 pt-1">
-              <Button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 rounded-[9px]"
-                aria-label={t.uploadFile}
-              >
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              </Button>
-            </div>
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 rounded-[9px]"
+              aria-label={t.uploadFile}
+            >
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            </Button>
+
+            {files.length > 0 && (
+              <>
+                <div className="h-px w-7 bg-border" />
+                <TooltipProvider delayDuration={200}>
+                  <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-1.5 overflow-y-auto pb-1">
+                    {files.map((file) => (
+                      <Tooltip key={file.id}>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={onToggle}
+                            aria-label={file.name}
+                            className="cursor-pointer rounded-[7px] transition-transform hover:scale-[1.06]"
+                          >
+                            <FileExtBadge name={file.name} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          side={side === "right" ? "left" : "right"}
+                          className="max-w-[220px] break-words font-mono text-[12px]"
+                        >
+                          {file.name}
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                </TooltipProvider>
+              </>
+            )}
           </div>
         ) : (
           /* —— Expanded —— */
