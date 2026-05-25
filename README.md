@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ai-rag-app
 
-## Getting Started
+> **English** · [简体中文](./README.zh-CN.md)
 
-First, run the development server:
+A Next.js (App Router) RAG chat application. Upload documents into a knowledge base, ask questions, get streamed answers with inline citations back to the source chunks.
+
+Stack: Next.js 16 (React 19) · PostgreSQL + pgvector (Supabase-hosted) · MiniMax (chat + embeddings) · OpenRouter / Cohere (rerank) · Supabase Storage (file blobs) · Tailwind v4 + Radix UI.
+
+---
+
+## Quickstart
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+cp .env.local.example .env.local   # then fill in the keys below
+pnpm dev                            # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> Use **pnpm**, not npm.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+`pnpm build` is the canonical type-check (no separate `tsc` step is wired up).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Required environment variables
 
-## Learn More
+| Var | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Postgres connection string (must have `pgvector` installed) |
+| `MINIMAX_API_KEY` | Default LLM + embedding provider |
+| `MINIMAX_BASE_URL` | Defaults to `https://api.minimax.chat/v1` |
+| `MINIMAX_EMBEDDING_MODEL` | e.g. `embo-01` (1536-dim) |
+| `MINIMAX_CHAT_MODEL` | Defaults to `abab6.5-chat` |
+| `OPENROUTER_API_KEY` | Required for rerank; also usable as a chat-provider fallback |
+| `OPENROUTER_RERANK_MODEL` | Defaults to `cohere/rerank-v3.5` |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Storage for uploaded file blobs |
 
-To learn more about Next.js, take a look at the following resources:
+Optional:
+- `CHAT_PROVIDER=minimax|openrouter` — explicit chat provider (otherwise picks the first one with a key)
+- `OPENAI_EMBEDDING_MODEL` (+ `OPENAI_BASE_URL`, `OPENAI_EMBEDDING_DIMENSIONS=1536`) — use an OpenAI-compatible embedding endpoint instead of MiniMax
+- `RERANK_ENABLED=false` — disable the rerank step
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+> **Embeddings must be 1536-dimensional.** The `chunks.embedding` column is `vector(1536)` and the code validates dimension on every call.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Database setup
 
-## Deploy on Vercel
+Migrations live in `db/migrations/`. The `Makefile` targets assume a local Docker Postgres container named `ai-rag-postgres`:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+make migrate     # runs 001_init … 004_add_conversations against the container
+make seed        # optional fixtures
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+If you're pointing at Supabase / a remote Postgres, apply the SQL files in order with whatever client you prefer.
+
+---
+
+## Scripts
+
+| Command | Description |
+| --- | --- |
+| `pnpm dev` | Next dev server on `localhost:3000` |
+| `pnpm build` | Production build (also serves as type-check) |
+| `pnpm start` | Run the built app |
+| `pnpm lint` | ESLint |
+| `pnpm test:e2e` | Playwright end-to-end tests (`tests/`) |
+
+---
+
+## Routes
+
+Three user-facing pages — do not add more:
+
+- `/` — Knowledge Base list (CRUD)
+- `/knowledge-bases/[id]/chat` — RAG chat scoped to a single KB
+- `/eval` — offline evaluation dashboard
+
+API surface lives under `app/api/` (knowledge bases, files, conversations, RAG search, chat stream, eval run). See `Architecture.md` for the full inventory.
+
+---
+
+## How a chat request flows
+
+`POST /api/chat/stream` (SSE):
+
+1. Embed the user query (`lib/rag/embeddings.ts`)
+2. Vector-search top-20 chunks scoped to the KB, cosine distance < 0.4 (`lib/db/chunks.ts`)
+3. Rerank via Cohere/OpenRouter, keep top-8 (`lib/rag/rerank.ts`)
+4. Slice to top-5 as the evidence pack
+5. Build a citation-aware prompt and stream tokens back (`lib/llm/chat.ts`)
+
+SSE event order: `progress*` → `meta` → `progress` → `token*` → `done` (or `error`). Every event carries the `requestId`.
+
+---
+
+## Conventions
+
+- **API response shape**: every endpoint returns `{ requestId, ok, data?, error? }` via `lib/api/response.ts`.
+- **i18n**: no hardcoded English/Chinese in JSX or `aria-label` — strings live in `lib/i18n/translations.ts` (both `en` and `zh`).
+- **Interactive elements** (`button`, `a`, clickable `div`s) must include `cursor-pointer`.
+- **No new top-level routes**, **no new npm dependencies**, and **don't change the DB schema or API response shape** without explicit ask.
+
+See `CLAUDE.md` for the full set of repo conventions and `Architecture.md` for the design rationale, tradeoffs, and failure-mode strategies.
