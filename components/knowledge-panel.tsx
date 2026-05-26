@@ -26,6 +26,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { useOpenPreview } from "@/lib/preview-context"
 import { FileListItem } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -96,12 +97,12 @@ function StatusBadge({ status, label }: { status: string; label: string }) {
   const isPulsing = status === "parsing" || status === "uploading"
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-1 rounded-[5px] px-[7px] py-[2px] font-mono text-[10px] font-medium tracking-wider"
+      className="inline-flex shrink-0 items-center gap-1 rounded-[5px] px-1.75 py-0.5 font-mono text-[10px] font-medium tracking-wider"
       style={{ color: s.color, background: s.bg }}
     >
       {isPulsing && (
         <span
-          className="inline-block h-[5px] w-[5px] animate-pulse rounded-full"
+          className="inline-block h-1.25 w-1.25 animate-pulse rounded-full"
           style={{ background: s.color }}
         />
       )}
@@ -129,6 +130,7 @@ export function KnowledgePanel({
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null)
   const [deleteFileName, setDeleteFileName] = useState("")
   const { t } = useLanguage()
+  const openPreview = useOpenPreview()
 
   const widthClass = fullWidth ? "w-full" : collapsed ? "w-[64px]" : "w-[17rem] xl:w-[18.5rem]"
   const CollapseIcon = side === "right" ? ChevronRight : ChevronLeft
@@ -230,7 +232,7 @@ export function KnowledgePanel({
                         </TooltipTrigger>
                         <TooltipContent
                           side={side === "right" ? "left" : "right"}
-                          className="max-w-[220px] break-words font-mono text-[12px]"
+                          className="max-w-55 wrap-break-word font-mono text-[12px]"
                         >
                           {file.name}
                         </TooltipContent>
@@ -247,7 +249,7 @@ export function KnowledgePanel({
             {/* Panel header */}
             <div className="border-b border-border px-4 py-3.5">
               <div className="flex items-center justify-between">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                   {t.panelEyebrow}
                 </p>
                 {!fullWidth && (
@@ -315,7 +317,7 @@ export function KnowledgePanel({
                   {/* Library */}
                   <div className="mt-3.5">
                     <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                         {t.panelDocumentsLabel}
                       </p>
                       <span className="font-mono text-[10px] text-muted-foreground">
@@ -337,15 +339,38 @@ export function KnowledgePanel({
                         const isLoading     = isUploading || isParsing || file.status === "parsing"
                         const displayStatus = isUploading ? "uploading" : file.status
                         const canRetry      = !isUploading && file.status === "failed"
+                        const canPreview    = !isLoading && file.status === "indexed" && openPreview != null
+                        const handleRowClick = canPreview
+                          ? () => openPreview({ fileId: file.id, fileName: file.name })
+                          : undefined
 
                         return (
                           <div
                             key={file.id}
+                            role={canPreview ? "button" : undefined}
+                            tabIndex={canPreview ? 0 : undefined}
+                            onClick={handleRowClick}
+                            onKeyDown={
+                              canPreview
+                                ? (e) => {
+                                    // Only activate when the row itself has focus —
+                                    // ignore Enter/Space bubbled up from nested
+                                    // retry/delete buttons so those keep their own
+                                    // activation semantics.
+                                    if (e.target !== e.currentTarget) return
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault()
+                                      handleRowClick?.()
+                                    }
+                                  }
+                                : undefined
+                            }
                             className={cn(
                               "group relative overflow-hidden rounded-[10px] border p-2 transition-all hover:-translate-y-px mt-1",
                               isLoading
                                 ? "border-primary/25 bg-primary/5"
-                                : "border-border bg-card hover:bg-secondary"
+                                : "border-border bg-card hover:bg-secondary",
+                              canPreview && "cursor-pointer",
                             )}
                           >
                             {/* Loading shimmer */}
@@ -369,7 +394,7 @@ export function KnowledgePanel({
                                   <div className="ml-auto flex items-center gap-1.5">
                                     {canRetry && (
                                       <button
-                                        onClick={() => onParse(file.id)}
+                                        onClick={(e) => { e.stopPropagation(); onParse(file.id) }}
                                         disabled={isParsing}
                                         className="inline-flex h-6 cursor-pointer items-center gap-1 rounded-[6px] border border-border bg-card px-2 text-[10.5px] font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
                                       >
@@ -378,7 +403,7 @@ export function KnowledgePanel({
                                       </button>
                                     )}
                                     <button
-                                      onClick={() => { setDeleteFileId(file.id); setDeleteFileName(file.name) }}
+                                      onClick={(e) => { e.stopPropagation(); setDeleteFileId(file.id); setDeleteFileName(file.name) }}
                                       disabled={isUploading}
                                       className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-[6px] border border-border bg-card text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:opacity-50"
                                       aria-label={t.deleteFile}

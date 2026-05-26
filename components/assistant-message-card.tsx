@@ -7,7 +7,13 @@ import { AlertCircle, Check, ChevronDown, Copy, Loader2, RefreshCw } from "lucid
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import type { ActiveProgressStage, AssistantProgress } from "@/lib/hooks/use-chat-stream"
 import type { RetrievedChunk } from "@/lib/types"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  CitationContext,
+  CitationHoverCardBody,
+  renderWithCitations,
+} from "@/components/inline-citation"
+import { HoverCard, HoverCardTrigger } from "@/components/ui/hover-card"
+import { useOpenPreview } from "@/lib/preview-context"
 import { cn } from "@/lib/utils"
 
 function extractText(node: ReactNode): string {
@@ -76,25 +82,30 @@ const CodeBlock: Components["pre"] = ({ children, className, node, ...rest }) =>
 
 const markdownComponents: Components = {
   h1: ({ children }) => (
-    <h1 className="mt-6 text-lg font-semibold leading-7 [&:first-child]:mt-0">{children}</h1>
+    <h1 className="mt-6 text-lg font-semibold leading-7 first:mt-0">{children}</h1>
   ),
   h2: ({ children }) => (
-    <h2 className="mt-6 text-base font-semibold leading-7 [&:first-child]:mt-0">{children}</h2>
+    <h2 className="mt-6 text-base font-semibold leading-7 first:mt-0">{children}</h2>
   ),
   h3: ({ children }) => (
-    <h3 className="mt-5 text-sm font-semibold leading-6 [&:first-child]:mt-0">{children}</h3>
+    <h3 className="mt-5 text-sm font-semibold leading-6 first:mt-0">{children}</h3>
   ),
   h4: ({ children }) => (
-    <h4 className="mt-4 text-sm font-medium leading-6 [&:first-child]:mt-0">{children}</h4>
+    <h4 className="mt-4 text-sm font-medium leading-6 first:mt-0">{children}</h4>
   ),
   p: ({ children }) => (
-    <p className="whitespace-pre-wrap leading-7 [&:not(:first-child)]:mt-4">{children}</p>
+    <p className="whitespace-pre-wrap leading-7 not-first:mt-4">{renderWithCitations(children, "p")}</p>
   ),
   ul: ({ children }) => <ul className="mt-4 list-disc space-y-2 pl-5">{children}</ul>,
   ol: ({ children }) => <ol className="mt-4 list-decimal space-y-2 pl-5">{children}</ol>,
-  li: ({ children }) => <li className="leading-7">{children}</li>,
-  strong: ({ children }) => <strong className="font-semibold text-current">{children}</strong>,
+  li: ({ children }) => <li className="leading-7">{renderWithCitations(children, "li")}</li>,
+  strong: ({ children }) => (
+    <strong className="font-semibold text-current">{renderWithCitations(children, "strong")}</strong>
+  ),
   a: ({ children, href }) => (
+    // Citations are NOT injected here: InlineCitation renders a <button>, and
+    // putting an interactive button inside an <a> is invalid HTML and breaks
+    // click semantics. Bracketed text inside link text falls through literally.
     <a
       href={href}
       target="_blank"
@@ -106,7 +117,7 @@ const markdownComponents: Components = {
   ),
   blockquote: ({ children }) => (
     <blockquote className="mt-4 border-l-2 border-primary/30 pl-4 italic text-foreground/80">
-      {children}
+      {renderWithCitations(children, "bq")}
     </blockquote>
   ),
   code: ({ children, className }) => {
@@ -329,16 +340,19 @@ function ProcessTimeline({ progress, sourceCount, t }: ProcessTimelineProps) {
 
 function SourceBadge({ chunk, t }: { chunk: RetrievedChunk; t: ChatT }) {
   const scoreText = chunk.score != null ? chunk.score.toFixed(2) : null
-  const scoreTypeLabel =
-    chunk.scoreType === "rerank"
-      ? t.sourceScore.rerank
-      : chunk.scoreType === "vector"
-      ? t.sourceScore.vector
-      : null
+  const openPreview = useOpenPreview()
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button className="inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-border bg-secondary px-2.5 py-1 font-mono text-[10.5px] font-medium text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground">
+    <HoverCard openDelay={100} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <button
+          type="button"
+          data-testid="citation"
+          onClick={() =>
+            openPreview?.({ fileId: chunk.fileId, fileName: chunk.fileName, chunkId: chunk.chunkId })
+          }
+          disabled={openPreview == null}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-border bg-secondary px-2.5 py-1 font-mono text-[10.5px] font-medium text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground disabled:cursor-default"
+        >
           <span className="text-[9.5px] text-muted-foreground/70">[{chunk.index}]</span>
           <span className="max-w-[18rem] truncate">{chunk.fileName}</span>
           {chunk.page != null && (
@@ -357,25 +371,9 @@ function SourceBadge({ chunk, t }: { chunk: RetrievedChunk; t: ChatT }) {
             </span>
           )}
         </button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-80 rounded-[10px] text-xs leading-6 text-muted-foreground"
-        side="top"
-      >
-        <div className="mb-2 flex items-center gap-1.5 border-b border-border pb-2">
-          <span className="truncate font-medium text-foreground">{chunk.fileName}</span>
-          {chunk.page != null && (
-            <span className="shrink-0 text-[10px] text-muted-foreground/60">p.{chunk.page}</span>
-          )}
-        </div>
-        {scoreText && scoreTypeLabel && (
-          <div className="mb-2 text-[10px] text-muted-foreground/70">
-            {scoreTypeLabel} · {scoreText}
-          </div>
-        )}
-        <p className="line-clamp-6">{chunk.quote}</p>
-      </PopoverContent>
-    </Popover>
+      </HoverCardTrigger>
+      <CitationHoverCardBody chunk={chunk} t={t} />
+    </HoverCard>
   )
 }
 
@@ -464,6 +462,7 @@ interface AssistantMessageCardProps {
   isStreaming: boolean
   isLoading: boolean
   citations: RetrievedChunk[]
+  retrievedChunks: RetrievedChunk[]
   progress?: AssistantProgress
   isLatestAssistant: boolean
   onRegenerate?: () => void
@@ -476,6 +475,7 @@ export function AssistantMessageCard({
   isStreaming,
   isLoading,
   citations,
+  retrievedChunks,
   progress,
   isLatestAssistant,
   onRegenerate,
@@ -490,12 +490,17 @@ export function AssistantMessageCard({
     progress?.currentStage === "error" ||
     progress?.currentStage === "stopped"
 
+  const citationLookup = useMemo(
+    () => new Map(retrievedChunks.map((c) => [c.index, c])),
+    [retrievedChunks],
+  )
+
   return (
     <div className="flex items-start gap-3">
       <div className="max-w-[min(100%,54rem)] space-y-2">
         {progress && <ProcessTimeline progress={progress} sourceCount={citations.length} t={t} />}
 
-        <div className="text-foreground">
+        <div className="text-foreground" data-testid="assistant-message">
           {showLoadingDots ? (
             <div
               className="flex h-7 items-center gap-1.5"
@@ -511,19 +516,21 @@ export function AssistantMessageCard({
               ))}
             </div>
           ) : (
-            <div className="text-sm text-current">
-              {isStreaming ? (
-                <div className="streaming-active break-words leading-7">
-                  <ReactMarkdown components={markdownComponents}>
-                    {text}
-                  </ReactMarkdown>
-                </div>
-              ) : hasBody ? (
-                <ReactMarkdown components={markdownComponents}>{text}</ReactMarkdown>
-              ) : isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              ) : null}
-            </div>
+            <CitationContext.Provider value={citationLookup}>
+              <div className="text-sm text-current">
+                {isStreaming ? (
+                  <div className="streaming-active wrap-break-word leading-7">
+                    <ReactMarkdown components={markdownComponents}>
+                      {text}
+                    </ReactMarkdown>
+                  </div>
+                ) : hasBody ? (
+                  <ReactMarkdown components={markdownComponents}>{text}</ReactMarkdown>
+                ) : isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                ) : null}
+              </div>
+            </CitationContext.Provider>
           )}
         </div>
 

@@ -109,6 +109,7 @@ function stripCode(text: string): string {
     .replace(/`[^`\n]+`/g, "")
 }
 
+// Keep this regex in sync with CITATION_PATTERN in components/inline-citation.tsx.
 function parseUsedIndices(text: string): Set<number> {
   const prose = stripCode(text)
   const indices = new Set<number>()
@@ -120,22 +121,28 @@ function parseUsedIndices(text: string): Set<number> {
 
 function hydrateFromStored(
   stored: StoredMessage[]
-): { messages: UIMessage[]; citations: Map<string, RetrievedChunk[]> } {
+): {
+  messages: UIMessage[]
+  citations: Map<string, RetrievedChunk[]>
+  retrievedChunks: Map<string, RetrievedChunk[]>
+} {
   const messages: UIMessage[] = []
   const citations = new Map<string, RetrievedChunk[]>()
+  const retrievedChunks = new Map<string, RetrievedChunk[]>()
 
   for (const m of stored) {
     const ui = createTextMessage(m.role, m.content, m.id)
     messages.push(ui)
 
     if (m.role === "assistant" && m.retrievedChunks && m.retrievedChunks.length > 0) {
+      retrievedChunks.set(m.id, m.retrievedChunks)
       const used = parseUsedIndices(m.content)
       const cited = m.retrievedChunks.filter((c) => used.has(c.index))
       if (cited.length > 0) citations.set(m.id, cited)
     }
   }
 
-  return { messages, citations }
+  return { messages, citations, retrievedChunks }
 }
 
 export function useChatStream({
@@ -149,6 +156,7 @@ export function useChatStream({
   const [isStreaming, setIsStreaming] = useState(false)
   const [isHydrating, setIsHydrating] = useState(false)
   const [citationsMap, setCitationsMap] = useState<Map<string, RetrievedChunk[]>>(new Map())
+  const [retrievedChunksMap, setRetrievedChunksMap] = useState<Map<string, RetrievedChunk[]>>(new Map())
   const [progressMap, setProgressMap] = useState<Map<string, AssistantProgress>>(new Map())
 
   const abortRef = useRef<AbortController | null>(null)
@@ -250,6 +258,7 @@ export function useChatStream({
     if (!conversationId) {
       setMessages([])
       setCitationsMap(new Map())
+      setRetrievedChunksMap(new Map())
       setProgressMap(new Map())
       setIsHydrating(false)
       return
@@ -269,19 +278,22 @@ export function useChatStream({
         if (!json.ok || !json.data?.conversation) {
           setMessages([])
           setCitationsMap(new Map())
+          setRetrievedChunksMap(new Map())
           setProgressMap(new Map())
           return
         }
         const stored: StoredMessage[] = json.data.conversation.messages ?? []
-        const { messages: hydrated, citations } = hydrateFromStored(stored)
+        const { messages: hydrated, citations, retrievedChunks } = hydrateFromStored(stored)
         setMessages(hydrated)
         setCitationsMap(citations)
+        setRetrievedChunksMap(retrievedChunks)
         setProgressMap(new Map())
       } catch (err) {
         if ((err as Error)?.name === "AbortError") return
         if (generation !== hydrationGenRef.current) return
         setMessages([])
         setCitationsMap(new Map())
+        setRetrievedChunksMap(new Map())
         setProgressMap(new Map())
       } finally {
         if (generation === hydrationGenRef.current) {
@@ -400,7 +412,13 @@ export function useChatStream({
         await readSseStream(response.body as ReadableStream<Uint8Array>, ({ event, data }) => {
           if (event === "meta") {
             if (isObject(data) && Array.isArray(data.retrievedChunks)) {
-              retrievedChunksRef.current = data.retrievedChunks as RetrievedChunk[]
+              const chunks = data.retrievedChunks as RetrievedChunk[]
+              retrievedChunksRef.current = chunks
+              setRetrievedChunksMap((prev) => {
+                const next = new Map(prev)
+                next.set(assistantId, chunks)
+                return next
+              })
             }
             return
           }
@@ -567,6 +585,12 @@ export function useChatStream({
         next.delete(lastAssistantId!)
         return next
       })
+      setRetrievedChunksMap((prev) => {
+        if (!prev.has(lastAssistantId!)) return prev
+        const next = new Map(prev)
+        next.delete(lastAssistantId!)
+        return next
+      })
       await sendMessage(lastUserText)
     } finally {
       isRegeneratingRef.current = false
@@ -579,6 +603,7 @@ export function useChatStream({
     isStreaming,
     isHydrating,
     citationsMap,
+    retrievedChunksMap,
     progressMap,
     handleStop,
     sendMessage,

@@ -1,0 +1,26 @@
+The Olympus Initiative — Project Brief
+
+The Olympus Initiative is a fictional research program established
+in 2024 to study high-altitude weather patterns on Mars.
+
+Key facts:
+- The capital of the initiative is the city of Olympus Mons Base.
+- The lead researcher is Dr. Elena Kovacs.
+- The program operates three orbital weather stations: Helios, Vesta, and Daedalus.
+- Each station records atmospheric pressure, dust density, and surface wind speed every 90 minutes.
+- The data is transmitted to Earth via a relay satellite called Mercury Link.
+
+Funding and timeline:
+- Initial funding was 420 million credits, granted by the United Mars Consortium.
+- Phase 1 ran from 2024 through 2026 and focused on instrument calibration.
+- Phase 2, scheduled for 2027–2030, will extend coverage to the southern polar region.
+
+Notable findings so far:
+- Dust storms in the Tharsis region intensified by 18% during the 2025 perihelion.
+- The Daedalus station detected an unusual periodic pressure wave with a 41-hour cycle.
+- Surface temperatures at Olympus Mons Base ranged from -78°C to -12°C across the first year.
+
+Open questions the team is investigating:
+- What drives the 41-hour pressure oscillation observed by Daedalus?
+- Can dust-density forecasts be made reliable enough to schedule surface EVAs?
+- How does the southern polar region differ from the equatorial sites already studied?

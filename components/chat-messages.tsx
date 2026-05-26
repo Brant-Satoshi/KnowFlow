@@ -19,6 +19,7 @@ interface ChatMessagesProps {
   isLoading: boolean
   isStreaming: boolean
   citationsMap: Map<string, RetrievedChunk[]>
+  retrievedChunksMap: Map<string, RetrievedChunk[]>
   progressMap: Map<string, AssistantProgress>
   onRegenerate?: () => void
 }
@@ -28,6 +29,7 @@ export function ChatMessages({
   isLoading,
   isStreaming,
   citationsMap,
+  retrievedChunksMap,
   progressMap,
   onRegenerate,
 }: ChatMessagesProps) {
@@ -53,12 +55,12 @@ export function ChatMessages({
               <div className="max-w-[min(100%,54rem)] space-y-2 text-left">
                 <div
                   className={cn(
-                    "rounded-[14px] rounded-br-[4px] border border-transparent px-4 py-3",
+                    "rounded-[14px] rounded-br-lg border border-transparent px-4 py-3",
                     "theme-user-msg-bg theme-user-msg-text",
                   )}
                 >
                   <div className="text-sm text-current">
-                    <div className="whitespace-pre-wrap break-words leading-7">{text}</div>
+                    <div className="whitespace-pre-wrap wrap-break-word leading-7">{text}</div>
                   </div>
                 </div>
               </div>
@@ -74,6 +76,7 @@ export function ChatMessages({
             isStreaming={isStreamingMessage}
             isLoading={isAssistantLoading}
             citations={citationsMap.get(message.id) ?? []}
+            retrievedChunks={retrievedChunksMap.get(message.id) ?? []}
             progress={progressMap.get(message.id)}
             isLatestAssistant={message.id === latestAssistantId}
             onRegenerate={onRegenerate}

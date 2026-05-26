@@ -192,6 +192,12 @@ export const translations = {
         rerank: "rerank",
         vector: "vector",
       },
+      filePreview: {
+        title: "File preview",
+        loadFailed: "Failed to load file content",
+        empty: "This file has no content",
+        loading: "Loading content...",
+      },
     },
     eval: {
       title: "Evaluation",
@@ -417,6 +423,12 @@ export const translations = {
       sourceScore: {
         rerank: "重排分",
         vector: "向量分",
+      },
+      filePreview: {
+        title: "文件预览",
+        loadFailed: "加载文件内容失败",
+        empty: "该文件没有内容",
+        loading: "加载内容中...",
       },
     },
     eval: {
