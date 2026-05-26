@@ -275,7 +275,7 @@ function ProcessTimeline({ progress, sourceCount, t }: ProcessTimelineProps) {
         type="button"
         onClick={() => setIsExpanded(true)}
         aria-expanded={false}
-        className="group inline-flex min-h-7 max-w-full cursor-pointer items-center gap-1.5 self-start rounded-md px-2 py-1 text-[11.5px] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+        className="group -ml-2 inline-flex min-h-7 max-w-full cursor-pointer items-center gap-1.5 self-start rounded-md px-2 py-1 text-[11.5px] text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
       >
         {!isFinal && activeStep ? (
           <StageIcon state="active" />
@@ -430,7 +430,7 @@ function MessageActions({
   }
 
   return (
-    <div className="flex items-center gap-1 px-0.5 text-muted-foreground">
+    <div className="-ml-2 flex items-center gap-1 text-muted-foreground">
       <button
         type="button"
         onClick={handleCopy}

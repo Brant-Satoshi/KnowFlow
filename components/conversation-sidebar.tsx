@@ -121,14 +121,14 @@ export function ConversationSidebar({
     <>
       <div
         className={cn(
-          "relative z-10 flex h-full shrink-0 flex-col overflow-hidden rounded-[1rem] border border-border bg-card",
+          "relative z-10 flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-border bg-card",
           widthClass,
           className
         )}
       >
         <div className="border-b border-border px-4 py-3.5">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               {t.conversationsEyebrow}
             </p>
           </div>
@@ -193,7 +193,7 @@ export function ConversationSidebar({
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-7 px-2 text-[11px]"
+                          className="h-7 px-2 text-[11px] cursor-pointer"
                           disabled={renameSaving}
                           onClick={() => void submitRename()}
                         >
@@ -202,6 +202,15 @@ export function ConversationSidebar({
                           ) : (
                             t.saveTitle
                           )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-[11px] text-muted-foreground cursor-pointer"
+                          disabled={renameSaving}
+                          onClick={cancelRename}
+                        >
+                          {t.cancel}
                         </Button>
                       </div>
                     ) : (
