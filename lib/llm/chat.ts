@@ -43,7 +43,7 @@ function resolveChatProvider(): ChatProviderConfig {
   return factory();
 }
 
-export type SseEventName = 'meta' | 'token' | 'done' | 'error' | 'progress';
+export type SseEventName = 'meta' | 'token' | 'done' | 'error' | 'progress' | 'title';
 
 export function formatSse(event: SseEventName, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -66,15 +66,14 @@ export interface StreamAnswerOptions {
   onComplete?: (fullText: string) => Promise<void> | void;
 }
 
-export function buildPrompt(question: string, chunks: Chunk[]) {
-  if (isSummaryQuery(question) && chunks.length === 0) {
-    return `Please summarize the conversation so far.`;
-  }
-  const numbered = chunks.map((c, i) => `[${i + 1}] ${c.text}`).join('\n\n');
-  if (isSummaryQuery(question)) {
-    return `You are a helpful assistant.
+function formatChunks(chunks: Chunk[]) {
+  return chunks.map((c, i) => `[${i + 1}] ${c.text}`).join('\n\n');
+}
 
-Summarize the following content into key points.
+function buildSummaryPrompt(numberedContext: string) {
+  return `You are a helpful assistant.
+
+Summarize the following context into key points.
 
 Rules:
 - Be concise
@@ -83,24 +82,54 @@ Rules:
 - When referencing specific content, cite by number like [1] or [1][2]
 - Do NOT write [Source: filename], only use bracket numbers
 
-Content:
-${numbered}`;
-  }
+Context:
+${numberedContext}`;
+}
+
+function buildQaPrompt(question: string, numberedContext: string) {
+   const isChinese = /[\u4e00-\u9fa5]/.test(question);
+   const fallback = isChinese
+    ? '我没有在知识库中找到相关信息。'
+    : "I couldn't find relevant information in the knowledge base.";
   return `You are a helpful assistant.
 
 Answer the user's question using ONLY the provided context.
 
-If the answer cannot be found in the context, say: "I couldn't find relevant information in the knowledge base."
+If the answer cannot be found in the context, say exactly:
+"${fallback}"
 
 Rules:
 - Cite sources inline using bracket numbers like [1] or [1][2]
 - Do NOT write [Source: filename], only use bracket numbers
+- Do NOT use outside knowledge
+- Do NOT cite content that does not support the answer
 
 Context:
-${numbered}
+${numberedContext}
 
 Question:
 ${question}`;
+}
+
+export function buildPrompt(question: string, chunks: Chunk[]) {
+  const numberedContext = formatChunks(chunks);
+
+  if (isSummaryQuery(question)) {
+    if (chunks.length === 0) {
+      return `You are a helpful assistant.
+
+Summarize the conversation so far based on the previous messages.
+
+Rules:
+- Be concise
+- Use bullet points
+- Do NOT invent details`;
+    }
+
+    return buildSummaryPrompt(numberedContext);
+  }
+
+  return buildQaPrompt(question, numberedContext);
 }
 
 export interface StreamLlmAnswerOptions {
@@ -282,4 +311,33 @@ export async function generateAnswer(
   const content = data.choices?.[0]?.message?.content;
   if (!content) throw new Error('Empty LLM response');
   return content;
+}
+
+const TITLE_MAX_CHARS = 60;
+
+export async function generateConversationTitle(
+  userMessage: string,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  const prompt = `You write concise chat conversation titles. Given the user's opening message below, output a title of 3-7 words that captures the main topic.
+
+Rules:
+- Output ONLY the title text. No quotes, no preamble, no trailing punctuation.
+- Use the same language as the user's message (English if English, Chinese if Chinese).
+- Be specific and informative, not generic.
+
+User message:
+${userMessage}
+
+Title:`;
+
+  const raw = await generateAnswer(prompt, signal);
+  const cleaned = raw
+    .trim()
+    .split('\n')[0]
+    .replace(/^["'「『]+|["'」』]+$/g, '')
+    .replace(/[。.!?！？]+$/, '')
+    .trim()
+    .slice(0, TITLE_MAX_CHARS);
+  return cleaned.length > 0 ? cleaned : null;
 }

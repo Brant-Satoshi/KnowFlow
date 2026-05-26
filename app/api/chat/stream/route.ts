@@ -1,13 +1,16 @@
 import { searchChunks } from '@/lib/db/chunks';
 import {
   appendMessage,
+  DEFAULT_CONVERSATION_TITLE,
   getConversationById,
   listRecentMessages,
   touchConversation,
+  updateConversationTitle,
 } from '@/lib/db/conversations';
 import {
   buildPrompt,
   formatSse,
+  generateConversationTitle,
   streamLlmAnswer,
   type ChatHistoryMessage,
   type SseSend,
@@ -124,6 +127,22 @@ export async function POST(request: NextRequest) {
         controller.enqueue(encoder.encode(formatSse(event, data)));
       };
 
+      let titleTask: Promise<void> | undefined;
+      if (conversation.title === DEFAULT_CONVERSATION_TITLE) {
+        titleTask = (async () => {
+          try {
+            const title = await generateConversationTitle(message, request.signal);
+            if (!title) return;
+            const updated = await updateConversationTitle(conversationId, title);
+            if (updated) {
+              send('title', { requestId, conversationId, title: updated.title });
+            }
+          } catch (err) {
+            console.error(`[${requestId}] title generation failed:`, err);
+          }
+        })();
+      }
+
       try {
         send('progress', { requestId, stage: 'searching' });
         const queryEmbedding = await embedText(message, { signal: request.signal });
@@ -208,6 +227,7 @@ export async function POST(request: NextRequest) {
           message: e instanceof Error ? e.message : 'Chat failed',
         });
       } finally {
+        if (titleTask) await titleTask;
         controller.close();
       }
     },

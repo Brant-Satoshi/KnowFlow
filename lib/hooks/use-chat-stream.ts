@@ -10,6 +10,7 @@ interface UseChatStreamParams {
   conversationId?: string
   scrollRef: React.RefObject<HTMLDivElement | null>
   scrollToBottom: () => void
+  onConversationTitleUpdated?: (conversationId: string, title: string) => void
 }
 
 export type ProgressStage =
@@ -150,6 +151,7 @@ export function useChatStream({
   conversationId,
   scrollRef,
   scrollToBottom,
+  onConversationTitleUpdated,
 }: UseChatStreamParams) {
   const [messages, setMessages] = useState<UIMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -462,6 +464,17 @@ export function useChatStream({
             }
           }
 
+          if (event === "title") {
+            if (
+              isObject(data) &&
+              typeof data.conversationId === "string" &&
+              typeof data.title === "string"
+            ) {
+              onConversationTitleUpdated?.(data.conversationId, data.title)
+            }
+            return
+          }
+
           if (event === "error") {
             streamError =
               isObject(data) && typeof data.message === "string" ? data.message : "Stream error"
@@ -532,7 +545,7 @@ export function useChatStream({
       fullTextRef.current = ""
       retrievedChunksRef.current = []
     },
-    [appendStep, conversationId, flushAssistantBuffer, isLoading, knowledgeBaseId, scheduleFlush, scrollToBottom, updateProgress]
+    [appendStep, conversationId, flushAssistantBuffer, isLoading, knowledgeBaseId, onConversationTitleUpdated, scheduleFlush, scrollToBottom, updateProgress]
   )
 
   // v1: regenerate the LAST assistant turn only. Removes the trailing user +
