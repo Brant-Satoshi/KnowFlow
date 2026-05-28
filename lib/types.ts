@@ -16,6 +16,8 @@ export interface Message {
 export interface Conversation {
   id: string;
   title: string;
+  /** OpenRouter model id from `lib/llm/catalog.ts`. NULL means use default. */
+  model: string | null;
   createdAt: ISODateString;
   updatedAt: ISODateString;
 }
@@ -104,12 +106,41 @@ export interface Citation {
 }
 
 // Eval
+/**
+ * A single evaluation case.
+ *
+ * Relevance grading (see lib/eval/relevance.ts) uses these fields:
+ * - grade 3: chunk text contains any string in `targetChunkSubstrings` (strongest signal,
+ *            wins regardless of whether the chunk's file is in `targetFileNames`)
+ * - grade 2: chunk file is in `targetFileNames` AND chunk text contains any keyword in
+ *            `expectedKeywords`  (`expectedKeywords` is intentionally reused from the
+ *            legacy citation-check field)
+ * - grade 1: chunk file is in `targetFileNames` but no keyword overlap
+ * - grade 0: neither
+ *
+ * `expectedAnswer` is unused in PR 1; reserved for reference-based judging in a later PR.
+ */
+
+export type EvalCaseCategory =
+  | 'single_fact'
+  | 'numeric_fact'
+  | 'list_extraction'
+  | 'synthesis'
+  | 'disambiguation'
+  | 'out_of_scope';
+
+export type EvalCaseDifficulty = 'easy' | 'medium' | 'hard';
+
 export interface EvalCase {
   id: string;
   question: string;
   expectedKeywords: string[];
+  category: EvalCaseCategory;
+  difficulty: EvalCaseDifficulty;
   targetFileNames?: string[];
   targetChunkSubstrings?: string[];
+  expectedAnswer?: string;
+  notes?: string;
 }
 
 export interface EvalChunkHit {
@@ -135,6 +166,10 @@ export interface EvalCaseResult {
   retrievedChunks: EvalChunkHit[];
   topKHits: EvalTopKHit[];
   answer: string;
+  /** Reference answer from the dataset. Curated mode only. */
+  expectedAnswer?: string;
+  /** Per-chunk relevance grade (0–3) aligned to `retrievedChunks`. Curated mode only. */
+  gradedHits?: number[];
 }
 
 export interface EvalRunResult {
@@ -146,6 +181,13 @@ export interface EvalRunResult {
   citationHitRate: number;
   avgLatencyMs: number;
   cases: EvalCaseResult[];
+  // Curated-mode fields (optional; absent in legacy mode):
+  recallAtK?: Record<number, number>;
+  precisionAtK?: Record<number, number>;
+  ndcgAtK?: Record<number, number>;
+  mrr?: number;
+  mode?: 'legacy' | 'curated';
+  datasetHash?: string;
 }
 
 export interface EvalRunComparison {

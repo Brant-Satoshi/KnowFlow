@@ -3,15 +3,16 @@
 import { useState, useEffect } from 'react';
 import { BrandLogo } from '@/components/brand-logo';
 import { SettingsMenu } from '@/components/settings-menu';
+import { Switch } from '@/components/ui/switch';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type {
   KnowledgeBase,
   EvalRunResult,
-  EvalRunComparison,
   EvalCaseResult,
 } from '@/lib/types';
 import type { EvalTranslationKeys } from '@/lib/i18n/translations';
 import Link from 'next/link';
+import { listDatasetNames } from '@/lib/eval/dataset';
 
 const STYLES = `
   @keyframes eval-reveal {
@@ -72,12 +73,12 @@ function MetricPanel({
       className="eval-reveal bg-card flex flex-col gap-2.5 p-5 overflow-hidden relative"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <span className="text-[9px] font-mono uppercase tracking-[0.22em] text-muted-foreground">
+      <span className="text-[11px] font-sans font-medium text-muted-foreground">
         {label}
       </span>
       <span
         key={value}
-        className={`text-[2.6rem] leading-none font-mono font-medium tracking-tight ${active ? 'eval-number-in' : ''}`}
+        className={`text-[2.4rem] leading-none font-sans font-semibold tracking-tight tabular-nums ${active ? 'eval-number-in' : ''}`}
         style={{
           color: active ? 'var(--card-accent-0)' : 'hsl(var(--foreground) / 0.22)',
           transition: 'color 0.4s ease',
@@ -95,13 +96,11 @@ function MetricRow({
   result,
   active,
   evalT,
-  baseDelay = 0,
 }: {
   title: string;
   result: EvalRunResult | null;
   active: boolean;
   evalT: EvalTranslationKeys;
-  baseDelay?: number;
 }) {
   const passRate = result ? `${result.passedCases}/${result.totalCases}` : '—';
   const retrievalRate = result ? `${Math.round(result.retrievalHitRate * 100)}%` : '—';
@@ -111,18 +110,89 @@ function MetricRow({
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-3">
-        <span className="text-[9px] font-mono uppercase tracking-[0.22em] text-foreground">
+        <span className="text-[12px] font-sans font-medium text-foreground">
           {title}
         </span>
         <div className="h-px flex-1 bg-border" />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border">
-        <MetricPanel label={evalT.passedCases} value={passRate} active={active} delay={baseDelay} />
-        <MetricPanel label={evalT.retrievalHitRate} value={retrievalRate} active={active} delay={baseDelay + 80} />
-        <MetricPanel label={evalT.citationHitRate} value={citationRate} active={active} delay={baseDelay + 160} />
-        <MetricPanel label={evalT.avgLatency} value={avgLatency} active={active} delay={baseDelay + 240} />
+        <MetricPanel label={evalT.passedCases}      value={passRate}      active={active} delay={0}   />
+        <MetricPanel label={evalT.retrievalHitRate} value={retrievalRate} active={active} delay={80}  />
+        <MetricPanel label={evalT.citationHitRate}  value={citationRate}  active={active} delay={160} />
+        <MetricPanel label={evalT.avgLatency}       value={avgLatency}    active={active} delay={240} />
       </div>
     </section>
+  );
+}
+
+function CuratedMetricRow({
+  result,
+  active,
+  evalT,
+}: {
+  result: EvalRunResult;
+  active: boolean;
+  evalT: EvalTranslationKeys;
+}) {
+  const pct = (v: number | undefined): string =>
+    typeof v === 'number' ? `${Math.round(v * 100)}%` : '—';
+  const recall = pct(result.recallAtK?.[5]);
+  const precision = pct(result.precisionAtK?.[5]);
+  const ndcg = pct(result.ndcgAtK?.[5]);
+  const mrrStr =
+    typeof result.mrr === 'number' ? result.mrr.toFixed(2) : '—';
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-3">
+        <span className="text-[12px] font-sans font-medium text-foreground">
+          {evalT.curatedMetricsTitle}
+        </span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border">
+        <MetricPanel label={evalT.recallAtK}    value={recall}    active={active} delay={0}   />
+        <MetricPanel label={evalT.precisionAtK} value={precision} active={active} delay={80}  />
+        <MetricPanel label={evalT.ndcgAtK}      value={ndcg}      active={active} delay={160} />
+        <MetricPanel label={evalT.mrr}          value={mrrStr}    active={active} delay={240} />
+      </div>
+    </section>
+  );
+}
+
+function GradeBadge({ grade, label }: { grade: number; label: string }) {
+  // 0 muted, 1 amber, 2 light green, 3 strong green (mapped onto theme tokens)
+  const palette: Record<number, { fg: string; bg: string; bd: string }> = {
+    3: {
+      fg: 'var(--card-accent-1)',
+      bg: 'color-mix(in srgb, var(--card-accent-1) 14%, transparent)',
+      bd: 'color-mix(in srgb, var(--card-accent-1) 45%, transparent)',
+    },
+    2: {
+      fg: 'var(--card-accent-1)',
+      bg: 'color-mix(in srgb, var(--card-accent-1) 7%, transparent)',
+      bd: 'color-mix(in srgb, var(--card-accent-1) 25%, transparent)',
+    },
+    1: {
+      fg: 'hsl(38 92% 45%)',
+      bg: 'hsl(38 92% 45% / 0.08)',
+      bd: 'hsl(38 92% 45% / 0.3)',
+    },
+    0: {
+      fg: 'hsl(var(--muted-foreground))',
+      bg: 'transparent',
+      bd: 'hsl(var(--border))',
+    },
+  };
+  const c = palette[grade] ?? palette[0];
+  return (
+    <span
+      className="text-[10px] font-sans font-medium px-1.5 py-0.5 border tabular-nums shrink-0"
+      style={{ color: c.fg, backgroundColor: c.bg, borderColor: c.bd }}
+      title={`${label} ${grade}`}
+    >
+      {label} {grade}
+    </span>
   );
 }
 
@@ -132,7 +202,7 @@ function TopKRow({ hits }: { hits: { k: number; hit: boolean }[] }) {
       {hits.map(({ k, hit }) => (
         <span
           key={k}
-          className="text-[10px] font-mono"
+          className="text-[12px] font-sans tabular-nums"
           style={{
             color: hit ? 'var(--card-accent-1)' : 'hsl(var(--muted-foreground))',
             fontWeight: hit ? 600 : 400,
@@ -145,16 +215,54 @@ function TopKRow({ hits }: { hits: { k: number; hit: boolean }[] }) {
   );
 }
 
-function CaseEntry({
+function AnswerPanel({
+  label,
+  text,
+  emptyText,
+  accentColor,
+}: {
+  label: string;
+  text: string;
+  emptyText?: string;
+  accentColor?: string;
+}) {
+  const isEmpty = !text;
+  return (
+    <div className="flex flex-col min-w-0">
+      <div className="flex items-center gap-2 mb-1.5">
+        {accentColor && (
+          <span
+            aria-hidden
+            className="inline-block w-1.5 h-1.5"
+            style={{ background: accentColor }}
+          />
+        )}
+        <span className="text-[11px] font-sans font-medium uppercase tracking-wide text-muted-foreground">
+          {label}
+        </span>
+      </div>
+      <p
+        className={`text-[13px] font-sans leading-relaxed whitespace-pre-wrap pl-3 border-l border-border ${
+          isEmpty ? 'text-muted-foreground/70 italic' : 'text-foreground/85'
+        }`}
+      >
+        {isEmpty ? emptyText : text}
+      </p>
+    </div>
+  );
+}
+
+function CaseRow({
+  index,
   caseResult,
   evalT,
-  variantLabel,
+  delay,
 }: {
+  index: number;
   caseResult: EvalCaseResult;
   evalT: EvalTranslationKeys;
-  variantLabel: string;
+  delay: number;
 }) {
-  const [showAnswer, setShowAnswer] = useState(false);
   const [showChunks, setShowChunks] = useState(false);
 
   const failureKeyMap: Record<string, keyof EvalTranslationKeys> = {
@@ -169,19 +277,24 @@ function CaseEntry({
 
   return (
     <div
-      className="bg-card border border-border overflow-hidden flex-1 min-w-0"
-      style={{ borderLeft: `3px solid ${accentColor}`, borderRadius: 0 }}
+      className="eval-reveal bg-card border border-border overflow-hidden"
+      style={{ borderLeft: `3px solid ${accentColor}`, borderRadius: 0, animationDelay: `${delay}ms` }}
     >
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border/60 bg-muted/30">
-        <span className="text-[9px] font-mono uppercase tracking-[0.22em] text-muted-foreground">
-          {variantLabel}
-        </span>
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-mono text-muted-foreground tabular-nums">
+      <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-border/60 bg-muted/30">
+        <div className="flex items-start gap-3 min-w-0">
+          <span className="text-[12px] font-sans text-muted-foreground tabular-nums mt-0.5 shrink-0">
+            {String(index + 1).padStart(2, '0')}
+          </span>
+          <p className="text-[14px] font-sans leading-snug text-foreground">
+            {caseResult.question}
+          </p>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="text-[12px] font-sans text-muted-foreground tabular-nums">
             {caseResult.latencyMs}ms
           </span>
           <span
-            className="text-[9px] font-mono uppercase tracking-[0.14em] px-2 py-1 border"
+            className="text-[11px] font-sans font-medium px-2 py-1 border"
             style={{
               color: accentColor,
               borderColor: `color-mix(in srgb, ${accentColor} 35%, transparent)`,
@@ -201,7 +314,7 @@ function CaseEntry({
               return (
                 <span
                   key={reason}
-                  className="text-[9px] font-mono uppercase tracking-[0.12em] px-2 py-0.5 border"
+                  className="text-[11px] font-sans px-2 py-0.5 border"
                   style={{
                     color: failColor,
                     borderColor: 'hsl(var(--destructive) / 0.3)',
@@ -216,7 +329,7 @@ function CaseEntry({
         )}
 
         <div className="flex items-center gap-4">
-          <span className="text-[9px] font-mono uppercase tracking-[0.15em] text-muted-foreground shrink-0">
+          <span className="text-[12px] font-sans text-muted-foreground shrink-0">
             {evalT.topKLabel}
           </span>
           <TopKRow hits={caseResult.topKHits} />
@@ -225,7 +338,7 @@ function CaseEntry({
         <div>
           <button
             onClick={() => setShowChunks(v => !v)}
-            className="cursor-pointer text-[10px] font-mono uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors focus:outline-none flex items-center gap-2"
+            className="cursor-pointer text-[12px] font-sans text-muted-foreground hover:text-foreground transition-colors focus:outline-none flex items-center gap-2"
           >
             <span className="w-2.5 inline-block">{showChunks ? '−' : '+'}</span>
             {evalT.retrievedChunksLabel} ({caseResult.retrievedChunks.length})
@@ -233,74 +346,46 @@ function CaseEntry({
           {showChunks && (
             <div className="mt-2.5 space-y-2">
               {caseResult.retrievedChunks.length === 0 ? (
-                <p className="text-[11px] font-mono text-muted-foreground italic pl-4">
+                <p className="text-[12px] font-sans text-muted-foreground italic pl-4">
                   {evalT.noChunksRetrieved}
                 </p>
               ) : (
-                caseResult.retrievedChunks.map((chunk, i) => (
-                  <div key={chunk.chunkId} className="pl-4 border-l border-border">
-                    <p className="text-[10px] font-mono text-muted-foreground">
-                      [{String(i + 1).padStart(2, '0')}] {chunk.fileName}
-                    </p>
-                    <p className="text-[11px] text-foreground/70 line-clamp-2 leading-relaxed mt-0.5">
-                      {chunk.textPreview}
-                    </p>
-                  </div>
-                ))
+                caseResult.retrievedChunks.map((chunk, i) => {
+                  const grade = caseResult.gradedHits?.[i];
+                  return (
+                    <div key={chunk.chunkId} className="pl-4 border-l border-border">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-[12px] font-sans text-muted-foreground tabular-nums">
+                          [{String(i + 1).padStart(2, '0')}] {chunk.fileName}
+                        </p>
+                        {typeof grade === 'number' && (
+                          <GradeBadge grade={grade} label={evalT.gradeLabel} />
+                        )}
+                      </div>
+                      <p className="text-[13px] font-sans text-foreground/75 line-clamp-2 leading-relaxed mt-0.5">
+                        {chunk.textPreview}
+                      </p>
+                    </div>
+                  );
+                })
               )}
             </div>
           )}
         </div>
 
-        {caseResult.answer && (
-          <div>
-            <button
-              onClick={() => setShowAnswer(v => !v)}
-              className="cursor-pointer text-[10px] font-mono uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors focus:outline-none flex items-center gap-2"
-            >
-              <span className="w-2.5 inline-block">{showAnswer ? '−' : '+'}</span>
-              {evalT.answerLabel}
-            </button>
-            {showAnswer && (
-              <p className="mt-2.5 text-[12px] font-mono leading-relaxed text-foreground/75 whitespace-pre-wrap pl-4 border-l border-border">
-                {caseResult.answer}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CasePair({
-  index,
-  question,
-  withRerank,
-  withoutRerank,
-  evalT,
-  delay,
-}: {
-  index: number;
-  question: string;
-  withRerank: EvalCaseResult;
-  withoutRerank: EvalCaseResult;
-  evalT: EvalTranslationKeys;
-  delay: number;
-}) {
-  return (
-    <div className="eval-reveal space-y-3" style={{ animationDelay: `${delay}ms` }}>
-      <div className="flex items-start gap-3">
-        <span className="text-[10px] font-mono text-muted-foreground mt-0.5 shrink-0 tabular-nums">
-          {String(index + 1).padStart(2, '0')}
-        </span>
-        <p className="text-[13px] font-display italic leading-snug text-foreground">
-          {question}
-        </p>
-      </div>
-      <div className="flex flex-col lg:flex-row gap-3">
-        <CaseEntry caseResult={withRerank} evalT={evalT} variantLabel={evalT.withRerank} />
-        <CaseEntry caseResult={withoutRerank} evalT={evalT} variantLabel={evalT.withoutRerank} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          <AnswerPanel
+            label={evalT.expectedAnswerLabel}
+            text={caseResult.expectedAnswer ?? ''}
+            emptyText={evalT.noExpectedAnswer}
+            accentColor="hsl(var(--muted-foreground) / 0.5)"
+          />
+          <AnswerPanel
+            label={evalT.generatedAnswerLabel}
+            text={caseResult.answer}
+            accentColor={accentColor}
+          />
+        </div>
       </div>
     </div>
   );
@@ -334,9 +419,12 @@ export default function EvalPage() {
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [loadingKbs, setLoadingKbs] = useState(true);
   const [selectedKbId, setSelectedKbId] = useState('');
+  const [selectedDataset, setSelectedDataset] = useState('');
+  const [useRerank, setUseRerank] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
-  const [results, setResults] = useState<EvalRunComparison | null>(null);
+  const [result, setResult] = useState<EvalRunResult | null>(null);
   const [runError, setRunError] = useState('');
+  const datasetNames = listDatasetNames();
 
   useEffect(() => {
     fetch('/api/knowledge-bases')
@@ -352,16 +440,21 @@ export default function EvalPage() {
     if (!selectedKbId || isRunning) return;
     setIsRunning(true);
     setRunError('');
-    setResults(null);
+    setResult(null);
     try {
+      const body: Record<string, unknown> = { knowledgeBaseId: selectedKbId, useRerank };
+      if (selectedDataset) {
+        body.mode = 'curated';
+        body.datasetName = selectedDataset;
+      }
       const res = await fetch('/api/eval/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ knowledgeBaseId: selectedKbId }),
+        body: JSON.stringify(body),
       });
-      const data = (await res.json()) as { ok: boolean; data?: EvalRunComparison; error?: string };
+      const data = (await res.json()) as { ok: boolean; data?: EvalRunResult; error?: string };
       if (data.ok && data.data) {
-        setResults(data.data);
+        setResult(data.data);
       } else {
         const code = data.error;
         setRunError(code === 'eval_no_chunks' ? evalT.errorNoChunks : evalT.errorRunning);
@@ -373,14 +466,8 @@ export default function EvalPage() {
     }
   }
 
-  const hasResults = !!results;
-  const pairedCases =
-    results && results.withRerank.cases.length === results.withoutRerank.cases.length
-      ? results.withRerank.cases.map((c, i) => ({
-        withRerank: c,
-        withoutRerank: results.withoutRerank.cases[i],
-      }))
-      : [];
+  const hasResult = !!result;
+  const sectionTitle = useRerank ? evalT.withRerank : evalT.withoutRerank;
 
   return (
     <>
@@ -397,18 +484,18 @@ export default function EvalPage() {
           {/* ── Header ── */}
           <header className="space-y-4">
             <div className="flex items-baseline gap-5">
-              <h1 className="text-[3.2rem] leading-none font-display font-semibold tracking-tight">
+              <h1 className="text-[3rem] leading-none font-sans font-semibold tracking-tight">
                 {evalT.title}
               </h1>
               <div
                 className="flex-1 h-px self-center"
                 style={{ background: 'linear-gradient(90deg, hsl(var(--foreground) / 0.18), transparent)' }}
               />
-              <span className="text-[9px] font-mono uppercase tracking-[0.22em] text-muted-foreground self-end pb-1">
+              <span className="text-[12px] font-sans text-muted-foreground self-end pb-1">
                 RAG · Pipeline
               </span>
             </div>
-            <p className="text-[13px] font-mono text-muted-foreground leading-relaxed max-w-lg">
+            <p className="text-[14px] font-sans text-muted-foreground leading-relaxed max-w-lg">
               {evalT.description}
             </p>
             <TickRuler count={32} />
@@ -420,12 +507,13 @@ export default function EvalPage() {
               {loadingKbs ? (
                 <div className="h-10 border border-border bg-card animate-pulse" />
               ) : knowledgeBases.length === 0 ? (
-                <p className="text-sm font-mono text-muted-foreground">{evalT.noKnowledgeBases}</p>
+                <p className="text-sm font-sans text-muted-foreground">{evalT.noKnowledgeBases}</p>
               ) : (
                 <select
                   value={selectedKbId}
                   onChange={e => setSelectedKbId(e.target.value)}
-                  className="w-full h-10 border border-input bg-background px-3 text-[13px] font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                  aria-label={evalT.selectKnowledgeBase}
+                  className="w-full h-10 border border-input bg-background px-3 text-[14px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
                   style={{ borderRadius: 0 }}
                 >
                   <option value="">{evalT.selectPlaceholder}</option>
@@ -437,10 +525,52 @@ export default function EvalPage() {
                 </select>
               )}
             </div>
+            <label
+              htmlFor="dataset-select"
+              className="h-10 flex items-center gap-2 border border-border bg-card pl-3 pr-1 cursor-pointer select-none"
+              style={{ borderRadius: 0 }}
+            >
+              <span className="text-[13px] font-sans font-medium text-foreground">
+                {evalT.datasetLabel}
+              </span>
+              <select
+                id="dataset-select"
+                value={selectedDataset}
+                onChange={e => setSelectedDataset(e.target.value)}
+                disabled={isRunning}
+                className="h-8 bg-transparent px-2 text-[13px] font-sans focus:outline-none cursor-pointer disabled:cursor-not-allowed"
+                style={{ borderRadius: 0 }}
+              >
+                <option value="">{evalT.datasetAuto}</option>
+                {datasetNames.map(name => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label
+              htmlFor="rerank-toggle"
+              className="h-10 flex items-center gap-3 border border-border bg-card px-4 cursor-pointer select-none"
+              style={{ borderRadius: 0 }}
+            >
+              <span className="text-[13px] font-sans font-medium text-foreground">
+                {evalT.rerankToggleLabel}
+              </span>
+              <Switch
+                id="rerank-toggle"
+                checked={useRerank}
+                onCheckedChange={setUseRerank}
+                disabled={isRunning}
+              />
+              <span className="text-[12px] font-sans text-muted-foreground tabular-nums w-8">
+                {useRerank ? evalT.rerankOn : evalT.rerankOff}
+              </span>
+            </label>
             <button
               onClick={handleRunEval}
               disabled={!selectedKbId || isRunning}
-              className="h-10 cursor-pointer px-7 text-[10px] font-mono uppercase tracking-[0.2em] disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity focus:outline-none"
+              className="h-10 cursor-pointer px-7 text-[13px] font-sans font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity focus:outline-none"
               style={{
                 background: !selectedKbId || isRunning ? 'hsl(var(--muted))' : 'var(--card-accent-0)',
                 color: !selectedKbId || isRunning ? 'hsl(var(--muted-foreground))' : 'hsl(0 0% 100%)',
@@ -461,55 +591,43 @@ export default function EvalPage() {
             </button>
           </div>
 
-          {/* ── Comparison hint ── */}
-          <p className="text-[11px] font-mono text-muted-foreground/80 leading-relaxed">
-            {evalT.comparisonHint}
-          </p>
-
           {/* ── Error ── */}
           {runError && (
-            <p className="text-[13px] font-mono text-destructive">{runError}</p>
+            <p className="text-[14px] font-sans text-destructive">{runError}</p>
           )}
 
-          {/* ── Metric gauges (paired) ── */}
-          <div className="space-y-6">
-            <MetricRow
-              title={evalT.withRerank}
-              result={results?.withRerank ?? null}
-              active={hasResults}
-              evalT={evalT}
-              baseDelay={0}
-            />
-            <MetricRow
-              title={evalT.withoutRerank}
-              result={results?.withoutRerank ?? null}
-              active={hasResults}
-              evalT={evalT}
-              baseDelay={120}
-            />
-          </div>
+          {/* ── Metric gauges ── */}
+          <MetricRow
+            title={sectionTitle}
+            result={result}
+            active={hasResult}
+            evalT={evalT}
+          />
+
+          {/* ── Curated retrieval metrics (only in curated mode) ── */}
+          {result && result.mode === 'curated' && (
+            <CuratedMetricRow result={result} active={hasResult} evalT={evalT} />
+          )}
 
           {/* ── Running skeleton ── */}
           {isRunning && <ScanSkeleton />}
 
           {/* ── Case results ── */}
-          {results && !isRunning && pairedCases.length > 0 && (
+          {result && !isRunning && result.cases.length > 0 && (
             <section className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="h-px flex-1 bg-border" />
-                <span className="text-[9px] font-mono uppercase tracking-[0.28em] text-muted-foreground">
+                <span className="text-[12px] font-sans font-medium text-muted-foreground">
                   {evalT.casesTitle}
                 </span>
                 <div className="h-px flex-1 bg-border" />
               </div>
-              <div className="space-y-6">
-                {pairedCases.map((pair, i) => (
-                  <CasePair
-                    key={pair.withRerank.caseId}
+              <div className="space-y-3">
+                {result.cases.map((c, i) => (
+                  <CaseRow
+                    key={c.caseId}
                     index={i}
-                    question={pair.withRerank.question}
-                    withRerank={pair.withRerank}
-                    withoutRerank={pair.withoutRerank}
+                    caseResult={c}
                     evalT={evalT}
                     delay={i * 55}
                   />
@@ -519,9 +637,9 @@ export default function EvalPage() {
           )}
 
           {/* ── Empty state ── */}
-          {!results && !isRunning && !runError && (
+          {!result && !isRunning && !runError && (
             <div className="py-16 text-center">
-              <p className="text-[13px] font-mono text-muted-foreground/50">
+              <p className="text-[14px] font-sans text-muted-foreground/60">
                 {evalT.noResultsYet}
               </p>
             </div>

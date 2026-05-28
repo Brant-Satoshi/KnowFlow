@@ -132,7 +132,9 @@ test.describe("/eval page — layout and initial state", () => {
     ])
     await page.goto("/eval")
 
-    await page.getByRole("combobox").selectOption({ value: MOCK_KB_ID })
+    await page
+      .getByRole("combobox", { name: /select knowledge base/i })
+      .selectOption({ value: MOCK_KB_ID })
 
     const runBtn = page.getByRole("button", { name: /run evaluation/i })
     await expect(runBtn).toBeEnabled()
@@ -175,14 +177,16 @@ test.describe("/eval page — running evaluation", () => {
     })
 
     await page.goto("/eval")
-    await page.getByRole("combobox").selectOption({ value: MOCK_KB_ID })
+    await page
+      .getByRole("combobox", { name: /select knowledge base/i })
+      .selectOption({ value: MOCK_KB_ID })
     await page.getByRole("button", { name: /run evaluation/i }).click()
 
     // Should show "Running…" in the button
     await expect(page.getByText(/running/i)).toBeVisible()
   })
 
-  test("displays metric panels for both branches after a successful run", async ({
+  test("displays metric panels after a successful run", async ({
     page,
   }) => {
     await mockKnowledgeBases(page, [
@@ -193,23 +197,22 @@ test.describe("/eval page — running evaluation", () => {
       body: {
         requestId: "req-ok",
         ok: true,
-        data: {
-          knowledgeBaseId: MOCK_KB_ID,
-          withRerank: makeEvalRunResult(MOCK_KB_ID, "run-a"),
-          withoutRerank: makeEvalRunResult(MOCK_KB_ID, "run-b"),
-        },
+        data: makeEvalRunResult(MOCK_KB_ID, "run-a"),
       },
     })
 
     await page.goto("/eval")
-    await page.getByRole("combobox").selectOption({ value: MOCK_KB_ID })
+    await page
+      .getByRole("combobox", { name: /select knowledge base/i })
+      .selectOption({ value: MOCK_KB_ID })
     await page.getByRole("button", { name: /run evaluation/i }).click()
 
-    // Metrics section should appear with both branch headers
+    // Section title reflects the current rerank toggle (default: on)
     await expect(page.getByText(/with rerank/i).first()).toBeVisible({
       timeout: 5000,
     })
-    await expect(page.getByText(/without rerank/i).first()).toBeVisible()
+    // Aggregate panels render the values from the mock
+    await expect(page.getByText("1/2")).toBeVisible()
   })
 
   test("displays test case pairs after a successful run", async ({ page }) => {
@@ -221,16 +224,14 @@ test.describe("/eval page — running evaluation", () => {
       body: {
         requestId: "req-ok",
         ok: true,
-        data: {
-          knowledgeBaseId: MOCK_KB_ID,
-          withRerank: makeEvalRunResult(MOCK_KB_ID, "run-a"),
-          withoutRerank: makeEvalRunResult(MOCK_KB_ID, "run-b"),
-        },
+        data: makeEvalRunResult(MOCK_KB_ID, "run-a"),
       },
     })
 
     await page.goto("/eval")
-    await page.getByRole("combobox").selectOption({ value: MOCK_KB_ID })
+    await page
+      .getByRole("combobox", { name: /select knowledge base/i })
+      .selectOption({ value: MOCK_KB_ID })
     await page.getByRole("button", { name: /run evaluation/i }).click()
 
     // The case list section title
@@ -251,16 +252,14 @@ test.describe("/eval page — running evaluation", () => {
       body: {
         requestId: "req-ok",
         ok: true,
-        data: {
-          knowledgeBaseId: MOCK_KB_ID,
-          withRerank: makeEvalRunResult(MOCK_KB_ID, "run-a"),
-          withoutRerank: makeEvalRunResult(MOCK_KB_ID, "run-b"),
-        },
+        data: makeEvalRunResult(MOCK_KB_ID, "run-a"),
       },
     })
 
     await page.goto("/eval")
-    await page.getByRole("combobox").selectOption({ value: MOCK_KB_ID })
+    await page
+      .getByRole("combobox", { name: /select knowledge base/i })
+      .selectOption({ value: MOCK_KB_ID })
     await page.getByRole("button", { name: /run evaluation/i }).click()
 
     await expect(page.getByText(/test cases/i)).toBeVisible({ timeout: 5000 })
@@ -288,7 +287,9 @@ test.describe("/eval page — error handling", () => {
     })
 
     await page.goto("/eval")
-    await page.getByRole("combobox").selectOption({ value: MOCK_KB_ID })
+    await page
+      .getByRole("combobox", { name: /select knowledge base/i })
+      .selectOption({ value: MOCK_KB_ID })
     await page.getByRole("button", { name: /run evaluation/i }).click()
 
     await expect(
@@ -312,7 +313,9 @@ test.describe("/eval page — error handling", () => {
     })
 
     await page.goto("/eval")
-    await page.getByRole("combobox").selectOption({ value: MOCK_KB_ID })
+    await page
+      .getByRole("combobox", { name: /select knowledge base/i })
+      .selectOption({ value: MOCK_KB_ID })
     await page.getByRole("button", { name: /run evaluation/i }).click()
 
     await expect(
@@ -330,7 +333,9 @@ test.describe("/eval page — error handling", () => {
     })
 
     await page.goto("/eval")
-    await page.getByRole("combobox").selectOption({ value: MOCK_KB_ID })
+    await page
+      .getByRole("combobox", { name: /select knowledge base/i })
+      .selectOption({ value: MOCK_KB_ID })
     await page.getByRole("button", { name: /run evaluation/i }).click()
 
     // After the error the button should be usable again

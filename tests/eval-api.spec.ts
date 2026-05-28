@@ -94,3 +94,60 @@ test.describe("POST /api/eval/run — request validation", () => {
     expect(json.requestId.length).toBeGreaterThan(0)
   })
 })
+
+test.describe("POST /api/eval/run — curated mode validation", () => {
+  const validKbId = "550e8400-e29b-41d4-a716-446655440000"
+
+  test("curated mode with missing datasetName returns 400", async ({ request }) => {
+    const res = await request.post("/api/eval/run", {
+      data: { knowledgeBaseId: validKbId, mode: "curated" },
+    })
+    expect(res.status()).toBe(400)
+    const json = await res.json()
+    expect(json.ok).toBe(false)
+  })
+
+  test("curated mode with empty datasetName returns 400", async ({ request }) => {
+    const res = await request.post("/api/eval/run", {
+      data: { knowledgeBaseId: validKbId, mode: "curated", datasetName: "" },
+    })
+    expect(res.status()).toBe(400)
+    const json = await res.json()
+    expect(json.ok).toBe(false)
+  })
+
+  test("curated mode with unknown datasetName returns 400 unknown_dataset", async ({ request }) => {
+    const res = await request.post("/api/eval/run", {
+      data: {
+        knowledgeBaseId: validKbId,
+        mode: "curated",
+        datasetName: "does-not-exist",
+      },
+    })
+    expect(res.status()).toBe(400)
+    const json = await res.json()
+    expect(json.ok).toBe(false)
+    expect(json.error).toBe("unknown_dataset")
+  })
+
+  test("curated mode still validates knowledgeBaseId first", async ({ request }) => {
+    const res = await request.post("/api/eval/run", {
+      data: { knowledgeBaseId: "not-a-uuid", mode: "curated", datasetName: "olympus" },
+    })
+    expect(res.status()).toBe(400)
+    const json = await res.json()
+    expect(json.ok).toBe(false)
+  })
+
+  test("unknown mode value falls through to legacy path", async ({ request }) => {
+    // With an invalid kbId, both paths return 400 — but a non-'curated' mode value
+    // must NOT trigger the curated dataset-lookup branch (which would also 400 but
+    // for a different reason). This pins the default-to-legacy behavior.
+    const res = await request.post("/api/eval/run", {
+      data: { knowledgeBaseId: "not-a-uuid", mode: "bogus" },
+    })
+    expect(res.status()).toBe(400)
+    const json = await res.json()
+    expect(json.ok).toBe(false)
+  })
+})

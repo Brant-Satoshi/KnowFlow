@@ -25,17 +25,15 @@ pnpm dev                            # http://localhost:3000
 | 变量 | 用途 |
 | --- | --- |
 | `DATABASE_URL` | Postgres 连接串（必须装了 `pgvector`） |
-| `MINIMAX_API_KEY` | 默认的 LLM + embedding provider |
-| `MINIMAX_BASE_URL` | 默认 `https://api.minimax.chat/v1` |
-| `MINIMAX_EMBEDDING_MODEL` | 例如 `embo-01`（1536 维） |
-| `MINIMAX_CHAT_MODEL` | 默认 `abab6.5-chat` |
-| `OPENROUTER_API_KEY` | rerank 必需；也可作为 chat-provider 备选 |
+| `OPENROUTER_API_KEY` | chat / embedding / rerank 共用同一个 OpenRouter key |
+| `OPENROUTER_BASE_URL` | 默认 `https://openrouter.ai/api/v1` |
+| `OPENROUTER_CHAT_MODEL` | 当前端 picker 未选模型时的兜底；否则走 catalog 默认（`lib/llm/catalog.ts`） |
+| `OPENROUTER_EMBEDDING_MODEL` | 默认 `text-embedding-3-small` |
+| `OPENROUTER_EMBEDDING_DIMENSIONS` | `text-embedding-3*` 默认 1536 |
 | `OPENROUTER_RERANK_MODEL` | 默认 `cohere/rerank-v3.5` |
 | `NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY` | 上传文件 blob 用的 Supabase Storage |
 
 可选：
-- `CHAT_PROVIDER=minimax|openrouter` —— 显式指定 chat provider（否则自动选第一个有 key 的）
-- `OPENAI_EMBEDDING_MODEL`（配合 `OPENAI_BASE_URL`、`OPENAI_EMBEDDING_DIMENSIONS=1536`）—— 用 OpenAI 兼容的 embedding 接口替代 MiniMax
 - `RERANK_ENABLED=false` —— 关掉 rerank 阶段
 
 > **Embedding 必须是 1536 维。** `chunks.embedding` 列是 `vector(1536)`，代码每次调用都会校验维度。
@@ -45,7 +43,7 @@ pnpm dev                            # http://localhost:3000
 migrations 在 `db/migrations/` 下。`Makefile` 默认走名为 `ai-rag-postgres` 的本地 Docker Postgres 容器：
 
 ```bash
-make migrate     # 把 001_init … 004_add_conversations 跑到容器里
+make migrate     # 把 001_init … 005_add_conversation_model 跑到容器里
 make seed        # 可选 fixtures
 ```
 

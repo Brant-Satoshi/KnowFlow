@@ -1,5 +1,13 @@
 import { Chunk } from "../types";
 import { isSummaryQuery } from '../validation';
+import { resolveChatProvider } from '../models';
+import {
+  buildConversationSummaryPrompt,
+  buildQaPrompt,
+  buildSummaryPrompt,
+  buildTitlePrompt,
+  formatChunks,
+} from './prompts';
 
 type ChatApiResponse = {
   choices?: Array<{
@@ -8,40 +16,6 @@ type ChatApiResponse = {
   }>;
   error?: { message?: string };
 };
-
-type ChatProviderConfig = {
-  url: string;
-  apiKey: string;
-  model: string;
-};
-
-const CHAT_PROVIDERS: Record<string, () => ChatProviderConfig> = {
-  minimax: () => ({
-    url: 'https://api.minimax.chat/v1/chat/completions',
-    apiKey: process.env.MINIMAX_API_KEY ?? '',
-    model: process.env.MINIMAX_CHAT_MODEL ?? 'abab6.5-chat',
-  }),
-  openrouter: () => ({
-    url: 'https://openrouter.ai/api/v1/chat/completions',
-    apiKey: process.env.OPENROUTER_API_KEY ?? '',
-    model: process.env.OPENROUTER_CHAT_MODEL ?? 'openrouter/auto',
-  }),
-};
-
-// Fallback order when CHAT_PROVIDER is not set
-const CHAT_PROVIDER_PRIORITY = ['minimax', 'openrouter'];
-
-const CHAT_PROVIDER_API_KEYS: Record<string, string | undefined> = {
-  minimax: process.env.MINIMAX_API_KEY,
-  openrouter: process.env.OPENROUTER_API_KEY,
-};
-
-function resolveChatProvider(): ChatProviderConfig {
-  const name = process.env.CHAT_PROVIDER ?? CHAT_PROVIDER_PRIORITY.find(p => CHAT_PROVIDER_API_KEYS[p]);
-  const factory = name ? CHAT_PROVIDERS[name] : undefined;
-  if (!factory) throw new Error(`No chat provider configured. Set CHAT_PROVIDER or provide an API key.`);
-  return factory();
-}
 
 export type SseEventName = 'meta' | 'token' | 'done' | 'error' | 'progress' | 'title';
 
@@ -64,51 +38,7 @@ export interface StreamAnswerOptions {
   history?: ChatHistoryMessage[];
   extraMeta?: Record<string, unknown>;
   onComplete?: (fullText: string) => Promise<void> | void;
-}
-
-function formatChunks(chunks: Chunk[]) {
-  return chunks.map((c, i) => `[${i + 1}] ${c.text}`).join('\n\n');
-}
-
-function buildSummaryPrompt(numberedContext: string) {
-  return `You are a helpful assistant.
-
-Summarize the following context into key points.
-
-Rules:
-- Be concise
-- Use bullet points
-- Do NOT say "not found"
-- When referencing specific content, cite by number like [1] or [1][2]
-- Do NOT write [Source: filename], only use bracket numbers
-
-Context:
-${numberedContext}`;
-}
-
-function buildQaPrompt(question: string, numberedContext: string) {
-   const isChinese = /[\u4e00-\u9fa5]/.test(question);
-   const fallback = isChinese
-    ? '我没有在知识库中找到相关信息。'
-    : "I couldn't find relevant information in the knowledge base.";
-  return `You are a helpful assistant.
-
-Answer the user's question using ONLY the provided context.
-
-If the answer cannot be found in the context, say exactly:
-"${fallback}"
-
-Rules:
-- Cite sources inline using bracket numbers like [1] or [1][2]
-- Do NOT write [Source: filename], only use bracket numbers
-- Do NOT use outside knowledge
-- Do NOT cite content that does not support the answer
-
-Context:
-${numberedContext}
-
-Question:
-${question}`;
+  modelId?: string;
 }
 
 export function buildPrompt(question: string, chunks: Chunk[]) {
@@ -116,14 +46,7 @@ export function buildPrompt(question: string, chunks: Chunk[]) {
 
   if (isSummaryQuery(question)) {
     if (chunks.length === 0) {
-      return `You are a helpful assistant.
-
-Summarize the conversation so far based on the previous messages.
-
-Rules:
-- Be concise
-- Use bullet points
-- Do NOT invent details`;
+      return buildConversationSummaryPrompt();
     }
 
     return buildSummaryPrompt(numberedContext);
@@ -135,6 +58,7 @@ Rules:
 export interface StreamLlmAnswerOptions {
   history?: ChatHistoryMessage[];
   onComplete?: (fullText: string) => Promise<void> | void;
+  modelId?: string;
 }
 
 /**
@@ -149,7 +73,7 @@ export async function streamLlmAnswer(
   requestId: string,
   options?: StreamLlmAnswerOptions,
 ): Promise<void> {
-  const provider = resolveChatProvider();
+  const provider = resolveChatProvider(options?.modelId);
   const history = options?.history ?? [];
   const onComplete = options?.onComplete;
 
@@ -266,6 +190,7 @@ export async function streamAnswer(
         await streamLlmAnswer(send, prompt, signal, requestId, {
           history: options?.history,
           onComplete: options?.onComplete,
+          modelId: options?.modelId,
         });
       } catch (err) {
         send('error', {
@@ -279,11 +204,17 @@ export async function streamAnswer(
   });
 }
 
+export interface GenerateAnswerOptions {
+  signal?: AbortSignal;
+  modelId?: string;
+}
+
 export async function generateAnswer(
   prompt: string,
-  signal?: AbortSignal,
+  options?: GenerateAnswerOptions,
 ): Promise<string> {
-  const provider = resolveChatProvider();
+  const provider = resolveChatProvider(options?.modelId);
+  const signal = options?.signal;
   const response = await fetch(provider.url, {
     method: 'POST',
     signal,
@@ -319,19 +250,7 @@ export async function generateConversationTitle(
   userMessage: string,
   signal?: AbortSignal,
 ): Promise<string | null> {
-  const prompt = `You write concise chat conversation titles. Given the user's opening message below, output a title of 3-7 words that captures the main topic.
-
-Rules:
-- Output ONLY the title text. No quotes, no preamble, no trailing punctuation.
-- Use the same language as the user's message (English if English, Chinese if Chinese).
-- Be specific and informative, not generic.
-
-User message:
-${userMessage}
-
-Title:`;
-
-  const raw = await generateAnswer(prompt, signal);
+  const raw = await generateAnswer(buildTitlePrompt(userMessage), { signal });
   const cleaned = raw
     .trim()
     .split('\n')[0]

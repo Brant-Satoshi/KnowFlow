@@ -10,6 +10,7 @@ const CONVERSATION_SELECT = `
   id::text,
   knowledge_base_id::text AS "knowledgeBaseId",
   title,
+  model,
   created_at AS "createdAt",
   updated_at AS "updatedAt"
 `;
@@ -69,13 +70,28 @@ export async function getConversationWithMessages(
 
 export async function createConversation(
   knowledgeBaseId: string,
-  title?: string
+  title?: string,
+  model?: string | null,
 ): Promise<ConversationSummary> {
   const rows = await query<ConversationSummary>(
-    `INSERT INTO conversations (knowledge_base_id, title)
-     VALUES ($1::uuid, $2)
+    `INSERT INTO conversations (knowledge_base_id, title, model)
+     VALUES ($1::uuid, $2, $3)
      RETURNING ${CONVERSATION_SELECT};`,
-    [knowledgeBaseId, title?.trim() ? title.trim() : DEFAULT_CONVERSATION_TITLE]
+    [knowledgeBaseId, title?.trim() ? title.trim() : DEFAULT_CONVERSATION_TITLE, model ?? null]
+  );
+  return rows[0];
+}
+
+export async function updateConversationModel(
+  id: string,
+  model: string | null,
+): Promise<ConversationSummary | undefined> {
+  const rows = await query<ConversationSummary>(
+    `UPDATE conversations
+     SET model = $2, updated_at = now()
+     WHERE id = $1::uuid
+     RETURNING ${CONVERSATION_SELECT};`,
+    [id, model]
   );
   return rows[0];
 }

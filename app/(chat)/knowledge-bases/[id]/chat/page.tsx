@@ -11,11 +11,13 @@ import { ConversationSidebar } from "@/components/conversation-sidebar"
 import { EmptyState } from "@/components/empty-state"
 import { FilePreviewSheet } from "@/components/file-preview-sheet"
 import { KnowledgePanel } from "@/components/knowledge-panel"
+import { ModelPicker } from "@/components/chat/model-picker"
 import { SettingsMenu } from "@/components/settings-menu"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import { useChatStream } from "@/lib/hooks/use-chat-stream"
+import { DEFAULT_CHAT_MODEL_ID } from "@/lib/llm/catalog"
 import { useErrorToast } from "@/lib/hooks/use-error-toast"
 import { useFileState } from "@/lib/hooks/use-file-state"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
@@ -43,6 +45,7 @@ export default function ChatPage() {
   const [conversationsLoading, setConversationsLoading] = useState(true)
   const [creatingConversation, setCreatingConversation] = useState(false)
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
+  const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_CHAT_MODEL_ID)
   const creatingConversationRef = useRef(false)
 
   const [previewState, setPreviewState] = useState<{ fileId: string; fileName: string; chunkId?: string } | null>(null)
@@ -97,6 +100,7 @@ export default function ChatPage() {
   } = useChatStream({
     knowledgeBaseId,
     conversationId: currentConversationId ?? undefined,
+    selectedModel,
     scrollRef,
     scrollToBottom,
     onConversationTitleUpdated: useCallback((id: string, title: string) => {
@@ -105,6 +109,19 @@ export default function ChatPage() {
       )
     }, []),
   })
+
+  // Sync model picker once per conversation switch. Reading `conversations` here is intentional;
+  // we don't want subsequent `conversations` mutations (rename / title update) to clobber a model
+  // the user just picked in the dropdown.
+  useEffect(() => {
+    if (!currentConversationId) {
+      setSelectedModel(DEFAULT_CHAT_MODEL_ID)
+      return
+    }
+    const conv = conversations.find((c) => c.id === currentConversationId)
+    setSelectedModel(conv?.model ?? DEFAULT_CHAT_MODEL_ID)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentConversationId])
 
   useEffect(() => {
     if (!knowledgeBaseId) {
@@ -238,6 +255,25 @@ export default function ChatPage() {
     [showErrorToast, t.conversationRenameFailed]
   )
 
+  const handleModelChange = useCallback(
+    (modelId: string) => {
+      setSelectedModel(modelId)
+      const convId = currentConversationId
+      if (!convId) return
+      setConversations((prev) =>
+        prev.map((c) => (c.id === convId ? { ...c, model: modelId } : c))
+      )
+      void fetch(`/api/conversations/${convId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelId }),
+      }).catch((err) => {
+        console.error("Failed to persist model selection:", err)
+      })
+    },
+    [currentConversationId]
+  )
+
   const handleDeleteConversation = useCallback(
     async (id: string): Promise<boolean> => {
       const wasActive = currentConversationId === id
@@ -348,7 +384,16 @@ export default function ChatPage() {
                   textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
                 />
               </Link>
-              <SettingsMenu />
+              <div className="flex items-center gap-2">
+                <ModelPicker
+                  value={selectedModel}
+                  onChange={handleModelChange}
+                  disabled={isStreaming}
+                  t={t}
+                  triggerClassName="h-9 w-[150px] cursor-pointer"
+                />
+                <SettingsMenu />
+              </div>
             </div>
           </header>
 
@@ -483,7 +528,15 @@ export default function ChatPage() {
                 textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
               />
             </Link>
-            <SettingsMenu />
+            <div className="flex items-center gap-3">
+              <ModelPicker
+                value={selectedModel}
+                onChange={handleModelChange}
+                disabled={isStreaming}
+                t={t}
+              />
+              <SettingsMenu />
+            </div>
           </div>
         </header>
 

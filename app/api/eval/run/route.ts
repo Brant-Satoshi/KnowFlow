@@ -5,7 +5,9 @@ import { sampleKbChunks, searchChunks } from '@/lib/db/chunks';
 import { embedText } from '@/lib/rag/embeddings';
 import { rerankChunks } from '@/lib/rag/rerank';
 import { buildPrompt, generateAnswer } from '@/lib/llm/chat';
-import type { Chunk, EvalCaseResult, EvalRunComparison, EvalRunResult } from '@/lib/types';
+import type { Chunk, EvalCaseResult, EvalRunResult } from '@/lib/types';
+import { loadDataset } from '@/lib/eval/dataset';
+import { runComparison } from '@/lib/eval/runner';
 
 const EVAL_CASE_COUNT = 5;
 const TOP_K_VALUES = [1, 3, 5];
@@ -150,6 +152,30 @@ export async function POST(request: NextRequest): Promise<Response> {
     return Response.json(error('invalid_request'), { status: 400 });
   }
 
+  const rawMode = b['mode'];
+  const mode: 'legacy' | 'curated' = rawMode === 'curated' ? 'curated' : 'legacy';
+  const useRerank = b['useRerank'] !== false;
+
+  if (mode === 'curated') {
+    const datasetName = b['datasetName'];
+    if (!datasetName || typeof datasetName !== 'string') {
+      return Response.json(error('invalid_request'), { status: 400 });
+    }
+    let cases;
+    try {
+      cases = loadDataset(datasetName);
+    } catch {
+      return Response.json(error('unknown_dataset'), { status: 400 });
+    }
+    try {
+      const comparison = await runComparison(cases, { knowledgeBaseId });
+      return Response.json(success(useRerank ? comparison.withRerank : comparison.withoutRerank));
+    } catch (e) {
+      console.error('[eval/run] curated error:', e);
+      return Response.json(error('eval_failed'), { status: 500 });
+    }
+  }
+
   try {
     const seedChunks = await sampleKbChunks(knowledgeBaseId, EVAL_CASE_COUNT);
 
@@ -157,8 +183,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       return Response.json(error('eval_no_chunks'), { status: 422 });
     }
 
-    const withRerankCases: EvalCaseResult[] = [];
-    const withoutRerankCases: EvalCaseResult[] = [];
+    const caseResults: EvalCaseResult[] = [];
 
     for (const seed of seedChunks) {
       const question = makeQuestion(seed.text);
@@ -175,34 +200,19 @@ export async function POST(request: NextRequest): Promise<Response> {
         console.error('[eval/run] recall error:', e);
       }
 
-      const withRerankBranch = await runBranch({
+      const branch = await runBranch({
         question,
         recalled,
         recallError,
-        useRerank: true,
-      });
-      const withoutRerankBranch = await runBranch({
-        question,
-        recalled,
-        recallError,
-        useRerank: false,
+        useRerank,
       });
 
-      withRerankCases.push(
-        buildCaseResult(seed, question, expectedKeywords, recalled, withRerankBranch),
-      );
-      withoutRerankCases.push(
-        buildCaseResult(seed, question, expectedKeywords, recalled, withoutRerankBranch),
+      caseResults.push(
+        buildCaseResult(seed, question, expectedKeywords, recalled, branch),
       );
     }
 
-    const result: EvalRunComparison = {
-      knowledgeBaseId,
-      withRerank: aggregate(knowledgeBaseId, withRerankCases),
-      withoutRerank: aggregate(knowledgeBaseId, withoutRerankCases),
-    };
-
-    return Response.json(success(result));
+    return Response.json(success(aggregate(knowledgeBaseId, caseResults)));
   } catch (e) {
     console.error('[eval/run] error:', e);
     return Response.json(error('eval_failed'), { status: 500 });
