@@ -1,4 +1,5 @@
 import { Chunk } from "../types";
+import { isRerankEnabled, resolveRerankProvider } from "../models";
 
 type OpenRouterRerankResponse = {
     id?: string;
@@ -21,30 +22,6 @@ type OpenRouterRerankResponse = {
     };
 }
 
-const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
-const DEFAULT_OPENROUTER_RERANK_MODEL = 'cohere/rerank-v3.5';
-
-function readEnv(name: string): string | undefined {
-    const value = process.env[name]?.trim();
-    return value ? value.replace(/^['"]|['"]$/g, '') : undefined;
-}
-
-function getOpenRouterApiKey(): string {
-    const key = readEnv('OPENROUTER_API_KEY') ?? readEnv('OPEN_ROUTER_KEY');
-    if (!key) {
-        throw new Error('Missing OPENROUTER_API_KEY (or OPEN_ROUTER_KEY)');
-    }
-    return key;
-}
-
-function getOpenRouterBaseUrl(): string {
-    return (readEnv('OPENROUTER_BASE_URL') ?? DEFAULT_OPENROUTER_BASE_URL).replace(/\/+$/, '');
-}
-
-function getRerankModel(): string {
-    return readEnv('OPENROUTER_RERANK_MODEL') ?? DEFAULT_OPENROUTER_RERANK_MODEL;
-}
-
 function getErrorMessage(payload: unknown, status: number): string {
     if (!payload || typeof payload !== 'object') {
         return `invalid response (${status})`;
@@ -55,10 +32,6 @@ function getErrorMessage(payload: unknown, status: number): string {
     };
 
     return response.error?.message ?? `invalid response (${status})`;
-}
-
-function isRerankEnabled(): boolean {
-    return (readEnv('RERANK_ENABLED') ?? 'true').toLowerCase() === 'true';
 }
 
 type RerankOptions = {
@@ -76,7 +49,6 @@ export async function rerankChunks(
         return chunks;
     }
 
-
     const queryText = query.trim();
     if (!queryText) {
         return chunks;
@@ -87,17 +59,19 @@ export async function rerankChunks(
         : chunks.length;
     const documents = chunks.map((chunk) => chunk.text);
 
+    const cfg = resolveRerankProvider();
+
     let res: Response;
     try {
-        res = await fetch(`${getOpenRouterBaseUrl()}/rerank`, {
+        res = await fetch(cfg.url, {
             method: 'POST',
             signal: options.signal,
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${getOpenRouterApiKey()}`,
+                Authorization: `Bearer ${cfg.apiKey}`,
             },
             body: JSON.stringify({
-                model: getRerankModel(),
+                model: cfg.model,
                 query: queryText,
                 documents,
                 top_n: topN,

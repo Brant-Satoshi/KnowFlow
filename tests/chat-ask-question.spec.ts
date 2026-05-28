@@ -1,8 +1,8 @@
 /**
  * E2E: chat 关键路径（真实依赖）
  *
- * 依赖：真实 Postgres + 真实 MiniMax / OpenRouter API。
- * .env.local 需配齐 MINIMAX_API_KEY、OPENROUTER_API_KEY、NEXT_PUBLIC_SUPABASE_*。
+ * 依赖：真实 Postgres + 真实 OpenRouter API。
+ * .env.local 需配齐 OPENROUTER_API_KEY、NEXT_PUBLIC_SUPABASE_*。
  * 不 mock 外部 HTTP——这是「敢上线」级别的烟雾测试。
  *
  * 覆盖：建 KB → 上传 .txt（自动解析）→ 等 hasKnowledge → 提问
@@ -19,12 +19,11 @@ import path from "node:path"
 const TXT_FIXTURE = path.join(__dirname, "fixtures/sample.txt")
 
 // Hard requirements — no fallbacks in code, so absence guarantees test failure.
-// MINIMAX = LLM/embeddings; OPENROUTER = reranker; SUPABASE = file storage
+// OPENROUTER = chat + embeddings + rerank; SUPABASE = file storage
 // (the upload path writes to a Supabase Storage bucket).
 // DATABASE_URL has a localhost:5433/airag default in lib/db/pg.ts, so we don't
 // gate on it — if the default Postgres isn't reachable the test fails loudly.
 const REQUIRED_ENV = [
-  "MINIMAX_API_KEY",
   "OPENROUTER_API_KEY",
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
