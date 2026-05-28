@@ -1,33 +1,16 @@
 export interface ChatModelOption {
   /** OpenRouter model id, sent verbatim as `model` in chat completions body. */
   id: string;
+  /** Brand/proper-noun label; not translated. Descriptions come from i18n keyed by id. */
   label: string;
-  description?: string;
   free?: boolean;
 }
 
 export const CHAT_MODELS: ChatModelOption[] = [
-  {
-    id: 'openrouter/free',
-    label: 'Auto',
-    description: 'OpenRouter routes to a best-fit model per request',
-  },
-  {
-    id: 'anthropic/claude-haiku-4-5',
-    label: 'Claude Haiku 4.5',
-    description: 'Fast, low cost',
-  },
-  {
-    id: 'anthropic/claude-sonnet-4-6',
-    label: 'Claude Sonnet 4.6',
-    description: 'Highest quality',
-  },
-  {
-    id: 'meta-llama/llama-3.3-70b-instruct:free',
-    label: 'Llama 3.3 70B',
-    description: 'Free tier',
-    free: true,
-  },
+  { id: 'openrouter/free', label: 'Auto' },
+  { id: 'anthropic/claude-haiku-4-5', label: 'Claude Haiku 4.5' },
+  { id: 'anthropic/claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
+  { id: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B', free: true },
 ];
 
 export const DEFAULT_CHAT_MODEL_ID = CHAT_MODELS[0].id;
