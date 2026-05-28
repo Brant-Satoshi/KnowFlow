@@ -512,6 +512,7 @@ export default function EvalPage() {
                 <select
                   value={selectedKbId}
                   onChange={e => setSelectedKbId(e.target.value)}
+                  aria-label={evalT.selectKnowledgeBase}
                   className="w-full h-10 border border-input bg-background px-3 text-[14px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
                   style={{ borderRadius: 0 }}
                 >
