@@ -6,6 +6,7 @@ import {
 } from '@/lib/db/conversations';
 import { getKnowledgeBaseById } from '@/lib/db/knowledge-bases';
 import { isValidUuid } from '@/lib/validation';
+import { isKnownChatModel } from '@/lib/llm/catalog';
 
 export async function GET(req: NextRequest) {
   try {
@@ -34,9 +35,10 @@ export async function POST(req: NextRequest) {
       return Response.json(error('Invalid request body'), { status: 400 });
     }
 
-    const { knowledgeBaseId, title } = body as {
+    const { knowledgeBaseId, title, model } = body as {
       knowledgeBaseId?: unknown;
       title?: unknown;
+      model?: unknown;
     };
 
     if (typeof knowledgeBaseId !== 'string' || !isValidUuid(knowledgeBaseId)) {
@@ -58,9 +60,13 @@ export async function POST(req: NextRequest) {
       return Response.json(error('title must be a string'), { status: 400 });
     }
 
+    const resolvedModel =
+      typeof model === 'string' && isKnownChatModel(model) ? model : null;
+
     const conversation = await createConversation(
       knowledgeBaseId,
-      typeof title === 'string' ? title : undefined
+      typeof title === 'string' ? title : undefined,
+      resolvedModel,
     );
 
     return Response.json(success({ conversation }), { status: 201 });

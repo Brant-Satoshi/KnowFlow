@@ -16,6 +16,8 @@ export interface Message {
 export interface Conversation {
   id: string;
   title: string;
+  /** OpenRouter model id from `lib/llm/catalog.ts`. NULL means use default. */
+  model: string | null;
   createdAt: ISODateString;
   updatedAt: ISODateString;
 }

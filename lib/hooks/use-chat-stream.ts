@@ -8,6 +8,8 @@ import type { RetrievedChunk, StoredMessage } from "@/lib/types"
 interface UseChatStreamParams {
   knowledgeBaseId?: string
   conversationId?: string
+  /** OpenRouter model id (from catalog). When omitted, server uses its own default. */
+  selectedModel?: string
   scrollRef: React.RefObject<HTMLDivElement | null>
   scrollToBottom: () => void
   onConversationTitleUpdated?: (conversationId: string, title: string) => void
@@ -149,6 +151,7 @@ function hydrateFromStored(
 export function useChatStream({
   knowledgeBaseId,
   conversationId,
+  selectedModel,
   scrollRef,
   scrollToBottom,
   onConversationTitleUpdated,
@@ -373,6 +376,7 @@ export function useChatStream({
           userMessageId: string
           conversationId: string
           knowledgeBaseId?: string
+          model?: string
         } = {
           message: trimmedText,
           requestId: assistantId,
@@ -382,6 +386,10 @@ export function useChatStream({
 
         if (knowledgeBaseId) {
           payload.knowledgeBaseId = knowledgeBaseId
+        }
+
+        if (selectedModel) {
+          payload.model = selectedModel
         }
 
         const response = await fetch("/api/chat/stream", {
@@ -545,7 +553,7 @@ export function useChatStream({
       fullTextRef.current = ""
       retrievedChunksRef.current = []
     },
-    [appendStep, conversationId, flushAssistantBuffer, isLoading, knowledgeBaseId, onConversationTitleUpdated, scheduleFlush, scrollToBottom, updateProgress]
+    [appendStep, conversationId, flushAssistantBuffer, isLoading, knowledgeBaseId, onConversationTitleUpdated, scheduleFlush, scrollToBottom, selectedModel, updateProgress]
   )
 
   // v1: regenerate the LAST assistant turn only. Removes the trailing user +

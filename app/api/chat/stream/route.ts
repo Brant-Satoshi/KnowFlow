@@ -5,8 +5,10 @@ import {
   getConversationById,
   listRecentMessages,
   touchConversation,
+  updateConversationModel,
   updateConversationTitle,
 } from '@/lib/db/conversations';
+import { isKnownChatModel } from '@/lib/llm/catalog';
 import {
   buildPrompt,
   formatSse,
@@ -111,6 +113,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Resolve chat model: client choice wins if it's in the catalog, else conversation's saved
+  // model, else server falls back to catalog default inside resolveChatProvider().
+  const requestedModel = getStringField(body, 'model');
+  const modelId =
+    requestedModel && isKnownChatModel(requestedModel) ? requestedModel : conversation.model ?? undefined;
+
+  // Persist on change so the picker can hydrate on reload.
+  if (modelId && modelId !== conversation.model) {
+    updateConversationModel(conversationId, modelId).catch(err => {
+      console.error(`[${requestId}] failed to persist conversation model:`, err);
+    });
+  }
+
   // Fetch history BEFORE persisting the new user message so we send only prior turns.
   const recentMessages = await listRecentMessages(conversationId, MAX_HISTORY_MESSAGES);
   const history: ChatHistoryMessage[] = recentMessages.map((m) => ({
@@ -207,6 +222,7 @@ export async function POST(request: NextRequest) {
         const prompt = buildPrompt(message, finalChunks);
         await streamLlmAnswer(send, prompt, request.signal, requestId, {
           history,
+          modelId,
           onComplete: async (fullText: string) => {
             if (fullText.length > 0) {
               await appendMessage(
