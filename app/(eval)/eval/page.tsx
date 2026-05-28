@@ -11,6 +11,7 @@ import type {
   EvalCaseResult,
 } from '@/lib/types';
 import type { EvalTranslationKeys } from '@/lib/i18n/translations';
+import Link from 'next/link';
 
 const STYLES = `
   @keyframes eval-reveal {
@@ -116,10 +117,10 @@ function MetricRow({
         <div className="h-px flex-1 bg-border" />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border">
-        <MetricPanel label={evalT.passedCases}      value={passRate}      active={active} delay={baseDelay}       />
-        <MetricPanel label={evalT.retrievalHitRate} value={retrievalRate} active={active} delay={baseDelay + 80}  />
-        <MetricPanel label={evalT.citationHitRate}  value={citationRate}  active={active} delay={baseDelay + 160} />
-        <MetricPanel label={evalT.avgLatency}       value={avgLatency}    active={active} delay={baseDelay + 240} />
+        <MetricPanel label={evalT.passedCases} value={passRate} active={active} delay={baseDelay} />
+        <MetricPanel label={evalT.retrievalHitRate} value={retrievalRate} active={active} delay={baseDelay + 80} />
+        <MetricPanel label={evalT.citationHitRate} value={citationRate} active={active} delay={baseDelay + 160} />
+        <MetricPanel label={evalT.avgLatency} value={avgLatency} active={active} delay={baseDelay + 240} />
       </div>
     </section>
   );
@@ -343,7 +344,7 @@ export default function EvalPage() {
       .then((d: { ok: boolean; data?: { knowledgeBases: KnowledgeBase[] } }) => {
         if (d.ok && d.data) setKnowledgeBases(d.data.knowledgeBases);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoadingKbs(false));
   }, []);
 
@@ -376,17 +377,19 @@ export default function EvalPage() {
   const pairedCases =
     results && results.withRerank.cases.length === results.withoutRerank.cases.length
       ? results.withRerank.cases.map((c, i) => ({
-          withRerank: c,
-          withoutRerank: results.withoutRerank.cases[i],
-        }))
+        withRerank: c,
+        withoutRerank: results.withoutRerank.cases[i],
+      }))
       : [];
 
   return (
     <>
       <style>{STYLES}</style>
       <div className="min-h-screen">
-        <header className="sticky top-0 z-20 flex h-[52px] items-center justify-between border-b border-border bg-background px-5">
-          <BrandLogo name={home.title} iconSize={28} />
+        <header className="sticky top-0 z-20 flex h-13 items-center justify-between border-b border-border bg-background px-5">
+          <Link href="/">
+            <BrandLogo name={home.title} iconSize={28} />
+          </Link>
           <SettingsMenu />
         </header>
         <div className="container mx-auto py-12 px-6 max-w-4xl space-y-10">

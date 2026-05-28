@@ -55,3 +55,6 @@ CLAUDE.local.md
 
 # agent worktrees
 /.trees
+
+# personal learning notebooks
+/learning/

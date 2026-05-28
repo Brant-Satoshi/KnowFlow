@@ -375,7 +375,7 @@ export function KnowledgePanel({
                           >
                             {/* Loading shimmer */}
                             {isLoading && (
-                              <span className="file-card-loading-sweep pointer-events-none absolute inset-y-[-18%] left-[-52%] z-[1] w-[52%] rounded-full bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.18),rgba(255,255,255,0.85),rgba(255,255,255,0.18),transparent)] dark:bg-[linear-gradient(90deg,transparent,rgba(120,200,100,0.10),rgba(180,240,160,0.45),rgba(120,200,100,0.10),transparent)]" />
+                              <span className="file-card-loading-sweep pointer-events-none absolute inset-y-[-18%] left-[-52%] z-1 w-[52%] rounded-full bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.18),rgba(255,255,255,0.85),rgba(255,255,255,0.18),transparent)] dark:bg-[linear-gradient(90deg,transparent,rgba(120,200,100,0.10),rgba(180,240,160,0.45),rgba(120,200,100,0.10),transparent)]" />
                             )}
 
                             <div className="relative z-10 flex items-center gap-2.5">

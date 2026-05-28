@@ -103,8 +103,8 @@ function RecentsStrip({
               onClick={() => pushRecentId(kb.id)}
               className="flex cursor-pointer items-center gap-2 px-3.5 py-2"
             >
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--card-accent-0)]" />
-              <span className="max-w-[160px] truncate font-mono text-xs font-medium text-foreground">{kb.name}</span>
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-(--card-accent-0)" />
+              <span className="max-w-40 truncate font-mono text-xs font-medium text-foreground">{kb.name}</span>
             </Link>
             <button
               onClick={() => onRemove(kb.id)}
@@ -188,7 +188,7 @@ function KBCard({
         href={`/knowledge-bases/${kb.id}/chat`}
         onClick={() => pushRecentId(kb.id)}
         className={cn(
-          "home-card-enter flex h-[160px] cursor-pointer flex-col justify-between rounded-2xl bg-card p-4 sm:h-[220px]",
+          "home-card-enter flex h-40 cursor-pointer flex-col justify-between rounded-2xl bg-card p-4 sm:h-55",
           "transition-shadow duration-200 hover:shadow-[0_8px_28px_rgba(0,0,0,0.10)] dark:hover:shadow-[0_8px_28px_rgba(0,0,0,0.35)]"
         )}
         style={{
@@ -216,10 +216,10 @@ function NewKBCard({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
       onClick={onClick}
-      className="flex h-[160px] w-full cursor-pointer flex-col items-center justify-center gap-2.5 rounded-2xl border border-dashed border-black/15 bg-transparent text-muted-foreground transition-colors hover:border-black/25 hover:bg-card/60 sm:h-[220px] dark:border-white/10 dark:hover:border-white/20 dark:hover:bg-card/60"
+      className="flex h-40 w-full cursor-pointer flex-col items-center justify-center gap-2.5 rounded-2xl border border-dashed border-black/15 bg-transparent text-muted-foreground transition-colors hover:border-black/25 hover:bg-card/60 sm:h-55 dark:border-white/10 dark:hover:border-white/20 dark:hover:bg-card/60"
     >
       <span className="font-display text-[44px] font-light italic leading-none text-muted-foreground/50">+</span>
-      <span className="font-mono text-[10px] font-medium uppercase tracking-[0.10em] text-muted-foreground/70">
+      <span className="font-mono text-[10px] font-medium uppercase tracking-widest text-muted-foreground/70">
         {label}
       </span>
     </button>
@@ -409,7 +409,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       {/* ── Header ─────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 flex h-[52px] items-center justify-between border-b border-border bg-background px-5">
+      <header className="sticky top-0 z-20 flex h-13 items-center justify-between border-b border-border bg-background px-5">
         <BrandLogo name={t.title} iconSize={28} />
 
         <div className="flex items-center gap-1.5">
@@ -478,7 +478,7 @@ export default function HomePage() {
         {isLoading ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-[160px] rounded-2xl sm:h-[220px]" />
+              <Skeleton key={i} className="h-40 rounded-2xl sm:h-55" />
             ))}
           </div>
         ) : filteredKnowledgeBases.length === 0 && !searchQuery ? (
@@ -548,7 +548,7 @@ export default function HomePage() {
                   value={newKbDesc}
                   onChange={(e) => setNewKbDesc(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleCreateKnowledgeBase() }}
-                  className="min-h-[100px] rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
+                  className="min-h-25 rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
                 />
               </div>
             </div>
@@ -608,7 +608,7 @@ export default function HomePage() {
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleUpdateKnowledgeBase() }}
-                  className="min-h-[100px] rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
+                  className="min-h-25 rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
                 />
               </div>
             </div>
