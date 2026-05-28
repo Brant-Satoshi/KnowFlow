@@ -255,6 +255,25 @@ export default function ChatPage() {
     [showErrorToast, t.conversationRenameFailed]
   )
 
+  const handleModelChange = useCallback(
+    (modelId: string) => {
+      setSelectedModel(modelId)
+      const convId = currentConversationId
+      if (!convId) return
+      setConversations((prev) =>
+        prev.map((c) => (c.id === convId ? { ...c, model: modelId } : c))
+      )
+      void fetch(`/api/conversations/${convId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelId }),
+      }).catch((err) => {
+        console.error("Failed to persist model selection:", err)
+      })
+    },
+    [currentConversationId]
+  )
+
   const handleDeleteConversation = useCallback(
     async (id: string): Promise<boolean> => {
       const wasActive = currentConversationId === id
@@ -368,9 +387,9 @@ export default function ChatPage() {
               <div className="flex items-center gap-2">
                 <ModelPicker
                   value={selectedModel}
-                  onChange={setSelectedModel}
+                  onChange={handleModelChange}
                   disabled={isStreaming}
-                  ariaLabel={t.modelPicker}
+                  t={t}
                   triggerClassName="h-9 w-[150px] cursor-pointer"
                 />
                 <SettingsMenu />
@@ -512,9 +531,9 @@ export default function ChatPage() {
             <div className="flex items-center gap-3">
               <ModelPicker
                 value={selectedModel}
-                onChange={setSelectedModel}
+                onChange={handleModelChange}
                 disabled={isStreaming}
-                ariaLabel={t.modelPicker}
+                t={t}
               />
               <SettingsMenu />
             </div>
