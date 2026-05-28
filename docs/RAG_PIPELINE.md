@@ -16,17 +16,17 @@ embedText(message)  →  number[1536]
 **File:** [lib/rag/embeddings.ts](../lib/rag/embeddings.ts) — `embedText`
 
 The user's message is sent to an embedding model and converted to a 1536-dimensional
-vector. The provider is selected at runtime:
+vector. The provider is OpenRouter (single key, single base URL):
 
-| Env var present | Provider | Default model |
-|---|---|---|
-| `OPENAI_EMBEDDING_MODEL` | OpenAI-compatible | `text-embedding-3-small` |
-| `MINIMAX_EMBEDDING_MODEL` | MiniMax | `embo-01` |
-| neither | OpenAI-compatible | `text-embedding-3-small` |
+| Env var | Default |
+|---|---|
+| `OPENROUTER_API_KEY` | required |
+| `OPENROUTER_EMBEDDING_MODEL` | `text-embedding-3-small` |
+| `OPENROUTER_EMBEDDING_DIMENSIONS` | 1536 for `text-embedding-3*` models |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` |
 
-MiniMax uses a `texts[]` request body; OpenAI uses `input[]`. Both paths
-validate that the returned vector is exactly 1536 dimensions, matching the
-`chunks.embedding vector(1536)` column.
+The OpenAI-compatible `input[]` body shape is used. Every returned vector is
+validated to be exactly 1536 dimensions, matching the `chunks.embedding vector(1536)` column.
 
 **SSE event emitted:** `progress { stage: "searching" }`
 
@@ -117,11 +117,13 @@ grounded-answer prompt that instructs the model to cite by bracket number and
 say "I couldn't find relevant information" if context is insufficient.
 
 `streamLlmAnswer` sends an OpenAI-compatible chat completions request with
-`stream: true`. The LLM provider is resolved in priority order:
+`stream: true`. The provider is always OpenRouter (`OPENROUTER_API_KEY`).
+Per-request `model` priority:
 
-1. `CHAT_PROVIDER` env var (explicit)
-2. MiniMax if `MINIMAX_API_KEY` is set (default model: `abab6.5-chat`)
-3. OpenRouter if `OPENROUTER_API_KEY` is set
+1. `model` field in the chat stream request body (UI picker)
+2. `conversations.model` column (last persisted choice for this conversation)
+3. `OPENROUTER_CHAT_MODEL` env var
+4. Catalog default (`lib/llm/catalog.ts`)
 
 The response body is read line-by-line (`data: ...` SSE frames from the LLM).
 Each text delta is forwarded to the browser as a `token` event with a 10 ms

@@ -38,8 +38,8 @@ Next.js App Router RAG chat app. PostgreSQL + pgvector for vector storage.
 HNSW index on `chunks.embedding` for fast cosine search.
 
 **External services**
-- LLM: MiniMax (`MINIMAX_API_KEY`) — model `abab6.5-chat`
-- Embeddings: MiniMax or OpenAI-compatible, toggled by env vars (`MINIMAX_EMBEDDING_MODEL` vs `OPENAI_EMBEDDING_MODEL`). Vectors must be 1536-dimensional.
+- LLM: OpenRouter (`OPENROUTER_API_KEY`). Model catalog is in `lib/llm/catalog.ts` — UI lets users pick per conversation; selected id is persisted on `conversations.model`. Default is the first catalog entry.
+- Embeddings: OpenRouter (`OPENROUTER_API_KEY`). Model from `OPENROUTER_EMBEDDING_MODEL` (default `text-embedding-3-small`). Vectors must be 1536-dimensional; override with `OPENROUTER_EMBEDDING_DIMENSIONS` only if you understand the DB schema constraint.
 - Reranking: OpenRouter (`OPENROUTER_API_KEY`) — model `cohere/rerank-v3.5`. Disabled by `RERANK_ENABLED=false`.
 
 ## Key Patterns
@@ -51,7 +51,7 @@ HNSW index on `chunks.embedding` for fast cosine search.
 Use `success(data)` and `error(message)` from `@/lib/api/response.ts`.  
 `requestId` is generated fresh per call via `lib/telemetry/requestId.ts`.
 
-**Shared types** — `lib/types.ts`: `Message`, `Conversation`, `KnowledgeBase`, `FileDoc`, `Chunk`, `Citation`.
+**Shared types** — `lib/types.ts`: `Message`, `Conversation` (now includes `model: string | null`), `KnowledgeBase`, `FileDoc`, `Chunk`, `Citation`.
 
 ## i18n
 

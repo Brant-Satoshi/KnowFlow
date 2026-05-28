@@ -25,17 +25,15 @@ pnpm dev                            # http://localhost:3000
 | Var | Purpose |
 | --- | --- |
 | `DATABASE_URL` | Postgres connection string (must have `pgvector` installed) |
-| `MINIMAX_API_KEY` | Default LLM + embedding provider |
-| `MINIMAX_BASE_URL` | Defaults to `https://api.minimax.chat/v1` |
-| `MINIMAX_EMBEDDING_MODEL` | e.g. `embo-01` (1536-dim) |
-| `MINIMAX_CHAT_MODEL` | Defaults to `abab6.5-chat` |
-| `OPENROUTER_API_KEY` | Required for rerank; also usable as a chat-provider fallback |
+| `OPENROUTER_API_KEY` | Single key for chat, embeddings, and rerank — all three go through OpenRouter |
+| `OPENROUTER_BASE_URL` | Defaults to `https://openrouter.ai/api/v1` |
+| `OPENROUTER_CHAT_MODEL` | Default chat model when the per-conversation UI picker is unset; otherwise the catalog default (`lib/llm/catalog.ts`) applies |
+| `OPENROUTER_EMBEDDING_MODEL` | Defaults to `text-embedding-3-small` |
+| `OPENROUTER_EMBEDDING_DIMENSIONS` | Defaults to `1536` for `text-embedding-3*` models |
 | `OPENROUTER_RERANK_MODEL` | Defaults to `cohere/rerank-v3.5` |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Storage for uploaded file blobs |
 
 Optional:
-- `CHAT_PROVIDER=minimax|openrouter` — explicit chat provider (otherwise picks the first one with a key)
-- `OPENAI_EMBEDDING_MODEL` (+ `OPENAI_BASE_URL`, `OPENAI_EMBEDDING_DIMENSIONS=1536`) — use an OpenAI-compatible embedding endpoint instead of MiniMax
 - `RERANK_ENABLED=false` — disable the rerank step
 
 > **Embeddings must be 1536-dimensional.** The `chunks.embedding` column is `vector(1536)` and the code validates dimension on every call.
@@ -45,7 +43,7 @@ Optional:
 Migrations live in `db/migrations/`. The `Makefile` targets assume a local Docker Postgres container named `ai-rag-postgres`:
 
 ```bash
-make migrate     # runs 001_init … 004_add_conversations against the container
+make migrate     # runs 001_init … 005_add_conversation_model against the container
 make seed        # optional fixtures
 ```
 

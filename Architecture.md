@@ -267,10 +267,11 @@ interface RetrievedChunk {
 * **选择严格拒答**：prompt 显式 "If the answer cannot be found in the context, say: I couldn't find relevant information in the knowledge base."
 * 代价：观感不如"什么都答"，但可信度与引用一致性显著更高。
 
-### 6.6 Provider 抽象 vs 直接绑 MiniMax
+### 6.6 单 provider（OpenRouter）+ 运行时模型选择
 
-* `lib/llm/chat.ts` 用了一张极小的 `CHAT_PROVIDERS` 映射 + `CHAT_PROVIDER_PRIORITY`，支持 MiniMax / OpenRouter 两个 provider；按 `CHAT_PROVIDER` 显式选择，或按 priority 自动 fallback 到第一个有 key 的。
-* `lib/rag/embeddings.ts` 同样按 env（`OPENAI_EMBEDDING_MODEL` 优先 vs `MINIMAX_EMBEDDING_MODEL`）切换。
+* chat / embedding / rerank 三条链路统一通过 `lib/models.ts` 解析为 OpenRouter 配置，单 `OPENROUTER_API_KEY` 覆盖全部。
+* chat 的具体 model 不再绑死 env：由 `lib/llm/catalog.ts` 维护一张 preset 列表，前端下拉框按对话切换；选中的 model id 持久化到 `conversations.model` 列。`resolveChatProvider(modelId?)` 接受可选参数,优先级为 参数 → `OPENROUTER_CHAT_MODEL` env → catalog 第一项。
+* embedding / rerank 仍是 env-only —— 运行时切换 embedding provider 没意义（旧 chunk 向量空间不可比),要换必须重建索引。
 * 没有引入 SDK，保留裸 `fetch`，错误信息可控、依赖最小。
 
 ---
@@ -360,8 +361,8 @@ interface RetrievedChunk {
 ### 配置化参数（已可调）
 
 * `RERANK_ENABLED`、`OPENROUTER_RERANK_MODEL`
-* `CHAT_PROVIDER`、`MINIMAX_CHAT_MODEL` / `OPENROUTER_CHAT_MODEL`
-* 嵌入 provider 切换（`OPENAI_EMBEDDING_MODEL` vs `MINIMAX_EMBEDDING_MODEL`）+ `OPENAI_EMBEDDING_DIMENSIONS=1536`
+* `OPENROUTER_CHAT_MODEL`（兜底；前端 picker 优先）
+* `OPENROUTER_EMBEDDING_MODEL`、`OPENROUTER_EMBEDDING_DIMENSIONS`（默认 `text-embedding-3-small` / 1536）
 * 数据库连接（`DATABASE_URL`）
 
 ### 待硬编码改为可调（TODO）
