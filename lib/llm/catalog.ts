@@ -9,7 +9,7 @@ export interface ChatModelOption {
 export const CHAT_MODELS: ChatModelOption[] = [
   { id: 'openrouter/free', label: 'Auto' },
   { id: 'anthropic/claude-haiku-4-5', label: 'Claude Haiku 4.5' },
-  { id: 'anthropic/claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
+  { id: 'deepseek/deepseek-chat-v3.1', label: 'DeepSeek Chat 3.1' },
   { id: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B', free: true },
 ];
 

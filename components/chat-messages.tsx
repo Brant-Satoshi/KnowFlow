@@ -21,7 +21,7 @@ interface ChatMessagesProps {
   citationsMap: Map<string, RetrievedChunk[]>
   retrievedChunksMap: Map<string, RetrievedChunk[]>
   progressMap: Map<string, AssistantProgress>
-  onRegenerate?: () => void
+  onRegenerate?: (messageId: string) => void
 }
 
 export function ChatMessages({
@@ -34,12 +34,6 @@ export function ChatMessages({
   onRegenerate,
 }: ChatMessagesProps) {
   const latestMessageId = messages[messages.length - 1]?.id
-  const latestAssistantId = (() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === "assistant") return messages[i].id
-    }
-    return null
-  })()
 
   return (
     <div className="flex flex-col gap-6 pb-2">
@@ -55,7 +49,7 @@ export function ChatMessages({
               <div className="max-w-[min(100%,54rem)] space-y-2 text-left">
                 <div
                   className={cn(
-                    "rounded-[14px] rounded-br-lg border border-transparent px-4 py-3",
+                    "rounded-[22px] border border-transparent px-4 py-2",
                     "theme-user-msg-bg theme-user-msg-text",
                   )}
                 >
@@ -78,7 +72,6 @@ export function ChatMessages({
             citations={citationsMap.get(message.id) ?? []}
             retrievedChunks={retrievedChunksMap.get(message.id) ?? []}
             progress={progressMap.get(message.id)}
-            isLatestAssistant={message.id === latestAssistantId}
             onRegenerate={onRegenerate}
             regenerateDisabled={isLoading || isStreaming}
           />

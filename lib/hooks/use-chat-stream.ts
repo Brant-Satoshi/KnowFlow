@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { UIMessage } from "ai"
 import { readSseStream } from "@/lib/chat/sse"
+import { httpClient } from "@/lib/http/client"
 import type { RetrievedChunk, StoredMessage } from "@/lib/types"
 
 interface UseChatStreamParams {
@@ -275,19 +276,19 @@ export function useChatStream({
     const controller = new AbortController()
     const load = async () => {
       try {
-        const res = await fetch(`/api/conversations/${conversationId}`, {
-          signal: controller.signal,
-        })
-        const json = await res.json()
+        const data = await httpClient.get<{ conversation?: { messages?: StoredMessage[] } }>(
+          `/api/conversations/${conversationId}`,
+          { signal: controller.signal }
+        )
         if (generation !== hydrationGenRef.current) return
-        if (!json.ok || !json.data?.conversation) {
+        if (!data?.conversation) {
           setMessages([])
           setCitationsMap(new Map())
           setRetrievedChunksMap(new Map())
           setProgressMap(new Map())
           return
         }
-        const stored: StoredMessage[] = json.data.conversation.messages ?? []
+        const stored: StoredMessage[] = data.conversation.messages ?? []
         const { messages: hydrated, citations, retrievedChunks } = hydrateFromStored(stored)
         setMessages(hydrated)
         setCitationsMap(citations)
@@ -392,24 +393,9 @@ export function useChatStream({
           payload.model = selectedModel
         }
 
-        const response = await fetch("/api/chat/stream", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+        const response = await httpClient.stream("POST", "/api/chat/stream", payload, {
           signal: controller.signal,
         })
-
-        if (!response.ok) {
-          const errPayload = await response.json().catch(() => ({ error: "Request failed" }))
-          const errorMessage =
-            errPayload &&
-            typeof errPayload === "object" &&
-            "error" in errPayload &&
-            typeof errPayload.error === "string"
-              ? errPayload.error
-              : response.statusText
-          throw new Error(errorMessage)
-        }
 
         if (!response.body) {
           throw new Error("Empty stream response")
@@ -556,67 +542,69 @@ export function useChatStream({
     [appendStep, conversationId, flushAssistantBuffer, isLoading, knowledgeBaseId, onConversationTitleUpdated, scheduleFlush, scrollToBottom, selectedModel, updateProgress]
   )
 
-  // v1: regenerate the LAST assistant turn only. Removes the trailing user +
-  // assistant pair from both local state and the DB, then re-issues the same
-  // user query so a fresh turn is appended.
-  const regenerateLast = useCallback(async () => {
-    if (isLoading || !conversationId || isRegeneratingRef.current) return
-    isRegeneratingRef.current = true
-    try {
-      let lastUserId: string | null = null
-      let lastUserText: string | null = null
-      let lastAssistantId: string | null = null
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const m = messages[i]
-        if (m.role === "assistant" && lastAssistantId === null) {
-          lastAssistantId = m.id
-          continue
-        }
-        if (m.role === "user") {
-          lastUserId = m.id
-          lastUserText = getMessageText(m)
+  // Regenerate from a specific assistant turn. Removes the preceding user
+  // message, the targeted assistant message, and every message after it from
+  // both local state and the DB, then re-issues the same user query so a fresh
+  // turn is appended.
+  const regenerateFrom = useCallback(
+    async (assistantId: string) => {
+      if (isLoading || !conversationId || isRegeneratingRef.current) return
+
+      const assistantIndex = messages.findIndex(
+        (m) => m.id === assistantId && m.role === "assistant"
+      )
+      if (assistantIndex === -1) return
+
+      let userIndex = -1
+      for (let i = assistantIndex - 1; i >= 0; i--) {
+        if (messages[i].role === "user") {
+          userIndex = i
           break
         }
       }
-      if (!lastUserText || !lastUserId || !lastAssistantId) return
+      if (userIndex === -1) return
 
-      const idsToDelete = [lastUserId, lastAssistantId]
+      const userText = getMessageText(messages[userIndex])
+      if (!userText) return
+
+      const idsToDelete = messages.slice(userIndex).map((m) => m.id)
+      const idsToDeleteSet = new Set(idsToDelete)
+      const assistantIdsToClear = messages
+        .slice(assistantIndex)
+        .filter((m) => m.role === "assistant")
+        .map((m) => m.id)
+
+      isRegeneratingRef.current = true
       try {
-        const res = await fetch(`/api/conversations/${conversationId}/messages`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messageIds: idsToDelete }),
-        })
-        if (!res.ok) throw new Error("Failed to delete messages")
-      } catch (err) {
-        console.error("[chat-stream] regenerate: delete failed, aborting", err)
-        return
-      }
+        try {
+          await httpClient.deleteWithBody(`/api/conversations/${conversationId}/messages`, {
+            messageIds: idsToDelete,
+          })
+        } catch (err) {
+          console.error("[chat-stream] regenerate: delete failed, aborting", err)
+          return
+        }
 
-      setMessages((prev) => prev.filter((m) => m.id !== lastUserId && m.id !== lastAssistantId))
-      setProgressMap((prev) => {
-        if (!prev.has(lastAssistantId!)) return prev
-        const next = new Map(prev)
-        next.delete(lastAssistantId!)
-        return next
-      })
-      setCitationsMap((prev) => {
-        if (!prev.has(lastAssistantId!)) return prev
-        const next = new Map(prev)
-        next.delete(lastAssistantId!)
-        return next
-      })
-      setRetrievedChunksMap((prev) => {
-        if (!prev.has(lastAssistantId!)) return prev
-        const next = new Map(prev)
-        next.delete(lastAssistantId!)
-        return next
-      })
-      await sendMessage(lastUserText)
-    } finally {
-      isRegeneratingRef.current = false
-    }
-  }, [conversationId, isLoading, messages, sendMessage])
+        setMessages((prev) => prev.filter((m) => !idsToDeleteSet.has(m.id)))
+        const clearFromMap = <V,>(prev: Map<string, V>): Map<string, V> => {
+          let changed = false
+          const next = new Map(prev)
+          for (const id of assistantIdsToClear) {
+            if (next.delete(id)) changed = true
+          }
+          return changed ? next : prev
+        }
+        setProgressMap(clearFromMap)
+        setCitationsMap(clearFromMap)
+        setRetrievedChunksMap(clearFromMap)
+
+        await sendMessage(userText)
+      } finally {
+        isRegeneratingRef.current = false
+      }
+    },
+    [conversationId, isLoading, messages, sendMessage]
+  )
 
   return {
     messages,
@@ -628,7 +616,7 @@ export function useChatStream({
     progressMap,
     handleStop,
     sendMessage,
-    regenerateLast,
+    regenerateFrom,
     skipNextHydration,
   }
 }

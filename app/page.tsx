@@ -28,6 +28,7 @@ import { toast } from "@/components/ui/use-toast"
 import { useErrorToast } from "@/lib/hooks/use-error-toast"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { KnowledgeBase } from "@/lib/types"
+import { httpClient, HttpError } from "@/lib/http/client"
 import { cn } from "@/lib/utils"
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -38,12 +39,6 @@ const MAX_RECENTS = 4
 type KnowledgeBaseErrorData = {
   code?: string
   failedKeys?: string[]
-}
-
-type KnowledgeBaseApiResponse<T = unknown> = {
-  ok: boolean
-  data?: T
-  error?: string
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -269,11 +264,8 @@ export default function HomePage() {
 
   const fetchKnowledgeBases = useCallback(async () => {
     try {
-      const res = await fetch("/api/knowledge-bases")
-      const json: KnowledgeBaseApiResponse<{ knowledgeBases: KnowledgeBase[] }> = await res.json()
-      if (json.ok && json.data) {
-        setKnowledgeBases(sortKnowledgeBases(json.data.knowledgeBases))
-      }
+      const data = await httpClient.get<{ knowledgeBases: KnowledgeBase[] }>("/api/knowledge-bases")
+      setKnowledgeBases(sortKnowledgeBases(data.knowledgeBases))
     } catch (error) {
       console.error("Failed to fetch knowledge bases:", error)
     } finally {
@@ -308,21 +300,15 @@ export default function HomePage() {
     }
     setIsSubmitting(true)
     try {
-      const res = await fetch("/api/knowledge-bases", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newKbName.trim(), description: newKbDesc.trim() }),
-      })
-      const json: KnowledgeBaseApiResponse<{ knowledgeBase: KnowledgeBase }> = await res.json()
-      if (json.ok && json.data) {
-        const knowledgeBase = json.data.knowledgeBase
-        setKnowledgeBases((prev) => sortKnowledgeBases([knowledgeBase, ...prev]))
-        resetCreateState()
-        pushRecentId(knowledgeBase.id)
-        router.push(`/knowledge-bases/${knowledgeBase.id}/chat`)
-      } else {
-        showErrorToast(json.error || t.createFailed)
-      }
+      const data = await httpClient.post<{ knowledgeBase: KnowledgeBase }>(
+        "/api/knowledge-bases",
+        { name: newKbName.trim(), description: newKbDesc.trim() },
+      )
+      const knowledgeBase = data.knowledgeBase
+      setKnowledgeBases((prev) => sortKnowledgeBases([knowledgeBase, ...prev]))
+      resetCreateState()
+      pushRecentId(knowledgeBase.id)
+      router.push(`/knowledge-bases/${knowledgeBase.id}/chat`)
     } catch (error) {
       showErrorToast(error instanceof Error ? error.message : t.createFailed)
     } finally {
@@ -337,27 +323,21 @@ export default function HomePage() {
     }
     setIsUpdating(true)
     try {
-      const res = await fetch(`/api/knowledge-bases/${editingKnowledgeBase.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editName.trim(), description: editDescription.trim() }),
-      })
-      const json: KnowledgeBaseApiResponse<{ knowledgeBase: KnowledgeBase } & KnowledgeBaseErrorData> = await res.json()
-      if (res.status === 404) {
-        showErrorToast(json.error || t.updateFailed)
+      const data = await httpClient.put<{ knowledgeBase: KnowledgeBase } & KnowledgeBaseErrorData>(
+        `/api/knowledge-bases/${editingKnowledgeBase.id}`,
+        { name: editName.trim(), description: editDescription.trim() },
+      )
+      setKnowledgeBases((prev) =>
+        sortKnowledgeBases(prev.map((kb) => kb.id === data.knowledgeBase.id ? data.knowledgeBase : kb))
+      )
+      resetEditState()
+      toast({ title: t.updateSuccessTitle, description: t.updateSuccessDesc })
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 404) {
+        showErrorToast(error.message || t.updateFailed)
         await fetchKnowledgeBases()
         return
       }
-      if (json.ok && json.data?.knowledgeBase) {
-        setKnowledgeBases((prev) =>
-          sortKnowledgeBases(prev.map((kb) => kb.id === json.data!.knowledgeBase!.id ? json.data!.knowledgeBase! : kb))
-        )
-        resetEditState()
-        toast({ title: t.updateSuccessTitle, description: t.updateSuccessDesc })
-      } else {
-        showErrorToast(json.error || t.updateFailed)
-      }
-    } catch (error) {
       showErrorToast(error instanceof Error ? error.message : t.updateFailed)
     } finally {
       setIsUpdating(false)
@@ -368,27 +348,27 @@ export default function HomePage() {
     if (!deletingKnowledgeBase) return
     setIsDeleting(true)
     try {
-      const res = await fetch(`/api/knowledge-bases/${deletingKnowledgeBase.id}`, { method: "DELETE" })
-      const json: KnowledgeBaseApiResponse<KnowledgeBaseErrorData> = await res.json()
-      if (res.status === 404) {
-        showErrorToast(json.error || t.deleteFailed)
-        await fetchKnowledgeBases()
+      await httpClient.delete<KnowledgeBaseErrorData>(`/api/knowledge-bases/${deletingKnowledgeBase.id}`)
+      setKnowledgeBases((prev) => prev.filter((kb) => kb.id !== deletingKnowledgeBase.id))
+      removeRecentId(deletingKnowledgeBase.id)
+      setRecentIds((prev) => prev.filter((id) => id !== deletingKnowledgeBase.id))
+      resetDeleteState()
+      toast({ title: t.deleteSuccessTitle, description: t.deleteSuccessDesc })
+    } catch (error) {
+      if (error instanceof HttpError) {
+        if (error.status === 404) {
+          showErrorToast(error.message || t.deleteFailed)
+          await fetchKnowledgeBases()
+          return
+        }
+        const code = (error.data as KnowledgeBaseErrorData | undefined)?.code
+        const message =
+          code === "KB_DELETE_FORBIDDEN"
+            ? t.defaultKnowledgeBaseDeleteForbidden
+            : error.message || t.deleteFailed
+        showErrorToast(message)
         return
       }
-      if (json.ok) {
-        setKnowledgeBases((prev) => prev.filter((kb) => kb.id !== deletingKnowledgeBase.id))
-        removeRecentId(deletingKnowledgeBase.id)
-        setRecentIds((prev) => prev.filter((id) => id !== deletingKnowledgeBase.id))
-        resetDeleteState()
-        toast({ title: t.deleteSuccessTitle, description: t.deleteSuccessDesc })
-      } else {
-        const message =
-          json.data?.code === "KB_DELETE_FORBIDDEN"
-            ? t.defaultKnowledgeBaseDeleteForbidden
-            : json.error || t.deleteFailed
-        showErrorToast(message)
-      }
-    } catch (error) {
       showErrorToast(error instanceof Error ? error.message : t.deleteFailed)
     } finally {
       setIsDeleting(false)
