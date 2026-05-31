@@ -403,7 +403,6 @@ function SourcesList({
 
 interface MessageActionsProps {
   text: string
-  isLatestAssistant: boolean
   onRegenerate?: () => void
   regenerateDisabled?: boolean
   t: ChatT
@@ -411,7 +410,6 @@ interface MessageActionsProps {
 
 function MessageActions({
   text,
-  isLatestAssistant,
   onRegenerate,
   regenerateDisabled,
   t,
@@ -439,7 +437,7 @@ function MessageActions({
         {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
         <span>{copied ? t.messageActions.copied : t.messageActions.copy}</span>
       </button>
-      {isLatestAssistant && onRegenerate && (
+      {onRegenerate && (
         <button
           type="button"
           onClick={onRegenerate}
@@ -464,8 +462,7 @@ interface AssistantMessageCardProps {
   citations: RetrievedChunk[]
   retrievedChunks: RetrievedChunk[]
   progress?: AssistantProgress
-  isLatestAssistant: boolean
-  onRegenerate?: () => void
+  onRegenerate?: (messageId: string) => void
   regenerateDisabled?: boolean
 }
 
@@ -477,7 +474,6 @@ export function AssistantMessageCard({
   citations,
   retrievedChunks,
   progress,
-  isLatestAssistant,
   onRegenerate,
   regenerateDisabled,
 }: AssistantMessageCardProps) {
@@ -497,7 +493,7 @@ export function AssistantMessageCard({
 
   return (
     <div className="flex items-start gap-3">
-      <div className="max-w-[min(100%,54rem)] space-y-2">
+      <div className="w-full min-w-0 space-y-2">
         {progress && <ProcessTimeline progress={progress} sourceCount={citations.length} t={t} />}
 
         <div className="text-foreground" data-testid="assistant-message">
@@ -539,8 +535,7 @@ export function AssistantMessageCard({
         {hasBody && (isFinal || !progress) && !isStreaming && (
           <MessageActions
             text={text}
-            isLatestAssistant={isLatestAssistant}
-            onRegenerate={onRegenerate}
+            onRegenerate={onRegenerate ? () => onRegenerate(messageId) : undefined}
             regenerateDisabled={regenerateDisabled}
             t={t}
           />

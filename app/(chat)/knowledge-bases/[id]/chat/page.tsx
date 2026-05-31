@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Database, Loader2 } from "lucide-react"
+import { ArrowDown, ArrowLeft, Database, Loader2 } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { ChatInput } from "@/components/chat-input"
 import { ChatMessages } from "@/components/chat-messages"
@@ -16,10 +16,12 @@ import { SettingsMenu } from "@/components/settings-menu"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useIsMobile } from "@/components/ui/use-mobile"
+import { httpClient } from "@/lib/http/client"
 import { useChatStream } from "@/lib/hooks/use-chat-stream"
 import { DEFAULT_CHAT_MODEL_ID } from "@/lib/llm/catalog"
 import { useErrorToast } from "@/lib/hooks/use-error-toast"
 import { useFileState } from "@/lib/hooks/use-file-state"
+import { useScrollToBottom } from "@/lib/hooks/use-scroll-to-bottom"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { PreviewContext, type OpenPreview } from "@/lib/preview-context"
 import type { ConversationSummary, KnowledgeBase } from "@/lib/types"
@@ -39,7 +41,7 @@ export default function ChatPage() {
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   const [input, setInput] = useState("")
   const [mobileTab, setMobileTab] = useState<"chats" | "knowledge" | "ask">("ask")
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const { containerRef: scrollRef, setContainerRef, scrollToBottom, isAtBottom } = useScrollToBottom()
 
   const [conversations, setConversations] = useState<ConversationSummary[]>([])
   const [conversationsLoading, setConversationsLoading] = useState(true)
@@ -56,16 +58,6 @@ export default function ChatPage() {
   const { t } = useLanguage()
   const showErrorToast = useErrorToast()
   const isMobile = useIsMobile()
-
-  const scrollToBottom = useCallback(() => {
-    const element = scrollRef.current
-    if (!element) return
-
-    element.scrollTo({
-      top: element.scrollHeight,
-      behavior: "smooth",
-    })
-  }, [])
 
   const {
     files,
@@ -95,7 +87,7 @@ export default function ChatPage() {
     progressMap,
     handleStop,
     sendMessage,
-    regenerateLast,
+    regenerateFrom,
     skipNextHydration,
   } = useChatStream({
     knowledgeBaseId,
@@ -133,11 +125,12 @@ export default function ChatPage() {
 
     const fetchKnowledgeBase = async () => {
       try {
-        const res = await fetch(`/api/knowledge-bases?id=${knowledgeBaseId}`)
-        const json = await res.json()
+        const data = await httpClient.get<{ knowledgeBase: KnowledgeBase }>(
+          `/api/knowledge-bases?id=${knowledgeBaseId}`
+        )
 
-        if (json.ok && json.data.knowledgeBase) {
-          setKnowledgeBase(json.data.knowledgeBase)
+        if (data.knowledgeBase) {
+          setKnowledgeBase(data.knowledgeBase)
         } else {
           showErrorToast(t.knowledgeBaseNotFound)
           router.push("/")
@@ -163,13 +156,11 @@ export default function ChatPage() {
     const controller = new AbortController()
     const load = async () => {
       try {
-        const res = await fetch(
+        const data = await httpClient.get<{ conversations?: ConversationSummary[] }>(
           `/api/conversations?knowledgeBaseId=${knowledgeBaseId}`,
           { signal: controller.signal }
         )
-        const json = await res.json()
-        if (!json.ok) throw new Error(json.error || t.conversationListLoadFailed)
-        const list: ConversationSummary[] = json.data?.conversations ?? []
+        const list: ConversationSummary[] = data?.conversations ?? []
         setConversations(list)
         if (list.length > 0) {
           setCurrentConversationId(list[0].id)
@@ -179,7 +170,9 @@ export default function ChatPage() {
         console.error("Failed to load conversations:", err)
         showErrorToast(t.conversationListLoadFailed)
       } finally {
-        setConversationsLoading(false)
+        // Skip if this run was aborted (KB switched) — a newer load owns the
+        // loading state now and we must not clear its spinner.
+        if (!controller.signal.aborted) setConversationsLoading(false)
       }
     }
     void load()
@@ -195,16 +188,14 @@ export default function ChatPage() {
     creatingConversationRef.current = true
     setCreatingConversation(true)
     try {
-      const res = await fetch("/api/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ knowledgeBaseId }),
-      })
-      const json = await res.json()
-      if (!json.ok || !json.data?.conversation) {
-        throw new Error(json.error || t.conversationCreateFailed)
+      const data = await httpClient.post<{ conversation: ConversationSummary }>(
+        "/api/conversations",
+        { knowledgeBaseId }
+      )
+      if (!data?.conversation) {
+        throw new Error(t.conversationCreateFailed)
       }
-      const created: ConversationSummary = json.data.conversation
+      const created: ConversationSummary = data.conversation
       setConversations((prev) => [created, ...prev])
       skipNextHydration()
       setCurrentConversationId(created.id)
@@ -230,16 +221,14 @@ export default function ChatPage() {
   const handleRenameConversation = useCallback(
     async (id: string, title: string): Promise<boolean> => {
       try {
-        const res = await fetch(`/api/conversations/${id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title }),
-        })
-        const json = await res.json()
-        if (!json.ok || !json.data?.conversation) {
-          throw new Error(json.error || t.conversationRenameFailed)
+        const data = await httpClient.put<{ conversation: ConversationSummary }>(
+          `/api/conversations/${id}`,
+          { title }
+        )
+        if (!data?.conversation) {
+          throw new Error(t.conversationRenameFailed)
         }
-        const updated: ConversationSummary = json.data.conversation
+        const updated: ConversationSummary = data.conversation
         setConversations((prev) =>
           prev.map((c) =>
             c.id === id ? { ...c, title: updated.title, updatedAt: updated.updatedAt } : c
@@ -257,21 +246,27 @@ export default function ChatPage() {
 
   const handleModelChange = useCallback(
     (modelId: string) => {
-      setSelectedModel(modelId)
       const convId = currentConversationId
+      const prevModel = selectedModel
+      setSelectedModel(modelId)
       if (!convId) return
       setConversations((prev) =>
         prev.map((c) => (c.id === convId ? { ...c, model: modelId } : c))
       )
-      void fetch(`/api/conversations/${convId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: modelId }),
-      }).catch((err) => {
-        console.error("Failed to persist model selection:", err)
-      })
+      void httpClient
+        .put(`/api/conversations/${convId}`, { model: modelId })
+        .catch((err) => {
+          console.error("Failed to persist model selection:", err)
+          // Roll back the optimistic selection so the UI reflects the
+          // still-persisted model instead of silently diverging.
+          setSelectedModel(prevModel)
+          setConversations((prev) =>
+            prev.map((c) => (c.id === convId ? { ...c, model: prevModel } : c))
+          )
+          showErrorToast(t.modelUpdateFailed)
+        })
     },
-    [currentConversationId]
+    [currentConversationId, selectedModel, showErrorToast, t.modelUpdateFailed]
   )
 
   const handleDeleteConversation = useCallback(
@@ -288,11 +283,8 @@ export default function ChatPage() {
         setCurrentConversationId(next[0]?.id ?? null)
       }
 
-      fetch(`/api/conversations/${id}`, { method: "DELETE" })
-        .then((res) => res.json())
-        .then((json) => {
-          if (!json.ok) throw new Error(json.error || t.conversationDeleteFailed)
-        })
+      httpClient
+        .delete(`/api/conversations/${id}`)
         .catch((err) => {
           console.error("Failed to delete conversation:", err)
           setConversations(snapshot)
@@ -328,6 +320,18 @@ export default function ChatPage() {
   const isParsingOrUploading = uploading || parsingIds.size > 0
   const hasKnowledge = files.some((file) => file.status === "indexed")
   const hasMessages = messages.length > 0
+
+  const scrollDownButton =
+    hasMessages && !isAtBottom ? (
+      <button
+        type="button"
+        onClick={() => scrollToBottom()}
+        aria-label={t.scrollToBottom}
+        className="absolute bottom-4 left-1/2 z-10 flex h-10 w-10 -translate-x-1/2 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-foreground shadow-lg transition hover:bg-accent"
+      >
+        <ArrowDown className="h-5 w-5" />
+      </button>
+    ) : null
 
   if (!knowledgeBaseId) {
     return (
@@ -425,8 +429,9 @@ export default function ChatPage() {
 
             <TabsContent value="ask" className="-mt-px flex min-h-0 flex-1 flex-col overflow-hidden">
               <section className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", chatSurfaceClass)}>
+                <div className="relative flex min-h-0 flex-1 flex-col">
                 <div
-                  ref={scrollRef}
+                  ref={setContainerRef}
                   className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
                 >
                   {isHydrating && !hasMessages ? (
@@ -442,7 +447,7 @@ export default function ChatPage() {
                         citationsMap={citationsMap}
                         retrievedChunksMap={retrievedChunksMap}
                         progressMap={progressMap}
-                        onRegenerate={regenerateLast}
+                        onRegenerate={regenerateFrom}
                       />
                     </div>
                   ) : (
@@ -453,6 +458,8 @@ export default function ChatPage() {
                       onUpload={handleUpload}
                     />
                   )}
+                </div>
+                {scrollDownButton}
                 </div>
 
                 <ChatInput
@@ -554,14 +561,14 @@ export default function ChatPage() {
           />
 
           <section className={cn("-ml-px flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none", chatSurfaceClass)}>
-            <div className="min-h-0 flex-1">
+            <div className="relative min-h-0 flex-1">
               {isHydrating && !hasMessages ? (
                 <div className="flex h-full items-center justify-center">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
               ) : hasMessages ? (
                 <div
-                  ref={scrollRef}
+                  ref={setContainerRef}
                   className="h-full overflow-y-auto overscroll-contain px-5 py-6 [-webkit-overflow-scrolling:touch] sm:px-6"
                 >
                   <div className="mx-auto max-w-5xl">
@@ -572,13 +579,13 @@ export default function ChatPage() {
                       citationsMap={citationsMap}
                       retrievedChunksMap={retrievedChunksMap}
                       progressMap={progressMap}
-                      onRegenerate={regenerateLast}
+                      onRegenerate={regenerateFrom}
                     />
                   </div>
                 </div>
               ) : (
                 <div
-                  ref={scrollRef}
+                  ref={setContainerRef}
                   className="h-full overflow-y-auto overscroll-contain px-1 [-webkit-overflow-scrolling:touch] sm:px-2"
                 >
                   <EmptyState
@@ -589,6 +596,7 @@ export default function ChatPage() {
                   />
                 </div>
               )}
+              {scrollDownButton}
             </div>
 
             <ChatInput

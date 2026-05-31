@@ -111,6 +111,7 @@ export const translations = {
       panelEmptyDesc: "Add source files here to build retrieval context for this workspace.",
       knowledge: "Knowledge",
       ask: "Ask",
+      scrollToBottom: "Scroll to bottom",
       togglePanel: "Toggle panel",
       chatInputHint: "Answers are generated based on your uploaded knowledge base.",
       inputReadyHint: "Grounded answers will use your indexed documents.",
@@ -150,6 +151,7 @@ export const translations = {
       newChat: "New chat",
       modelPicker: "Chat model",
       modelFreeBadge: "Free",
+      modelUpdateFailed: "Failed to update model",
       modelDescriptions: {
         'openrouter/free': 'OpenRouter routes to a best-fit model per request',
         'anthropic/claude-haiku-4-5': 'Fast, low cost',
@@ -365,6 +367,7 @@ export const translations = {
       panelEmptyDesc: "先在这里添加源文件，才能为当前工作区建立检索上下文。",
       knowledge: "知识库",
       ask: "问答",
+      scrollToBottom: "滚动到底部",
       togglePanel: "切换面板",
       chatInputHint: "回答基于您上传的知识库生成。",
       inputReadyHint: "回答将基于已索引文档生成。",
@@ -404,6 +407,7 @@ export const translations = {
       newChat: "新对话",
       modelPicker: "聊天模型",
       modelFreeBadge: "免费",
+      modelUpdateFailed: "更新模型失败",
       modelDescriptions: {
         'openrouter/free': 'OpenRouter 根据每次请求路由到最合适的模型',
         'anthropic/claude-haiku-4-5': '快速、低成本',

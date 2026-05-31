@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { httpClient } from "@/lib/http/client"
 import { FileDoc, FileListItem } from "@/lib/types"
 
 type ErrorToast = (
@@ -37,11 +38,10 @@ export function useFileState({
   const [parsingIds, setParsingIds] = useState<Set<string>>(new Set())
 
   const refreshFiles = useCallback(async () => {
-    const res = await fetch(`/api/files?knowledgeBaseId=${encodeURIComponent(knowledgeBaseId || "")}`)
-    const json = await res.json()
-    if (json.ok) {
-      setFiles(json.data.files)
-    }
+    const data = await httpClient.get<{ files: FileDoc[] }>(
+      `/api/files?knowledgeBaseId=${encodeURIComponent(knowledgeBaseId || "")}`
+    )
+    setFiles(data.files)
   }, [knowledgeBaseId])
 
   const fetchFiles = useCallback(async () => {
@@ -71,15 +71,8 @@ export function useFileState({
       )
 
       try {
-        const res = await fetch(`/api/files/${id}/parse`, { method: "POST" })
-        const json = await res.json()
-
-        if (json.ok && json.data?.file) {
-          setFiles((prev) => prev.map((file) => (file.id === id ? json.data.file : file)))
-        } else {
-          showErrorToast(json.error || parseFailedMessage)
-          await refreshFiles()
-        }
+        const data = await httpClient.post<{ file: FileDoc }>(`/api/files/${id}/parse`, undefined)
+        setFiles((prev) => prev.map((file) => (file.id === id ? data.file : file)))
       } catch (error) {
         showErrorToast(error instanceof Error ? error.message : parseFailedMessage)
 
@@ -124,23 +117,14 @@ export function useFileState({
         formData.append("file", file)
         formData.append("knowledgeBaseId", knowledgeBaseId)
 
-        const res = await fetch("/api/files/upload", {
-          method: "POST",
-          body: formData,
-        })
-        const json = await res.json()
-        if (json.ok && json.data?.file) {
-          setOptimisticFiles((prev) => prev.filter((item) => item.id !== optimisticId))
-          const nextFile: FileDoc = {
-            ...json.data.file,
-            status: "parsing",
-          }
-          setFiles((prev) => [nextFile, ...prev])
-          void handleParse(nextFile.id)
-        } else {
-          setOptimisticFiles((prev) => prev.filter((item) => item.id !== optimisticId))
-          showErrorToast(json.error || uploadFailedMessage)
+        const data = await httpClient.post<{ file: FileDoc }>("/api/files/upload", formData)
+        setOptimisticFiles((prev) => prev.filter((item) => item.id !== optimisticId))
+        const nextFile: FileDoc = {
+          ...data.file,
+          status: "parsing",
         }
+        setFiles((prev) => [nextFile, ...prev])
+        void handleParse(nextFile.id)
       } catch (error) {
         setOptimisticFiles((prev) => prev.filter((item) => item.id !== optimisticId))
         showErrorToast(error instanceof Error ? error.message : uploadFailedMessage)
@@ -166,15 +150,10 @@ export function useFileState({
         return prev.filter((file) => file.id !== id)
       })
 
-      fetch(`/api/files/${id}`, { method: "DELETE" })
-        .then((res) => res.json())
-        .then((json) => {
-          if (!json.ok) throw new Error()
-        })
-        .catch(() => {
-          setFiles(snapshot)
-          showErrorToast(undefined, { title: deleteFailedTitle, description: deleteFailedDesc })
-        })
+      httpClient.delete(`/api/files/${id}`).catch(() => {
+        setFiles(snapshot)
+        showErrorToast(undefined, { title: deleteFailedTitle, description: deleteFailedDesc })
+      })
     },
     [
       deleteFailedDesc,

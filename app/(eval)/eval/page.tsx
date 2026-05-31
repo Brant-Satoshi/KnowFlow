@@ -13,6 +13,7 @@ import type {
 import type { EvalTranslationKeys } from '@/lib/i18n/translations';
 import Link from 'next/link';
 import { listDatasetNames } from '@/lib/eval/dataset';
+import { httpClient, HttpError } from '@/lib/http/client';
 
 const STYLES = `
   @keyframes eval-reveal {
@@ -427,10 +428,10 @@ export default function EvalPage() {
   const datasetNames = listDatasetNames();
 
   useEffect(() => {
-    fetch('/api/knowledge-bases')
-      .then(r => r.json())
-      .then((d: { ok: boolean; data?: { knowledgeBases: KnowledgeBase[] } }) => {
-        if (d.ok && d.data) setKnowledgeBases(d.data.knowledgeBases);
+    httpClient
+      .get<{ knowledgeBases: KnowledgeBase[] }>('/api/knowledge-bases')
+      .then(data => {
+        setKnowledgeBases(data.knowledgeBases);
       })
       .catch(() => { })
       .finally(() => setLoadingKbs(false));
@@ -447,20 +448,11 @@ export default function EvalPage() {
         body.mode = 'curated';
         body.datasetName = selectedDataset;
       }
-      const res = await fetch('/api/eval/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = (await res.json()) as { ok: boolean; data?: EvalRunResult; error?: string };
-      if (data.ok && data.data) {
-        setResult(data.data);
-      } else {
-        const code = data.error;
-        setRunError(code === 'eval_no_chunks' ? evalT.errorNoChunks : evalT.errorRunning);
-      }
-    } catch {
-      setRunError(evalT.errorRunning);
+      const data = await httpClient.post<EvalRunResult>('/api/eval/run', body);
+      setResult(data);
+    } catch (err) {
+      const code = err instanceof HttpError ? err.message : undefined;
+      setRunError(code === 'eval_no_chunks' ? evalT.errorNoChunks : evalT.errorRunning);
     } finally {
       setIsRunning(false);
     }

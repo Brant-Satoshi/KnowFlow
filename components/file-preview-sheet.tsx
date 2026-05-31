@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { httpClient } from "@/lib/http/client"
 import type { Chunk } from "@/lib/types"
 
 interface FilePreviewSheetProps {
@@ -12,12 +13,6 @@ interface FilePreviewSheetProps {
   fileName: string | null
   chunkId?: string
   onOpenChange: (open: boolean) => void
-}
-
-interface ChunksResponse {
-  ok: boolean
-  data?: { chunkCount: number; chunks: Chunk[] }
-  error?: string
 }
 
 interface FetchResult {
@@ -42,13 +37,12 @@ export function FilePreviewSheet({
     if (result?.forFileId === fileId) return
 
     const controller = new AbortController()
-    fetch(`/api/files/${fileId}/chunks`, { signal: controller.signal })
-      .then(async (res) => {
-        const json: ChunksResponse = await res.json()
-        if (!res.ok || !json.ok || !json.data) {
-          throw new Error(json.error ?? `HTTP ${res.status}`)
-        }
-        setResult({ forFileId: fileId, chunks: json.data.chunks })
+    httpClient
+      .get<{ chunkCount: number; chunks: Chunk[] }>(`/api/files/${fileId}/chunks`, {
+        signal: controller.signal,
+      })
+      .then((data) => {
+        setResult({ forFileId: fileId, chunks: data.chunks })
       })
       .catch((err) => {
         if ((err as Error)?.name === "AbortError") return
