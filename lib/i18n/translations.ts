@@ -197,6 +197,8 @@ export const translations = {
         copy: "Copy",
         copied: "Copied",
         regenerate: "Regenerate",
+        say: "Read aloud",
+        stop: "Stop",
       },
       sourceScore: {
         rerank: "rerank",
@@ -453,6 +455,8 @@ export const translations = {
         copy: "复制",
         copied: "已复制",
         regenerate: "重新生成",
+        say: "朗读",
+        stop: "停止",
       },
       sourceScore: {
         rerank: "重排分",
