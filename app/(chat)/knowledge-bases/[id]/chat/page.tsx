@@ -49,6 +49,10 @@ export default function ChatPage() {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
   const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_CHAT_MODEL_ID)
   const creatingConversationRef = useRef(false)
+  // Guards rapid model switches: only the latest PUT may roll the UI back, and
+  // each new selection aborts the prior in-flight update.
+  const modelUpdateSeqRef = useRef(0)
+  const modelUpdateAbortRef = useRef<AbortController | null>(null)
 
   const [previewState, setPreviewState] = useState<{ fileId: string; fileName: string; chunkId?: string } | null>(null)
   const openPreview: OpenPreview = useCallback(({ fileId, fileName, chunkId }) => {
@@ -253,9 +257,19 @@ export default function ChatPage() {
       setConversations((prev) =>
         prev.map((c) => (c.id === convId ? { ...c, model: modelId } : c))
       )
+      // Abort any earlier in-flight update so an older PUT can't land on the
+      // server after this one, and tag this request with a sequence number.
+      modelUpdateAbortRef.current?.abort()
+      const controller = new AbortController()
+      modelUpdateAbortRef.current = controller
+      const seq = ++modelUpdateSeqRef.current
       void httpClient
-        .put(`/api/conversations/${convId}`, { model: modelId })
+        .put(`/api/conversations/${convId}`, { model: modelId }, { signal: controller.signal })
         .catch((err) => {
+          // A newer selection has superseded this request: its abort (or a
+          // stale late failure) must not clobber the user's current choice.
+          if (seq !== modelUpdateSeqRef.current) return
+          if (err instanceof DOMException && err.name === "AbortError") return
           console.error("Failed to persist model selection:", err)
           // Roll back the optimistic selection so the UI reflects the
           // still-persisted model instead of silently diverging.
@@ -569,9 +583,9 @@ export default function ChatPage() {
               ) : hasMessages ? (
                 <div
                   ref={setContainerRef}
-                  className="h-full overflow-y-auto overscroll-contain px-5 py-6 [-webkit-overflow-scrolling:touch] sm:px-6"
+                  className="h-full overflow-y-auto overscroll-contain px-4 py-6 [-webkit-overflow-scrolling:touch] sm:px-6"
                 >
-                  <div className="mx-auto max-w-5xl">
+                  <div className="mx-auto max-w-3xl w-full">
                     <ChatMessages
                       messages={messages}
                       isLoading={isLoading}
