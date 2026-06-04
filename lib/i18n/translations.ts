@@ -88,6 +88,7 @@ export const translations = {
       emptyStateTitle: "Ask anything",
       emptyStateDesc: "Upload documents to build your knowledge base and start asking questions.",
       emptyStateWithKnowledgeDesc: "Your knowledge base is ready. Ask any question and get answers grounded in your documents.",
+      emptyStatePrompt: "What would you like help with?",
       emptyStateAddDocsHint: "Open the knowledge panel on the left to add your first document",
       suggestions: {
         title: "Try asking",
@@ -346,6 +347,7 @@ export const translations = {
       emptyStateTitle: "任意提问",
       emptyStateDesc: "上传文档来构建您的知识库，然后开始提问。",
       emptyStateWithKnowledgeDesc: "您的知识库已准备就绪。提出任何问题，获得基于文档的回答。",
+      emptyStatePrompt: "您希望此笔记本帮助您做什么？",
       emptyStateAddDocsHint: "打开左侧知识面板添加您的第一个文档",
       suggestions: {
         title: "可以尝试问",
