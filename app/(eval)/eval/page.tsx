@@ -106,7 +106,7 @@ function MetricRow({
   const passRate = result ? `${result.passedCases}/${result.totalCases}` : '—';
   const retrievalRate = result ? `${Math.round(result.retrievalHitRate * 100)}%` : '—';
   const citationRate = result ? `${Math.round(result.citationHitRate * 100)}%` : '—';
-  const avgLatency = result ? `${result.avgLatencyMs}ms` : '—';
+  const avgLatency = result ? `${(result.avgLatencyMs / 1000).toFixed(2)}s` : '—';
 
   return (
     <section className="space-y-3">
@@ -292,7 +292,7 @@ function CaseRow({
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-[12px] font-sans text-muted-foreground tabular-nums">
-            {caseResult.latencyMs}ms
+            {(caseResult.latencyMs / 1000).toFixed(2)}s
           </span>
           <span
             className="text-[11px] font-sans font-medium px-2 py-1 border"
@@ -416,16 +416,16 @@ function ScanSkeleton() {
 
 export default function EvalPage() {
   const { evalT, home } = useLanguage();
+  const datasetNames = listDatasetNames();
 
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [loadingKbs, setLoadingKbs] = useState(true);
   const [selectedKbId, setSelectedKbId] = useState('');
-  const [selectedDataset, setSelectedDataset] = useState('');
+  const [selectedDataset, setSelectedDataset] = useState(() => datasetNames[0] ?? '');
   const [useRerank, setUseRerank] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<EvalRunResult | null>(null);
   const [runError, setRunError] = useState('');
-  const datasetNames = listDatasetNames();
 
   useEffect(() => {
     httpClient
@@ -438,16 +438,17 @@ export default function EvalPage() {
   }, []);
 
   async function handleRunEval(): Promise<void> {
-    if (!selectedKbId || isRunning) return;
+    if (!selectedKbId || !selectedDataset || isRunning) return;
     setIsRunning(true);
     setRunError('');
     setResult(null);
     try {
-      const body: Record<string, unknown> = { knowledgeBaseId: selectedKbId, useRerank };
-      if (selectedDataset) {
-        body.mode = 'curated';
-        body.datasetName = selectedDataset;
-      }
+      const body: Record<string, unknown> = {
+        knowledgeBaseId: selectedKbId,
+        mode: 'curated',
+        datasetName: selectedDataset,
+        useRerank,
+      };
       const data = await httpClient.post<EvalRunResult>('/api/eval/run', body);
       setResult(data);
     } catch (err) {
@@ -460,6 +461,7 @@ export default function EvalPage() {
 
   const hasResult = !!result;
   const sectionTitle = useRerank ? evalT.withRerank : evalT.withoutRerank;
+  const canRun = Boolean(selectedKbId && selectedDataset) && !isRunning;
 
   return (
     <>
@@ -533,7 +535,6 @@ export default function EvalPage() {
                 className="h-8 bg-transparent px-2 text-[13px] font-sans focus:outline-none cursor-pointer disabled:cursor-not-allowed"
                 style={{ borderRadius: 0 }}
               >
-                <option value="">{evalT.datasetAuto}</option>
                 {datasetNames.map(name => (
                   <option key={name} value={name}>
                     {name}
@@ -561,11 +562,11 @@ export default function EvalPage() {
             </label>
             <button
               onClick={handleRunEval}
-              disabled={!selectedKbId || isRunning}
+              disabled={!canRun}
               className="h-10 cursor-pointer px-7 text-[13px] font-sans font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity focus:outline-none"
               style={{
-                background: !selectedKbId || isRunning ? 'hsl(var(--muted))' : 'var(--card-accent-0)',
-                color: !selectedKbId || isRunning ? 'hsl(var(--muted-foreground))' : 'hsl(0 0% 100%)',
+                background: canRun ? 'var(--card-accent-0)' : 'hsl(var(--muted))',
+                color: canRun ? 'hsl(0 0% 100%)' : 'hsl(var(--muted-foreground))',
                 borderRadius: 0,
               }}
             >

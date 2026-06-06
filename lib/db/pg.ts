@@ -1,8 +1,15 @@
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import * as schema from './schema';
+import * as evalSchema from './schema/eval';
+import * as coreSchema from './schema/schema';
 
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/airag';
+const schema = { ...coreSchema, ...evalSchema };
+
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!DATABASE_URL) {
+  throw new Error("DATABASE_URL is not set");
+}
 
 let pool: Pool | null = null;
 

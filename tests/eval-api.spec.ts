@@ -139,15 +139,23 @@ test.describe("POST /api/eval/run — curated mode validation", () => {
     expect(json.ok).toBe(false)
   })
 
-  test("unknown mode value falls through to legacy path", async ({ request }) => {
-    // With an invalid kbId, both paths return 400 — but a non-'curated' mode value
-    // must NOT trigger the curated dataset-lookup branch (which would also 400 but
-    // for a different reason). This pins the default-to-legacy behavior.
+  test("unknown mode value returns 400", async ({ request }) => {
     const res = await request.post("/api/eval/run", {
-      data: { knowledgeBaseId: "not-a-uuid", mode: "bogus" },
+      data: { knowledgeBaseId: validKbId, mode: "bogus", datasetName: "olympus" },
     })
     expect(res.status()).toBe(400)
     const json = await res.json()
     expect(json.ok).toBe(false)
+    expect(json.error).toBe("invalid_request")
+  })
+
+  test("missing mode returns 400 even with a datasetName", async ({ request }) => {
+    const res = await request.post("/api/eval/run", {
+      data: { knowledgeBaseId: validKbId, datasetName: "olympus" },
+    })
+    expect(res.status()).toBe(400)
+    const json = await res.json()
+    expect(json.ok).toBe(false)
+    expect(json.error).toBe("invalid_request")
   })
 })

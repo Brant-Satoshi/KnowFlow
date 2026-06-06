@@ -32,8 +32,8 @@ export interface RunCuratedEvalOpts {
  * Run a curated evaluation comparison (with/without rerank) over the given cases.
  *
  * Each case embeds once, searches once, then branches into two rerank
- * configurations sharing the same recalled candidate set — same shape as the
- * legacy route. Cases run with bounded concurrency.
+ * configurations sharing the same recalled candidate set. Cases run with
+ * bounded concurrency.
  *
  * No LLM judges in PR 1; faithfulness/answer-relevance are deferred.
  */
@@ -158,7 +158,7 @@ function buildCaseResult(
   const hasRelevant = grades.some(g => g >= 2);
   const retrievalHit = outOfScope ? !hasRelevant : hasRelevant;
 
-  // Citation hit: mirror legacy regex + keyword overlap (will be replaced by LLM judge in PR 2).
+  // Citation hit: regex + keyword overlap (will be replaced by LLM judge in PR 2).
   const hasCitation = /\[\d+\]/.test(branch.answer);
   const lowered = branch.answer.toLowerCase();
   const hasKeyword =
