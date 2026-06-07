@@ -195,3 +195,51 @@ export interface EvalRunComparison {
   withRerank: EvalRunResult;
   withoutRerank: EvalRunResult;
 }
+
+/**
+ * One run as returned by `GET /api/eval/runs` (newest first). Mirrors the
+ * persisted `eval_runs` row (top-level metrics only, no per-case items).
+ */
+export interface EvalRunSummary {
+  id: string;
+  knowledgeBaseId: string;
+  datasetId: string | null;
+  datasetName: string | null;
+  datasetHash: string | null;
+  mode: string;
+  useRerank: boolean;
+  totalCases: number;
+  passedCases: number;
+  retrievalHitRate: number;
+  citationHitRate: number;
+  avgLatencyMs: number;
+  recallAtK: Record<string, number> | null;
+  precisionAtK: Record<string, number> | null;
+  ndcgAtK: Record<string, number> | null;
+  mrr: number | null;
+  createdAt: ISODateString;
+}
+
+/** One persisted case (an `eval_run_items` row) within a run detail. */
+export interface EvalRunItemRecord {
+  id: string;
+  runId: string;
+  idx: number;
+  caseKey: string;
+  question: string;
+  passed: boolean;
+  failureReasons: string[];
+  retrievalHit: boolean;
+  citationHit: boolean;
+  latencyMs: number;
+  retrievedChunks: EvalChunkHit[];
+  topKHits: EvalTopKHit[];
+  answer: string;
+  expectedAnswer: string | null;
+  gradedHits: number[] | null;
+}
+
+/** A run plus its per-case items, as returned by `GET /api/eval/runs/[id]`. */
+export interface EvalRunDetail extends EvalRunSummary {
+  items: EvalRunItemRecord[];
+}

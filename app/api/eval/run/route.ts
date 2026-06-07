@@ -3,7 +3,7 @@ import { success, error } from '@/lib/api/response';
 import { isValidUuid } from '@/lib/validation';
 import { loadDataset } from '@/lib/eval/dataset';
 import { runComparison } from '@/lib/eval/runner';
-import { saveRun } from '@/lib/db/eval';
+import { ensureDataset, saveRun } from '@/lib/db/eval';
 
 export async function POST(request: NextRequest): Promise<Response> {
   let body: unknown;
@@ -46,9 +46,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     const comparison = await runComparison(cases, { knowledgeBaseId });
     const result = useRerank ? comparison.withRerank : comparison.withoutRerank;
     try {
+      const datasetId = await ensureDataset(datasetName, undefined, cases);
+
       await saveRun(result, {
         useRerank,
-        datasetId: null,
+        datasetId,
         datasetName,
       });
     } catch (error) {

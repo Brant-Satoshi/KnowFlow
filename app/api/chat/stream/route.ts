@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
         const recalledChunks = await searchChunks(
           queryEmbedding,
           20,
-          0.4,
+          0.6,
           undefined,
           conversation.knowledgeBaseId,
         );
