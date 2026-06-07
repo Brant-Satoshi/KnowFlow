@@ -1,7 +1,7 @@
 import { FileDoc } from '@/lib/types';
 import { desc, eq } from 'drizzle-orm';
 import { db } from './pg';
-import { chunks, files } from './schema/schema';
+import { chunks, files } from './schema/core';
 
 type FileRow = typeof files.$inferSelect;
 

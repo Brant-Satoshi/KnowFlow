@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as evalSchema from './schema/eval';
-import * as coreSchema from './schema/schema';
+import * as coreSchema from './schema/core';
 
 const schema = { ...coreSchema, ...evalSchema };
 

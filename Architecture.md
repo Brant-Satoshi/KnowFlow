@@ -407,7 +407,3 @@ interface RetrievedChunk {
 3. 服务端引用校验 + 标注 `citation_invalid`
 4. 句级对齐 / 高亮定位（提升引用精度）
 5. token & cost 上报
-
----
-
-> 历史版本与早期草稿见 `docs/ARCHITECTURE.md`（内容已被本文件取代，可考虑删除以避免漂移）。

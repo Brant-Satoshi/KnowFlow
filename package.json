@@ -9,8 +9,6 @@
     "lint": "eslint",
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:drizzle": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

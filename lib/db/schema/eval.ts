@@ -10,7 +10,7 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { knowledgeBases } from "./schema";
+import { knowledgeBases } from "./core";
 
 export const evalDatasets = pgTable(
     "eval_datasets",

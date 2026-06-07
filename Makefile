@@ -23,6 +23,12 @@ migrate:
 	docker exec -i $(CONTAINER) \
 		psql -U $(USER) -d $(DB) \
 		< db/migrations/004_add_conversations.sql
+	docker exec -i $(CONTAINER) \
+		psql -U $(USER) -d $(DB) \
+		< db/migrations/005_add_conversation_model.sql
+	docker exec -i $(CONTAINER) \
+		psql -U $(USER) -d $(DB) \
+		< db/migrations/006_add_eval.sql
 
 seed:
 	docker exec -i $(CONTAINER) \
