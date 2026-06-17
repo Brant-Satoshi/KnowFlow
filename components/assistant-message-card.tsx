@@ -593,7 +593,7 @@ export function AssistantMessageCard({
           ) : (
             <CitationContext.Provider value={citationLookup}>
               <StreamingContext.Provider value={isStreaming}>
-                <div className="text-sm text-current">
+                <div className="text-base text-current">
                   {isStreaming ? (
                     <div className="streaming-active wrap-break-word leading-7">
                       <ReactMarkdown components={markdownComponents}>

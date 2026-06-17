@@ -53,7 +53,7 @@ export function ChatMessages({
                     "theme-user-msg-bg theme-user-msg-text",
                   )}
                 >
-                  <div className="text-sm text-current">
+                  <div className="text-base text-current">
                     <div className="whitespace-pre-wrap wrap-break-word leading-7">{text}</div>
                   </div>
                 </div>
