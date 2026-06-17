@@ -103,13 +103,15 @@ lib/
 ├── api/response.ts             # 统一 { requestId, ok, data?, error? } + success()/error()
 ├── chat/sse.ts                 # 客户端 SSE 解析
 ├── db/
+│   ├── schema/                 # Drizzle ORM 模型（core.ts + eval.ts），仅供类型推断
 │   ├── pg.ts                   # pg Pool + query/execute helpers
 │   ├── supabase.ts             # Supabase 客户端 + STORAGE_BUCKET
 │   ├── storage.ts              # 上传/删除文件 blob（Supabase Storage）
 │   ├── knowledge-bases.ts      # KB CRUD
 │   ├── files.ts                # 文件元数据 CRUD
 │   ├── chunks.ts               # chunk CRUD + searchChunks (HNSW + KB 过滤)
-│   └── conversations.ts        # 会话 + 消息 CRUD
+│   ├── conversations.ts        # 会话 + 消息 CRUD
+│   └── eval.ts                 # eval 数据集/运行持久化
 ├── llm/chat.ts                 # buildPrompt / streamLlmAnswer / generateAnswer + 多 provider
 ├── rag/
 │   ├── parse.ts                # PDF (pdf2json) / DOCX (mammoth) / MD / TXT 解析
@@ -128,14 +130,21 @@ lib/
 
 ## 4. 核心数据模型
 
-### 4.1 数据库表（5 张，见 `db/migrations/`）
+### 4.1 数据库表（9 张：5 core + 4 eval，见 `db/migrations/`）
 
 ```sql
+-- core（lib/db/schema/core.ts）
 knowledge_bases (id uuid PK, name, description, created_at, updated_at)
 files           (id uuid PK, name, type, size, status, knowledge_base_id FK NOT NULL, created_at)
 chunks          (id text PK, file_id FK, idx, text, meta jsonb, embedding vector(1536))
-conversations   (id uuid PK, knowledge_base_id FK, title, created_at, updated_at)
+conversations   (id uuid PK, knowledge_base_id FK, title, model, created_at, updated_at)
 messages        (id uuid PK, conversation_id FK, role, content, retrieved_chunks jsonb, created_at)
+
+-- eval（lib/db/schema/eval.ts）
+eval_datasets   (id uuid PK, name UNIQUE, description, dataset_hash, case_count, created_at, updated_at)
+eval_cases      (id uuid PK, dataset_id FK, case_key, question, expected_keywords jsonb, category, difficulty, target_file_names jsonb, target_chunk_substrings jsonb, expected_answer, notes, idx)
+eval_runs       (id uuid PK, knowledge_base_id FK, dataset_id FK NULL, dataset_name, dataset_hash, mode, use_rerank, total_cases, passed_cases, retrieval_hit_rate, citation_hit_rate, avg_latency_ms, recall_at_k jsonb, precision_at_k jsonb, ndcg_at_k jsonb, mrr)
+eval_run_items  (id uuid PK, run_id FK, idx, case_key, question, passed, failure_reasons jsonb, retrieval_hit, citation_hit, latency_ms, retrieved_chunks jsonb, top_k_hits jsonb, answer, expected_answer, graded_hits jsonb)
 
 INDEX chunks_file_idx          ON chunks(file_id, idx)
 INDEX chunks_embedding_hnsw    ON chunks USING hnsw (embedding vector_cosine_ops)
@@ -143,6 +152,11 @@ INDEX files_kb_idx             ON files(knowledge_base_id)
 INDEX kb_created_idx           ON knowledge_bases(created_at DESC)
 INDEX conversations_kb_idx     ON conversations(knowledge_base_id, updated_at DESC)
 INDEX messages_conv_created_idx ON messages(conversation_id, created_at)
+INDEX eval_datasets_name_unique ON eval_datasets(name)  -- UNIQUE
+INDEX eval_cases_dataset_idx   ON eval_cases(dataset_id, idx)
+INDEX eval_runs_kb_idx         ON eval_runs(knowledge_base_id, created_at)
+INDEX eval_runs_hash_idx       ON eval_runs(knowledge_base_id, dataset_hash, created_at)
+INDEX eval_run_items_run_idx   ON eval_run_items(run_id, idx)
 ```
 
 **要点**
@@ -150,6 +164,7 @@ INDEX messages_conv_created_idx ON messages(conversation_id, created_at)
 * `chunks.embedding` 在 002 之后**可空**——文件刚解析、还没向量化的中间状态。`searchChunks` 强制 `embedding IS NOT NULL`。
 * `chunks.meta` 是 jsonb，持久化 `{ page?, start?, end? }`；检索时还会临时挂上 `_distance` 与 `_rerankScore`（不写回 DB）。
 * `messages.retrieved_chunks` 是 jsonb 数组（`RetrievedChunk[]`），重打开会话时直接还原引用面板。
+* **迁移约定**：Drizzle 模型在 `lib/db/schema/*.ts`，仅供 ORM 类型推断；手写 `db/migrations/00x_*.sql` 才是 source of truth，经 `make migrate` 应用（`drizzle-kit` 不生成迁移，产物进 scratch `./drizzle`，见 `drizzle.config.ts`）。新增表须同时在 `Makefile` 的 `migrate` 目标补一行（逐文件显式列出，无通配）。
 
 ### 4.2 共享类型（`lib/types.ts` 摘要）
 
