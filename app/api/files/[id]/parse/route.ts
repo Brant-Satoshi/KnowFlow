@@ -7,11 +7,15 @@ import { extname } from 'path';
 import { isValidUuid } from '@/lib/validation';
 import { embedChunk } from '@/lib/rag/embeddings';
 import { readFileFromStorage } from '@/lib/db/storage';
+import { requireUser } from '@/lib/auth/current-user';
 
 export const runtime = "nodejs";
 
 // buffer → parse → clean → chunk → (embed)
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const auth = await requireUser();
+    if (auth instanceof Response) return auth;
+
     let id = '';
     try {
         id = (await params)?.id;

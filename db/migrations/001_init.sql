@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE files (
+CREATE TABLE IF NOT EXISTS files (
   id uuid PRIMARY KEY,
   name text NOT NULL,
   type text NOT NULL,
@@ -9,7 +9,7 @@ CREATE TABLE files (
   created_at timestamptz NOT NULL default now()
 );
 
-CREATE TABLE chunks (
+CREATE TABLE IF NOT EXISTS chunks (
   id text PRIMARY KEY,
   file_id uuid NOT NULL REFERENCES files(id) ON DELETE CASCADE,
   idx int NOT NULL,
@@ -17,5 +17,5 @@ CREATE TABLE chunks (
   embedding vector(1536) NOT NULL
 );
 
-CREATE INDEX chunks_file_idx ON chunks(file_id, idx);
-CREATE INDEX chunks_embedding_hnsw ON chunks USING hnsw (embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS chunks_file_idx ON chunks(file_id, idx);
+CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw ON chunks USING hnsw (embedding vector_cosine_ops);

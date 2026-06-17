@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
+import { requireUser } from '@/lib/auth/current-user';
 import {
   createConversation,
   listConversations,
@@ -9,6 +10,9 @@ import { isValidUuid } from '@/lib/validation';
 import { isKnownChatModel } from '@/lib/llm/catalog';
 
 export async function GET(req: NextRequest) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const { searchParams } = new URL(req.url);
     const knowledgeBaseId = searchParams.get('knowledgeBaseId');
@@ -29,6 +33,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const body: unknown = await req.json();
     if (!body || typeof body !== 'object') {

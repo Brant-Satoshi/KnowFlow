@@ -1,11 +1,15 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
+import { requireUser } from '@/lib/auth/current-user';
 import { isValidUuid } from '@/lib/validation';
 import { loadDataset } from '@/lib/eval/dataset';
 import { runComparison } from '@/lib/eval/runner';
 import { ensureDataset, saveRun } from '@/lib/db/eval';
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   let body: unknown;
   try {
     body = await request.json();

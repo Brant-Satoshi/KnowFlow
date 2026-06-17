@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
+import { requireUser } from '@/lib/auth/current-user';
 import {
   DEFAULT_KB_NAME,
   getKnowledgeBaseById,
@@ -14,6 +15,9 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const { id } = await params;
     const knowledgeBase = await getKnowledgeBaseById(id);
@@ -33,6 +37,9 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const { id } = await params;
     const existing = await getKnowledgeBaseById(id);
@@ -72,6 +79,9 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const { id } = await params;
 

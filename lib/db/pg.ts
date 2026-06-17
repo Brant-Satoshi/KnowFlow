@@ -2,8 +2,9 @@ import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as evalSchema from './schema/eval';
 import * as coreSchema from './schema/core';
+import * as authSchema from './schema/auth';
 
-const schema = { ...coreSchema, ...evalSchema };
+const schema = { ...coreSchema, ...evalSchema, ...authSchema };
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
