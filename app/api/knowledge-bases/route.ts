@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
+import { requireUser } from '@/lib/auth/current-user';
 import {
   listKnowledgeBases,
   createKnowledgeBase,
@@ -7,6 +8,9 @@ import {
 } from '@/lib/db/knowledge-bases';
 
 export async function GET(req: NextRequest) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
@@ -28,6 +32,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const body = await req.json();
     const { name, description } = body;

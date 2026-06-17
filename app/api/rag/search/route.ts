@@ -1,10 +1,14 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
+import { requireUser } from '@/lib/auth/current-user';
 import { isValidUuid } from '@/lib/validation';
 import { embedChunk } from '@/lib/rag/embeddings';
 import { searchChunks } from '@/lib/db/chunks';
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const body = await req.json();
     const { query, fileId, topK = 5, maxDistance = 0.4 } = body;

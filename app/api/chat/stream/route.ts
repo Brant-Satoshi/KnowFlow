@@ -22,6 +22,7 @@ import { NextRequest } from 'next/server';
 import { isValidUuid } from '@/lib/validation';
 import { rerankChunks } from '@/lib/rag/rerank';
 import type { RetrievedChunk } from '@/lib/types';
+import { requireUser } from '@/lib/auth/current-user';
 
 const MAX_HISTORY_MESSAGES = 8;
 
@@ -41,6 +42,9 @@ function getStringField(body: unknown, key: string): string | undefined {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -164,7 +168,7 @@ export async function POST(request: NextRequest) {
         const recalledChunks = await searchChunks(
           queryEmbedding,
           20,
-          0.4,
+          0.6,
           undefined,
           conversation.knowledgeBaseId,
         );

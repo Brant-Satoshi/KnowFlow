@@ -2,10 +2,103 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { AlertCircle, Loader2 } from "lucide-react"
+import type { Components } from "react-markdown"
+import ReactMarkdown from "react-markdown"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { httpClient } from "@/lib/http/client"
 import type { Chunk } from "@/lib/types"
+import { cn } from "@/lib/utils"
+
+function isMarkdownFile(fileName: string | null): boolean {
+  if (!fileName) return false
+  return /\.(md|markdown)$/i.test(fileName)
+}
+
+/**
+ * Rebuild the original document text from its chunks. Chunks arrive ordered by
+ * `idx` and overlap by ~50 chars, so naive concatenation would duplicate text at
+ * every seam. We use the absolute `meta.start`/`meta.end` offsets to drop the
+ * overlapping prefix of each chunk. Falls back to plain joining when offsets are
+ * unavailable (older rows). Only used for markdown rendering, where broken
+ * mid-element splits would otherwise render incorrectly.
+ */
+function reconstructText(chunks: Chunk[]): string {
+  const hasOffsets = chunks.every(
+    (c) => typeof c.meta?.start === "number" && typeof c.meta?.end === "number",
+  )
+  if (!hasOffsets) return chunks.map((c) => c.text).join("\n")
+
+  let cursor = -1
+  let out = ""
+  for (const c of chunks) {
+    const start = c.meta.start as number
+    const end = c.meta.end as number
+    if (end <= cursor) continue // fully inside already-emitted range
+    if (cursor >= 0 && start > cursor) out += "\n" // seam with no overlap
+    const skip = cursor > start ? cursor - start : 0
+    out += skip > 0 ? c.text.slice(skip) : c.text
+    cursor = end
+  }
+  return out
+}
+
+const markdownComponents: Components = {
+  h1: ({ children }) => (
+    <h1 className="mt-6 text-lg font-semibold leading-7 first:mt-0">{children}</h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="mt-6 text-base font-semibold leading-7 first:mt-0">{children}</h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="mt-5 text-sm font-semibold leading-6 first:mt-0">{children}</h3>
+  ),
+  h4: ({ children }) => (
+    <h4 className="mt-4 text-sm font-medium leading-6 first:mt-0">{children}</h4>
+  ),
+  p: ({ children }) => <p className="leading-7 not-first:mt-4">{children}</p>,
+  ul: ({ children }) => <ul className="mt-4 list-disc space-y-2 pl-5">{children}</ul>,
+  ol: ({ children }) => <ol className="mt-4 list-decimal space-y-2 pl-5">{children}</ol>,
+  li: ({ children }) => <li className="leading-7">{children}</li>,
+  strong: ({ children }) => <strong className="font-semibold text-current">{children}</strong>,
+  em: ({ children }) => <em className="italic">{children}</em>,
+  a: ({ children, href }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="cursor-pointer font-medium text-primary underline decoration-primary/35 underline-offset-4"
+    >
+      {children}
+    </a>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="mt-4 border-l-2 border-primary/30 pl-4 italic text-foreground/80">
+      {children}
+    </blockquote>
+  ),
+  hr: () => <hr className="my-6 border-border" />,
+  code: ({ children, className }) => {
+    if (className) {
+      return <code className={cn("font-mono text-[13px]", className)}>{children}</code>
+    }
+    return (
+      <code className="rounded-md bg-primary/8 px-1.5 py-0.5 font-mono text-[13px] text-foreground dark:bg-primary/12">
+        {children}
+      </code>
+    )
+  },
+  pre: ({ children, className }) => (
+    <pre
+      className={cn(
+        "mt-4 overflow-x-auto rounded-xl border border-border bg-secondary p-4 text-sm",
+        className,
+      )}
+    >
+      {children}
+    </pre>
+  ),
+}
 
 interface FilePreviewSheetProps {
   open: boolean
@@ -67,6 +160,12 @@ export function FilePreviewSheet({
     [status, result],
   )
 
+  const asMarkdown = isMarkdownFile(fileName)
+  const markdownText = useMemo(
+    () => (asMarkdown && chunks.length > 0 ? reconstructText(chunks) : ""),
+    [asMarkdown, chunks],
+  )
+
   useEffect(() => {
     if (status !== "ready" || !chunkId) return
     const el = targetRef.current
@@ -110,7 +209,13 @@ export function FilePreviewSheet({
             </div>
           )}
 
-          {status === "ready" && chunks.length > 0 && (
+          {status === "ready" && chunks.length > 0 && asMarkdown && (
+            <article className="break-words text-sm text-foreground">
+              <ReactMarkdown components={markdownComponents}>{markdownText}</ReactMarkdown>
+            </article>
+          )}
+
+          {status === "ready" && chunks.length > 0 && !asMarkdown && (
             <article className="whitespace-pre-wrap break-words text-sm leading-7 text-foreground">
               {chunks.map((chunk) => {
                 const isTarget = chunk.id === chunkId

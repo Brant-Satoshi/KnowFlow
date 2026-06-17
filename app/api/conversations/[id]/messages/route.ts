@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
+import { requireUser } from '@/lib/auth/current-user';
 import { deleteMessages } from '@/lib/db/conversations';
 import { isValidUuid } from '@/lib/validation';
 
@@ -7,6 +8,9 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const { id } = await params;
     if (!isValidUuid(id)) {

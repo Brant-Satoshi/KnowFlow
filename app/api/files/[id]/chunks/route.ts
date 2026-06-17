@@ -1,10 +1,14 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
+import { requireUser } from '@/lib/auth/current-user';
 import { getFileById } from '@/lib/db/files';
 import { getChunks } from '@/lib/db/chunks';
 import { isValidUuid } from '@/lib/validation';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const { id } = await params;
 

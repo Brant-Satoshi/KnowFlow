@@ -113,8 +113,8 @@ export interface Citation {
  * - grade 3: chunk text contains any string in `targetChunkSubstrings` (strongest signal,
  *            wins regardless of whether the chunk's file is in `targetFileNames`)
  * - grade 2: chunk file is in `targetFileNames` AND chunk text contains any keyword in
- *            `expectedKeywords`  (`expectedKeywords` is intentionally reused from the
- *            legacy citation-check field)
+ *            `expectedKeywords` (`expectedKeywords` is intentionally reused by
+ *            citation checks)
  * - grade 1: chunk file is in `targetFileNames` but no keyword overlap
  * - grade 0: neither
  *
@@ -181,12 +181,12 @@ export interface EvalRunResult {
   citationHitRate: number;
   avgLatencyMs: number;
   cases: EvalCaseResult[];
-  // Curated-mode fields (optional; absent in legacy mode):
+  // Curated-mode fields:
   recallAtK?: Record<number, number>;
   precisionAtK?: Record<number, number>;
   ndcgAtK?: Record<number, number>;
   mrr?: number;
-  mode?: 'legacy' | 'curated';
+  mode?: 'curated';
   datasetHash?: string;
 }
 
@@ -194,4 +194,52 @@ export interface EvalRunComparison {
   knowledgeBaseId: string;
   withRerank: EvalRunResult;
   withoutRerank: EvalRunResult;
+}
+
+/**
+ * One run as returned by `GET /api/eval/runs` (newest first). Mirrors the
+ * persisted `eval_runs` row (top-level metrics only, no per-case items).
+ */
+export interface EvalRunSummary {
+  id: string;
+  knowledgeBaseId: string;
+  datasetId: string | null;
+  datasetName: string | null;
+  datasetHash: string | null;
+  mode: string;
+  useRerank: boolean;
+  totalCases: number;
+  passedCases: number;
+  retrievalHitRate: number;
+  citationHitRate: number;
+  avgLatencyMs: number;
+  recallAtK: Record<string, number> | null;
+  precisionAtK: Record<string, number> | null;
+  ndcgAtK: Record<string, number> | null;
+  mrr: number | null;
+  createdAt: ISODateString;
+}
+
+/** One persisted case (an `eval_run_items` row) within a run detail. */
+export interface EvalRunItemRecord {
+  id: string;
+  runId: string;
+  idx: number;
+  caseKey: string;
+  question: string;
+  passed: boolean;
+  failureReasons: string[];
+  retrievalHit: boolean;
+  citationHit: boolean;
+  latencyMs: number;
+  retrievedChunks: EvalChunkHit[];
+  topKHits: EvalTopKHit[];
+  answer: string;
+  expectedAnswer: string | null;
+  gradedHits: number[] | null;
+}
+
+/** A run plus its per-case items, as returned by `GET /api/eval/runs/[id]`. */
+export interface EvalRunDetail extends EvalRunSummary {
+  items: EvalRunItemRecord[];
 }

@@ -7,7 +7,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react"
-import { translations, type Language, type TranslationKeys, type EvalTranslationKeys } from "./translations"
+import { translations, type Language, type TranslationKeys, type EvalTranslationKeys, type AuthTranslationKeys } from "./translations"
 
 type HomeTranslationKeys = typeof translations.en.home
 
@@ -17,6 +17,7 @@ interface LanguageContextType {
   t: TranslationKeys
   home: HomeTranslationKeys
   evalT: EvalTranslationKeys
+  authT: AuthTranslationKeys
   isMounted: boolean
 }
 
@@ -55,9 +56,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const t = translations[language].chat
   const home = translations[language].home
   const evalT = translations[language].eval
+  const authT = translations[language].auth
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t, home, evalT, isMounted: mounted }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t, home, evalT, authT, isMounted: mounted }}>
       {children}
     </LanguageContext.Provider>
   )

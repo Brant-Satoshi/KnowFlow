@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
+import { requireUser } from '@/lib/auth/current-user';
 import {
   deleteConversation,
   getConversationWithMessages,
@@ -13,6 +14,9 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const { id } = await params;
     if (!isValidUuid(id)) {
@@ -41,6 +45,9 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const { id } = await params;
     if (!isValidUuid(id)) {
@@ -112,6 +119,9 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const { id } = await params;
     if (!isValidUuid(id)) {

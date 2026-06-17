@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { BRAND_DESCRIPTION, BRAND_NAME } from "@/lib/brand";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
+import { AuthProvider } from "@/lib/auth/AuthContext";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -54,7 +55,9 @@ export default function RootLayout({
           enableSystem
         >
           <LanguageProvider>
-            {children}
+            <AuthProvider>
+              {children}
+            </AuthProvider>
           </LanguageProvider>
         </ThemeProvider>
         <Toaster />

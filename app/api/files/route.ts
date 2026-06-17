@@ -1,9 +1,13 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
+import { requireUser } from '@/lib/auth/current-user';
 import { getFiles } from '@/lib/db/files';
 import { isValidUuid } from '@/lib/validation';
 
 export async function GET(req: NextRequest) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const { searchParams } = new URL(req.url);
     const knowledgeBaseId = searchParams.get('knowledgeBaseId');

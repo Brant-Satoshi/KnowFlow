@@ -410,17 +410,6 @@ export default function HomePage() {
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
         {/* Page heading */}
         <div className="mb-9">
-          <div className="flex items-end justify-between">
-            <h1 className="font-sans text-[38px] font-semibold leading-none tracking-[-0.025em] text-foreground sm:text-[50px]">
-              {t.knowledgeBases}
-            </h1>
-            {!isLoading && filteredKnowledgeBases.length > 0 && (
-              <span className="mb-1.5 shrink-0 whitespace-nowrap pl-3 font-mono text-[11px] text-muted-foreground">
-                {filteredKnowledgeBases.length} {filteredKnowledgeBases.length === 1 ? t.volume : t.volumes}
-              </span>
-            )}
-          </div>
-
           {/* Inline editorial search */}
           <div className="mt-4 flex items-center gap-3 border-b border-border pb-3">
             <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

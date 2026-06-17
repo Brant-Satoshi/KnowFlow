@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BrandLogo } from '@/components/brand-logo';
 import { SettingsMenu } from '@/components/settings-menu';
 import { Switch } from '@/components/ui/switch';
@@ -9,8 +9,10 @@ import type {
   KnowledgeBase,
   EvalRunResult,
   EvalCaseResult,
+  EvalRunSummary,
+  EvalRunDetail,
 } from '@/lib/types';
-import type { EvalTranslationKeys } from '@/lib/i18n/translations';
+import type { EvalTranslationKeys, Language } from '@/lib/i18n/translations';
 import Link from 'next/link';
 import { listDatasetNames } from '@/lib/eval/dataset';
 import { httpClient, HttpError } from '@/lib/http/client';
@@ -58,16 +60,129 @@ function TickRuler({ count = 24 }: { count?: number }) {
   );
 }
 
+type MetricDelta = { text: string; tone: 'good' | 'bad' | 'flat' };
+
+function signed(n: number, format: (abs: number) => string): string {
+  const mark = n > 0 ? '+' : n < 0 ? '−' : '±';
+  return `${mark}${format(Math.abs(n))}`;
+}
+
+/** Delta in percentage points for rate metrics (0–1). */
+function deltaPoints(cur: number, base: number, higherIsBetter = true): MetricDelta {
+  const pts = Math.round((cur - base) * 100);
+  return {
+    text: signed(pts, abs => `${abs}pp`),
+    tone: pts === 0 ? 'flat' : (higherIsBetter ? pts > 0 : pts < 0) ? 'good' : 'bad',
+  };
+}
+
+/** Latency delta in seconds; lower is better. */
+function deltaSeconds(curMs: number, baseMs: number): MetricDelta {
+  const s = Math.round((curMs - baseMs) / 10) / 100;
+  return {
+    text: signed(s, abs => `${abs.toFixed(2)}s`),
+    tone: s === 0 ? 'flat' : s < 0 ? 'good' : 'bad',
+  };
+}
+
+/** Delta for a plain scalar (e.g. MRR); higher is better. */
+function deltaScalar(cur: number, base: number): MetricDelta {
+  const d = Math.round((cur - base) * 100) / 100;
+  return {
+    text: signed(d, abs => abs.toFixed(2)),
+    tone: d === 0 ? 'flat' : d > 0 ? 'good' : 'bad',
+  };
+}
+
+function at5(
+  m: Record<string, number> | Record<number, number> | null | undefined,
+): number | undefined {
+  return m == null ? undefined : (m as Record<number, number>)[5];
+}
+
+function formatRunDate(iso: string, language: Language): string {
+  return new Date(iso).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function baselineLabel(
+  r: EvalRunSummary,
+  language: Language,
+  evalT: EvalTranslationKeys,
+): string {
+  const rerank = r.useRerank ? evalT.rerankOn : evalT.rerankOff;
+  return `${formatRunDate(r.createdAt, language)} · ${r.datasetName ?? ''} · ${rerank} · ${r.passedCases}/${r.totalCases}`;
+}
+
+/** Reshape a persisted run detail into the live `EvalRunResult` render shape. */
+function detailToResult(run: EvalRunDetail): EvalRunResult {
+  return {
+    runId: run.id,
+    knowledgeBaseId: run.knowledgeBaseId,
+    totalCases: run.totalCases,
+    passedCases: run.passedCases,
+    retrievalHitRate: run.retrievalHitRate,
+    citationHitRate: run.citationHitRate,
+    avgLatencyMs: run.avgLatencyMs,
+    recallAtK: run.recallAtK ?? undefined,
+    precisionAtK: run.precisionAtK ?? undefined,
+    ndcgAtK: run.ndcgAtK ?? undefined,
+    mrr: run.mrr ?? undefined,
+    mode: 'curated',
+    datasetHash: run.datasetHash ?? undefined,
+    cases: run.items.map(it => ({
+      caseId: it.caseKey,
+      question: it.question,
+      passed: it.passed,
+      failureReasons: it.failureReasons ?? [],
+      retrievalHit: it.retrievalHit,
+      citationHit: it.citationHit,
+      latencyMs: it.latencyMs,
+      retrievedChunks: it.retrievedChunks ?? [],
+      topKHits: it.topKHits ?? [],
+      answer: it.answer ?? '',
+      expectedAnswer: it.expectedAnswer ?? undefined,
+      gradedHits: it.gradedHits ?? undefined,
+    })),
+  };
+}
+
+function DeltaTag({ delta, label }: { delta: MetricDelta; label: string }) {
+  const color =
+    delta.tone === 'good'
+      ? 'var(--card-accent-1)'
+      : delta.tone === 'bad'
+        ? 'hsl(var(--destructive))'
+        : 'hsl(var(--muted-foreground))';
+  return (
+    <span
+      className="text-[11px] font-sans font-medium tabular-nums"
+      style={{ color }}
+      title={label}
+    >
+      {delta.text}
+    </span>
+  );
+}
+
 function MetricPanel({
   label,
   value,
   active,
   delay = 0,
+  delta,
+  deltaLabel,
 }: {
   label: string;
   value: string;
   active: boolean;
   delay?: number;
+  delta?: MetricDelta;
+  deltaLabel?: string;
 }) {
   return (
     <div
@@ -87,6 +202,7 @@ function MetricPanel({
       >
         {value}
       </span>
+      {delta && deltaLabel && <DeltaTag delta={delta} label={deltaLabel} />}
       <TickRuler count={18} />
     </div>
   );
@@ -97,16 +213,27 @@ function MetricRow({
   result,
   active,
   evalT,
+  baseline,
 }: {
   title: string;
   result: EvalRunResult | null;
   active: boolean;
   evalT: EvalTranslationKeys;
+  baseline?: EvalRunSummary | null;
 }) {
   const passRate = result ? `${result.passedCases}/${result.totalCases}` : '—';
   const retrievalRate = result ? `${Math.round(result.retrievalHitRate * 100)}%` : '—';
   const citationRate = result ? `${Math.round(result.citationHitRate * 100)}%` : '—';
-  const avgLatency = result ? `${result.avgLatencyMs}ms` : '—';
+  const avgLatency = result ? `${(result.avgLatencyMs / 1000).toFixed(2)}s` : '—';
+
+  const cmp = result && baseline && baseline.id !== result.runId ? baseline : null;
+  const dPass =
+    cmp && result && result.totalCases > 0 && cmp.totalCases > 0
+      ? deltaPoints(result.passedCases / result.totalCases, cmp.passedCases / cmp.totalCases)
+      : undefined;
+  const dRetrieval = cmp && result ? deltaPoints(result.retrievalHitRate, cmp.retrievalHitRate) : undefined;
+  const dCitation = cmp && result ? deltaPoints(result.citationHitRate, cmp.citationHitRate) : undefined;
+  const dLatency = cmp && result ? deltaSeconds(result.avgLatencyMs, cmp.avgLatencyMs) : undefined;
 
   return (
     <section className="space-y-3">
@@ -117,10 +244,10 @@ function MetricRow({
         <div className="h-px flex-1 bg-border" />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border">
-        <MetricPanel label={evalT.passedCases}      value={passRate}      active={active} delay={0}   />
-        <MetricPanel label={evalT.retrievalHitRate} value={retrievalRate} active={active} delay={80}  />
-        <MetricPanel label={evalT.citationHitRate}  value={citationRate}  active={active} delay={160} />
-        <MetricPanel label={evalT.avgLatency}       value={avgLatency}    active={active} delay={240} />
+        <MetricPanel label={evalT.passedCases}      value={passRate}      active={active} delay={0}   delta={dPass}      deltaLabel={evalT.vsBaseline} />
+        <MetricPanel label={evalT.retrievalHitRate} value={retrievalRate} active={active} delay={80}  delta={dRetrieval} deltaLabel={evalT.vsBaseline} />
+        <MetricPanel label={evalT.citationHitRate}  value={citationRate}  active={active} delay={160} delta={dCitation}  deltaLabel={evalT.vsBaseline} />
+        <MetricPanel label={evalT.avgLatency}       value={avgLatency}    active={active} delay={240} delta={dLatency}   deltaLabel={evalT.vsBaseline} />
       </div>
     </section>
   );
@@ -130,18 +257,34 @@ function CuratedMetricRow({
   result,
   active,
   evalT,
+  baseline,
 }: {
   result: EvalRunResult;
   active: boolean;
   evalT: EvalTranslationKeys;
+  baseline?: EvalRunSummary | null;
 }) {
   const pct = (v: number | undefined): string =>
     typeof v === 'number' ? `${Math.round(v * 100)}%` : '—';
-  const recall = pct(result.recallAtK?.[5]);
-  const precision = pct(result.precisionAtK?.[5]);
-  const ndcg = pct(result.ndcgAtK?.[5]);
+  const recall = pct(at5(result.recallAtK));
+  const precision = pct(at5(result.precisionAtK));
+  const ndcg = pct(at5(result.ndcgAtK));
   const mrrStr =
     typeof result.mrr === 'number' ? result.mrr.toFixed(2) : '—';
+
+  const cmp = baseline && baseline.id !== result.runId ? baseline : null;
+  const rateDelta = (
+    cur: number | undefined,
+    base: number | undefined,
+  ): MetricDelta | undefined =>
+    cmp && cur !== undefined && base !== undefined ? deltaPoints(cur, base) : undefined;
+  const dRecall = rateDelta(at5(result.recallAtK), cmp ? at5(cmp.recallAtK) : undefined);
+  const dPrecision = rateDelta(at5(result.precisionAtK), cmp ? at5(cmp.precisionAtK) : undefined);
+  const dNdcg = rateDelta(at5(result.ndcgAtK), cmp ? at5(cmp.ndcgAtK) : undefined);
+  const dMrr =
+    cmp && typeof result.mrr === 'number' && typeof cmp.mrr === 'number'
+      ? deltaScalar(result.mrr, cmp.mrr)
+      : undefined;
 
   return (
     <section className="space-y-3">
@@ -152,10 +295,10 @@ function CuratedMetricRow({
         <div className="h-px flex-1 bg-border" />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border">
-        <MetricPanel label={evalT.recallAtK}    value={recall}    active={active} delay={0}   />
-        <MetricPanel label={evalT.precisionAtK} value={precision} active={active} delay={80}  />
-        <MetricPanel label={evalT.ndcgAtK}      value={ndcg}      active={active} delay={160} />
-        <MetricPanel label={evalT.mrr}          value={mrrStr}    active={active} delay={240} />
+        <MetricPanel label={evalT.recallAtK}    value={recall}    active={active} delay={0}   delta={dRecall}    deltaLabel={evalT.vsBaseline} />
+        <MetricPanel label={evalT.precisionAtK} value={precision} active={active} delay={80}  delta={dPrecision} deltaLabel={evalT.vsBaseline} />
+        <MetricPanel label={evalT.ndcgAtK}      value={ndcg}      active={active} delay={160} delta={dNdcg}      deltaLabel={evalT.vsBaseline} />
+        <MetricPanel label={evalT.mrr}          value={mrrStr}    active={active} delay={240} delta={dMrr}       deltaLabel={evalT.vsBaseline} />
       </div>
     </section>
   );
@@ -292,7 +435,7 @@ function CaseRow({
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-[12px] font-sans text-muted-foreground tabular-nums">
-            {caseResult.latencyMs}ms
+            {(caseResult.latencyMs / 1000).toFixed(2)}s
           </span>
           <span
             className="text-[11px] font-sans font-medium px-2 py-1 border"
@@ -392,6 +535,65 @@ function CaseRow({
   );
 }
 
+function HistoryRow({
+  run,
+  active,
+  isBaseline,
+  disabled,
+  onClick,
+  evalT,
+  language,
+}: {
+  run: EvalRunSummary;
+  active: boolean;
+  isBaseline: boolean;
+  disabled: boolean;
+  onClick: () => void;
+  evalT: EvalTranslationKeys;
+  language: Language;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full cursor-pointer text-left flex items-center gap-3 px-3 py-2 border bg-card hover:bg-muted/40 transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+      style={{
+        borderColor: active ? 'var(--card-accent-0)' : 'hsl(var(--border))',
+        borderRadius: 0,
+      }}
+    >
+      <span className="text-[12px] font-sans text-muted-foreground tabular-nums shrink-0">
+        {formatRunDate(run.createdAt, language)}
+      </span>
+      <span className="text-[12px] font-sans text-foreground truncate">
+        {run.datasetName ?? '—'}
+      </span>
+      <span className="text-[11px] font-sans text-muted-foreground shrink-0">
+        {run.useRerank ? evalT.rerankOn : evalT.rerankOff}
+      </span>
+      <div className="flex-1" />
+      {isBaseline && (
+        <span
+          className="text-[10px] font-sans font-medium px-1.5 py-0.5 border tabular-nums shrink-0"
+          style={{
+            color: 'var(--card-accent-0)',
+            borderColor: 'color-mix(in srgb, var(--card-accent-0) 35%, transparent)',
+          }}
+        >
+          {evalT.baselineLabel}
+        </span>
+      )}
+      <span
+        className="text-[12px] font-sans tabular-nums shrink-0"
+        style={{ color: 'var(--card-accent-1)' }}
+      >
+        {run.passedCases}/{run.totalCases}
+      </span>
+    </button>
+  );
+}
+
 function ScanSkeleton() {
   return (
     <div className="space-y-2">
@@ -415,17 +617,25 @@ function ScanSkeleton() {
 }
 
 export default function EvalPage() {
-  const { evalT, home } = useLanguage();
+  const { evalT, home, language } = useLanguage();
+  const datasetNames = listDatasetNames();
 
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [loadingKbs, setLoadingKbs] = useState(true);
   const [selectedKbId, setSelectedKbId] = useState('');
-  const [selectedDataset, setSelectedDataset] = useState('');
+  const [selectedDataset, setSelectedDataset] = useState(() => datasetNames[0] ?? '');
   const [useRerank, setUseRerank] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<EvalRunResult | null>(null);
   const [runError, setRunError] = useState('');
-  const datasetNames = listDatasetNames();
+
+  const [history, setHistory] = useState<EvalRunSummary[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [viewingRunId, setViewingRunId] = useState<string | null>(null);
+  const [viewingHistorical, setViewingHistorical] = useState(false);
+  const [baselineId, setBaselineId] = useState('');
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   useEffect(() => {
     httpClient
@@ -437,19 +647,73 @@ export default function EvalPage() {
       .finally(() => setLoadingKbs(false));
   }, []);
 
+  const loadHistory = useCallback(async (kbId: string) => {
+    if (!kbId) {
+      setHistory([]);
+      return;
+    }
+    setLoadingHistory(true);
+    try {
+      const data = await httpClient.get<{ runs: EvalRunSummary[] }>(
+        `/api/eval/runs?knowledgeBaseId=${kbId}`,
+      );
+      setHistory(data.runs);
+    } catch {
+      setHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, []);
+
+  // Reset the displayed run + baseline whenever the knowledge base changes,
+  // then (re)load that KB's history.
+  useEffect(() => {
+    setResult(null);
+    setViewingRunId(null);
+    setViewingHistorical(false);
+    setBaselineId('');
+    setRunError('');
+    loadHistory(selectedKbId);
+  }, [selectedKbId, loadHistory]);
+
+  const loadDetail = useCallback(
+    async (runId: string) => {
+      setLoadingDetail(true);
+      setRunError('');
+      try {
+        const data = await httpClient.get<{ run: EvalRunDetail }>(
+          `/api/eval/runs/${runId}`,
+        );
+        setResult(detailToResult(data.run));
+        setViewingRunId(runId);
+        setViewingHistorical(true);
+      } catch {
+        setRunError(evalT.historyErrorLoading);
+      } finally {
+        setLoadingDetail(false);
+      }
+    },
+    [evalT],
+  );
+
   async function handleRunEval(): Promise<void> {
-    if (!selectedKbId || isRunning) return;
+    if (!selectedKbId || !selectedDataset || isRunning) return;
     setIsRunning(true);
     setRunError('');
     setResult(null);
+    setViewingRunId(null);
+    setViewingHistorical(false);
     try {
-      const body: Record<string, unknown> = { knowledgeBaseId: selectedKbId, useRerank };
-      if (selectedDataset) {
-        body.mode = 'curated';
-        body.datasetName = selectedDataset;
-      }
+      const body: Record<string, unknown> = {
+        knowledgeBaseId: selectedKbId,
+        mode: 'curated',
+        datasetName: selectedDataset,
+        useRerank,
+      };
       const data = await httpClient.post<EvalRunResult>('/api/eval/run', body);
       setResult(data);
+      setViewingRunId(data.runId);
+      loadHistory(selectedKbId);
     } catch (err) {
       const code = err instanceof HttpError ? err.message : undefined;
       setRunError(code === 'eval_no_chunks' ? evalT.errorNoChunks : evalT.errorRunning);
@@ -460,6 +724,8 @@ export default function EvalPage() {
 
   const hasResult = !!result;
   const sectionTitle = useRerank ? evalT.withRerank : evalT.withoutRerank;
+  const canRun = Boolean(selectedKbId && selectedDataset) && !isRunning;
+  const baseline = baselineId ? history.find(r => r.id === baselineId) ?? null : null;
 
   return (
     <>
@@ -533,7 +799,6 @@ export default function EvalPage() {
                 className="h-8 bg-transparent px-2 text-[13px] font-sans focus:outline-none cursor-pointer disabled:cursor-not-allowed"
                 style={{ borderRadius: 0 }}
               >
-                <option value="">{evalT.datasetAuto}</option>
                 {datasetNames.map(name => (
                   <option key={name} value={name}>
                     {name}
@@ -561,11 +826,11 @@ export default function EvalPage() {
             </label>
             <button
               onClick={handleRunEval}
-              disabled={!selectedKbId || isRunning}
+              disabled={!canRun}
               className="h-10 cursor-pointer px-7 text-[13px] font-sans font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity focus:outline-none"
               style={{
-                background: !selectedKbId || isRunning ? 'hsl(var(--muted))' : 'var(--card-accent-0)',
-                color: !selectedKbId || isRunning ? 'hsl(var(--muted-foreground))' : 'hsl(0 0% 100%)',
+                background: canRun ? 'var(--card-accent-0)' : 'hsl(var(--muted))',
+                color: canRun ? 'hsl(0 0% 100%)' : 'hsl(var(--muted-foreground))',
                 borderRadius: 0,
               }}
             >
@@ -583,9 +848,87 @@ export default function EvalPage() {
             </button>
           </div>
 
+          {/* ── Run history + baseline ── */}
+          {selectedKbId && (
+            <section className="space-y-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setHistoryOpen(v => !v)}
+                  className="cursor-pointer flex items-center gap-2 text-[12px] font-sans font-medium text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+                >
+                  <span className="w-2.5 inline-block">{historyOpen ? '−' : '+'}</span>
+                  {evalT.runHistoryTitle} ({history.length})
+                </button>
+                <div className="h-px flex-1 bg-border" />
+                <label
+                  htmlFor="baseline-select"
+                  className="flex items-center gap-2 cursor-pointer select-none"
+                >
+                  <span className="text-[12px] font-sans text-muted-foreground">
+                    {evalT.baselineLabel}
+                  </span>
+                  <select
+                    id="baseline-select"
+                    value={baselineId}
+                    onChange={e => setBaselineId(e.target.value)}
+                    disabled={history.length === 0}
+                    className="h-8 max-w-[16rem] border border-input bg-background px-2 text-[12px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ borderRadius: 0 }}
+                  >
+                    <option value="">{evalT.baselineNone}</option>
+                    {history.map(r => (
+                      <option key={r.id} value={r.id}>
+                        {baselineLabel(r, language, evalT)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {historyOpen &&
+                (loadingHistory ? (
+                  <p className="text-[12px] font-sans text-muted-foreground italic">
+                    {evalT.historyLoading}
+                  </p>
+                ) : history.length === 0 ? (
+                  <p className="text-[12px] font-sans text-muted-foreground italic">
+                    {evalT.historyEmpty}
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {history.map(r => (
+                      <HistoryRow
+                        key={r.id}
+                        run={r}
+                        active={r.id === viewingRunId}
+                        isBaseline={r.id === baselineId}
+                        disabled={isRunning || loadingDetail}
+                        onClick={() => loadDetail(r.id)}
+                        evalT={evalT}
+                        language={language}
+                      />
+                    ))}
+                  </div>
+                ))}
+            </section>
+          )}
+
           {/* ── Error ── */}
           {runError && (
             <p className="text-[14px] font-sans text-destructive">{runError}</p>
+          )}
+
+          {/* ── Viewing a saved run ── */}
+          {viewingHistorical && result && (
+            <p className="text-[12px] font-sans text-muted-foreground flex items-center gap-2">
+              <span
+                aria-hidden
+                className="inline-block w-1.5 h-1.5"
+                style={{ background: 'var(--card-accent-0)' }}
+              />
+              {evalT.viewingSavedRun}
+            </p>
           )}
 
           {/* ── Metric gauges ── */}
@@ -594,11 +937,17 @@ export default function EvalPage() {
             result={result}
             active={hasResult}
             evalT={evalT}
+            baseline={baseline}
           />
 
           {/* ── Curated retrieval metrics (only in curated mode) ── */}
           {result && result.mode === 'curated' && (
-            <CuratedMetricRow result={result} active={hasResult} evalT={evalT} />
+            <CuratedMetricRow
+              result={result}
+              active={hasResult}
+              evalT={evalT}
+              baseline={baseline}
+            />
           )}
 
           {/* ── Running skeleton ── */}

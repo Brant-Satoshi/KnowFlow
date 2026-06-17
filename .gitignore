@@ -58,3 +58,9 @@ CLAUDE.local.md
 
 # personal learning notebooks
 /learning/
+
+# drizzle-kit scratch output (handwritten SQL in db/migrations is the source of truth)
+/drizzle
+
+# runtime file uploads
+/data/uploads/

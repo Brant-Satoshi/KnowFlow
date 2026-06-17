@@ -1,12 +1,13 @@
 "use client"
 
 import { useSyncExternalStore } from "react"
-import { Globe, Monitor, Moon, Settings, Sun } from "lucide-react"
+import { Globe, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react"
 import { useThemeWithTransition } from "@/components/theme-provider"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -14,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { useAuth } from "@/lib/auth/AuthContext"
 
 type ThemeMode = "light" | "dark" | "system"
 
@@ -27,6 +29,8 @@ const LABELS = {
     system: "System",
     english: "English",
     chinese: "Chinese",
+    account: "Account",
+    signOut: "Sign out",
   },
   zh: {
     settings: "设置",
@@ -37,6 +41,8 @@ const LABELS = {
     system: "系统",
     english: "英文",
     chinese: "中文",
+    account: "账户",
+    signOut: "退出登录",
   },
 } as const
 
@@ -44,6 +50,7 @@ const emptySubscribe = () => () => {}
 
 export function SettingsMenu() {
   const { language, setLanguage } = useLanguage()
+  const { user, logout } = useAuth()
   const { theme, setTheme } = useThemeWithTransition()
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false)
   const labels = language === "zh" ? LABELS.zh : LABELS.en
@@ -106,6 +113,24 @@ export function SettingsMenu() {
             {labels.chinese}
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
+
+        {user && (
+          <>
+            <DropdownMenuSeparator className="my-2" />
+
+            <DropdownMenuLabel className="px-2 pb-1 pt-1 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {labels.account}
+            </DropdownMenuLabel>
+            <p className="truncate px-2 pb-1 text-sm text-foreground">{user.email}</p>
+            <DropdownMenuItem
+              onClick={() => logout()}
+              className="cursor-pointer gap-2 rounded-md text-destructive focus:text-destructive"
+            >
+              <LogOut className="h-4 w-4" />
+              {labels.signOut}
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

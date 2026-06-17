@@ -2,11 +2,15 @@ import { NextRequest } from 'next/server';
 import { extname } from 'path';
 import { FileDoc } from '@/lib/types';
 import { success, error } from '@/lib/api/response';
+import { requireUser } from '@/lib/auth/current-user';
 import { addFile } from '@/lib/db/files';
 import { supabase, STORAGE_BUCKET } from '@/lib/db/supabase';
 import { isValidUuid } from '@/lib/validation';
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser();
+  if (auth instanceof Response) return auth;
+
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;

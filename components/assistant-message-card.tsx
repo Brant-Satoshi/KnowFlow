@@ -1,6 +1,6 @@
 "use client"
 
-import { isValidElement, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
+import { createContext, isValidElement, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
 import type { Components } from "react-markdown"
 import ReactMarkdown from "react-markdown"
 import { AlertCircle, Check, ChevronDown, Copy, Loader2, RefreshCw, Square, Volume2 } from "lucide-react"
@@ -14,7 +14,13 @@ import {
 } from "@/components/inline-citation"
 import { HoverCard, HoverCardTrigger } from "@/components/ui/hover-card"
 import { useOpenPreview } from "@/lib/preview-context"
+import { MermaidDiagram } from "@/components/mermaid-diagram"
 import { cn } from "@/lib/utils"
+
+// While the answer is still streaming a ```mermaid``` block holds incomplete,
+// unparseable syntax. CodeBlock reads this to defer diagram rendering until the
+// stream finishes, showing the raw code in the meantime.
+const StreamingContext = createContext(false)
 
 function extractText(node: ReactNode): string {
   if (node == null || typeof node === "boolean") return ""
@@ -40,12 +46,19 @@ const CodeBlock: Components["pre"] = ({ children, className, node, ...rest }) =>
     [],
   )
 
+  const isStreaming = useContext(StreamingContext)
   const rawText = extractText(children)
   let language: string | null = null
   if (isValidElement<{ className?: string }>(children)) {
     const cls = children.props.className ?? ""
     const match = /language-([\w-]+)/.exec(cls)
     language = match ? match[1] : null
+  }
+
+  // Render mermaid as a diagram once the stream is complete; while streaming it
+  // falls through to the normal code block (the syntax is still incomplete).
+  if (language === "mermaid" && !isStreaming) {
+    return <MermaidDiagram code={rawText.replace(/\n$/, "")} />
   }
 
   const handleCopy = async () => {
@@ -579,19 +592,21 @@ export function AssistantMessageCard({
             </div>
           ) : (
             <CitationContext.Provider value={citationLookup}>
-              <div className="text-sm text-current">
-                {isStreaming ? (
-                  <div className="streaming-active wrap-break-word leading-7">
-                    <ReactMarkdown components={markdownComponents}>
-                      {text}
-                    </ReactMarkdown>
-                  </div>
-                ) : hasBody ? (
-                  <ReactMarkdown components={markdownComponents}>{text}</ReactMarkdown>
-                ) : isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                ) : null}
-              </div>
+              <StreamingContext.Provider value={isStreaming}>
+                <div className="text-base text-current">
+                  {isStreaming ? (
+                    <div className="streaming-active wrap-break-word leading-7">
+                      <ReactMarkdown components={markdownComponents}>
+                        {text}
+                      </ReactMarkdown>
+                    </div>
+                  ) : hasBody ? (
+                    <ReactMarkdown components={markdownComponents}>{text}</ReactMarkdown>
+                  ) : isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : null}
+                </div>
+              </StreamingContext.Provider>
             </CitationContext.Provider>
           )}
         </div>

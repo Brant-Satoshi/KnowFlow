@@ -246,7 +246,7 @@ export function useChatStream({
     // When ensureConversation() flips a freshly-created id into state right
     // before firing sendMessage(), the in-flight stream's AbortController is
     // already on abortRef. Bail out before touching it, or we cancel our own
-    // request and the user sees "[Stopped]".
+    // request and the answer is cut off mid-stream (marked stopped).
     if (conversationId && skipNextHydrationRef.current) {
       skipNextHydrationRef.current = false
       return
@@ -486,15 +486,7 @@ export function useChatStream({
         }))
       } catch (error) {
         const isStopped = error instanceof DOMException && error.name === "AbortError"
-        if (isStopped) {
-          setMessages((prev) =>
-            prev.map((message) =>
-              message.id === assistantId
-                ? createTextMessage("assistant", `${getMessageText(message)}\n\n[Stopped]`, assistantId)
-                : message
-            )
-          )
-        } else {
+        if (!isStopped) {
           const errorMessage = error instanceof Error ? error.message : "Stream error"
           setMessages((prev) =>
             prev.map((message) => {
