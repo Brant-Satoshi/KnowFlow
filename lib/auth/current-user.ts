@@ -6,7 +6,7 @@ import type { AuthUser } from './users';
 
 /**
  * Node-only auth helpers. These import `pg` (via sessions) and `next/headers`,
- * so they must never be imported by the Edge middleware.
+ * so they must never be imported by the Edge proxy.
  */
 
 export async function getCurrentUser(): Promise<AuthUser | null> {

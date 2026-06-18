@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from "react"
 import { ArrowUp, Square } from "lucide-react"
+import { ModelPicker } from "@/components/chat/model-picker"
 import { Textarea } from "@/components/ui/textarea"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { cn } from "@/lib/utils"
@@ -14,6 +15,9 @@ interface ChatInputProps {
   isLoading: boolean
   hasKnowledge: boolean
   isPreparingKnowledge: boolean
+  selectedModel: string
+  onModelChange: (modelId: string) => void
+  isModelDisabled?: boolean
 }
 
 export function ChatInput({
@@ -24,6 +28,9 @@ export function ChatInput({
   isLoading,
   hasKnowledge,
   isPreparingKnowledge,
+  selectedModel,
+  onModelChange,
+  isModelDisabled,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { t } = useLanguage()
@@ -57,7 +64,7 @@ export function ChatInput({
     <div className="px-3 pb-3 pt-2 sm:px-5 sm:pb-4 sm:pt-3">
       <div className="mx-auto max-w-3xl w-full">
         <div className={cn(
-          "relative flex items-end gap-2 rounded-3xl border border-border bg-secondary px-3 py-2 transition-colors sm:gap-3 sm:px-4 sm:py-2.5",
+          "relative flex flex-col gap-2 rounded-3xl border border-border bg-secondary px-3 py-2 transition-colors sm:px-4 sm:py-2.5",
           "focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/15"
         )}>
           <Textarea
@@ -68,33 +75,43 @@ export function ChatInput({
             placeholder={hasKnowledge ? t.placeholderWithKnowledge : t.placeholderNoKnowledge}
             rows={1}
             disabled={isDisabled}
-            className="h-auto max-h-[30svh] min-h-10 flex-1 resize-none border-0 bg-transparent px-1 py-1.5 text-[13.5px] leading-7 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
+            className="h-auto max-h-[30svh] min-h-10 resize-none border-0 bg-transparent px-1 py-1.5 text-[13.5px] leading-7 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
           />
 
-          {isLoading ? (
-            <button
-              onClick={onStop}
-              className="flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full border border-border bg-secondary px-3.5 text-[12.5px] font-medium text-foreground transition-colors hover:bg-secondary/80"
-              aria-label={t.stop}
-            >
-              <Square className="h-3 w-3 fill-current" />
-              {t.stop}
-            </button>
-          ) : (
-            <button
-              onClick={onSubmit}
-              disabled={!canSend}
-              className={cn(
-                "flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full transition-all disabled:cursor-not-allowed",
-                canSend
-                  ? "bg-primary text-primary-foreground shadow-[0_8px_24px_-8px_hsl(var(--primary)/.5)] hover:opacity-90"
-                  : "bg-foreground/15 text-foreground/60"
-              )}
-              aria-label={t.send}
-            >
-              <ArrowUp className="h-4 w-4" />
-            </button>
-          )}
+          <div className="flex items-center justify-between gap-2">
+            <ModelPicker
+              value={selectedModel}
+              onChange={onModelChange}
+              disabled={isModelDisabled}
+              t={t}
+              triggerClassName="h-8 w-[160px] cursor-pointer rounded-full border-border/70 bg-background/45 px-3 text-[12px] shadow-none focus:ring-1 focus:ring-primary/35 focus:ring-offset-0 sm:w-[180px]"
+            />
+
+            {isLoading ? (
+              <button
+                onClick={onStop}
+                className="flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full border border-border bg-secondary px-3.5 text-[12.5px] font-medium text-foreground transition-colors hover:bg-secondary/80"
+                aria-label={t.stop}
+              >
+                <Square className="h-3 w-3 fill-current" />
+                {t.stop}
+              </button>
+            ) : (
+              <button
+                onClick={onSubmit}
+                disabled={!canSend}
+                className={cn(
+                  "flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full transition-all disabled:cursor-not-allowed",
+                  canSend
+                    ? "bg-primary text-primary-foreground shadow-[0_8px_24px_-8px_hsl(var(--primary)/.5)] hover:opacity-90"
+                    : "bg-foreground/15 text-foreground/60"
+                )}
+                aria-label={t.send}
+              >
+                <ArrowUp className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Footer caption */}

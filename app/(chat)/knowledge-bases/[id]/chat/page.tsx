@@ -11,7 +11,6 @@ import { ConversationSidebar } from "@/components/conversation-sidebar"
 import { EmptyState } from "@/components/empty-state"
 import { FilePreviewSheet } from "@/components/file-preview-sheet"
 import { KnowledgePanel } from "@/components/knowledge-panel"
-import { ModelPicker } from "@/components/chat/model-picker"
 import { SettingsMenu } from "@/components/settings-menu"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -402,16 +401,7 @@ export default function ChatPage() {
                   textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
                 />
               </Link>
-              <div className="flex items-center gap-2">
-                <ModelPicker
-                  value={selectedModel}
-                  onChange={handleModelChange}
-                  disabled={isStreaming}
-                  t={t}
-                  triggerClassName="h-9 w-[150px] cursor-pointer"
-                />
-                <SettingsMenu />
-              </div>
+              <SettingsMenu />
             </div>
           </header>
 
@@ -484,6 +474,9 @@ export default function ChatPage() {
                   isLoading={isLoading}
                   hasKnowledge={hasKnowledge}
                   isPreparingKnowledge={isParsingOrUploading}
+                  selectedModel={selectedModel}
+                  onModelChange={handleModelChange}
+                  isModelDisabled={isStreaming}
                 />
               </section>
             </TabsContent>
@@ -549,15 +542,7 @@ export default function ChatPage() {
                 textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
               />
             </Link>
-            <div className="flex items-center gap-3">
-              <ModelPicker
-                value={selectedModel}
-                onChange={handleModelChange}
-                disabled={isStreaming}
-                t={t}
-              />
-              <SettingsMenu />
-            </div>
+            <SettingsMenu />
           </div>
         </header>
 
@@ -621,6 +606,9 @@ export default function ChatPage() {
               isLoading={isLoading}
               hasKnowledge={hasKnowledge}
               isPreparingKnowledge={isParsingOrUploading}
+              selectedModel={selectedModel}
+              onModelChange={handleModelChange}
+              isModelDisabled={isStreaming}
             />
           </section>
 

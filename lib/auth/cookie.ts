@@ -1,6 +1,6 @@
 /**
  * Edge-safe auth constants. This module is the ONLY auth file that
- * `middleware.ts` (Edge runtime) may import, so it must stay free of any
+ * `proxy.ts` (Edge runtime) may import, so it must stay free of any
  * server-only imports — no `pg`, no `next/headers`, no Node built-ins.
  */
 

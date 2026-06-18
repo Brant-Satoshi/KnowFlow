@@ -489,8 +489,8 @@ export default function HomePage() {
         open={isCreating}
         onOpenChange={(open) => !isSubmitting && (open ? setIsCreating(true) : resetCreateState())}
       >
-        <DialogContent className="rounded-[1.8rem] border-black/8 bg-popover p-0 sm:max-w-xl dark:border-white/8 dark:bg-popover">
-          <div className="rounded-[1.8rem] border border-black/5 bg-[linear-gradient(180deg,rgba(255,248,230,0.6)_0%,rgba(255,248,230,0)_100%)] p-6 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0)_100%)]">
+        <DialogContent className="overflow-hidden rounded-[1.8rem] border-black/8 bg-popover p-0 sm:max-w-xl dark:border-white/8 dark:bg-popover">
+          <div className="bg-[linear-gradient(180deg,rgba(255,248,230,0.6)_0%,rgba(255,248,230,0)_100%)] p-6 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0)_100%)]">
             <DialogHeader className="text-left">
               <DialogTitle className="text-[22px] font-semibold tracking-tight">
                 {t.createKnowledgeBase}
@@ -500,24 +500,24 @@ export default function HomePage() {
               </DialogDescription>
             </DialogHeader>
             <div className="mt-7 space-y-5">
-              <div className="space-y-2.5">
+              <div className="flex flex-col gap-5">
                 <label className="text-sm font-medium text-foreground">{t.name}</label>
                 <Input
                   placeholder={t.namePlaceholder}
                   value={newKbName}
                   onChange={(e) => setNewKbName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleCreateKnowledgeBase() }}
-                  className="h-11 rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
+                  className="h-11 rounded-2xl border-black/10 bg-white/80 focus-visible:ring-offset-0 dark:border-white/10 dark:bg-white/6"
                 />
               </div>
-              <div className="space-y-2.5">
+              <div className="flex flex-col gap-5">
                 <label className="text-sm font-medium text-foreground">{t.description}</label>
                 <Textarea
                   placeholder={t.descriptionPlaceholder}
                   value={newKbDesc}
                   onChange={(e) => setNewKbDesc(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleCreateKnowledgeBase() }}
-                  className="min-h-25 rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
+                  className="min-h-25 resize-none rounded-2xl border-black/10 bg-white/80 focus-visible:ring-offset-0 dark:border-white/10 dark:bg-white/6"
                 />
               </div>
             </div>
@@ -549,8 +549,8 @@ export default function HomePage() {
         open={editingKnowledgeBase !== null}
         onOpenChange={(open) => !isUpdating && !open && resetEditState()}
       >
-        <DialogContent className="rounded-[1.8rem] border-black/8 bg-popover p-0 sm:max-w-xl dark:border-white/8 dark:bg-popover">
-          <div className="rounded-[1.8rem] border border-black/5 bg-[linear-gradient(180deg,rgba(255,248,230,0.6)_0%,rgba(255,248,230,0)_100%)] p-6 dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0)_100%)]">
+        <DialogContent className="overflow-hidden rounded-[1.8rem] border-black/8 bg-popover p-0 sm:max-w-xl dark:border-white/8 dark:bg-popover">
+          <div className="bg-[linear-gradient(180deg,rgba(255,248,230,0.6)_0%,rgba(255,248,230,0)_100%)] p-6 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0)_100%)]">
             <DialogHeader className="text-left">
               <DialogTitle className="text-[22px] font-semibold tracking-tight">
                 {t.editKnowledgeBase}
@@ -560,24 +560,24 @@ export default function HomePage() {
               </DialogDescription>
             </DialogHeader>
             <div className="mt-7 space-y-5">
-              <div className="space-y-2.5">
+              <div className="flex flex-col gap-5">
                 <label className="text-sm font-medium text-foreground">{t.name}</label>
                 <Input
                   placeholder={t.namePlaceholder}
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleUpdateKnowledgeBase() }}
-                  className="h-11 rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
+                  className="h-11 rounded-2xl border-black/10 bg-white/80 focus-visible:ring-offset-0 dark:border-white/10 dark:bg-white/6"
                 />
               </div>
-              <div className="space-y-2.5">
+              <div className="flex flex-col gap-5">
                 <label className="text-sm font-medium text-foreground">{t.description}</label>
                 <Textarea
                   placeholder={t.descriptionPlaceholder}
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleUpdateKnowledgeBase() }}
-                  className="min-h-25 rounded-2xl border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/6"
+                  className="min-h-25 resize-none rounded-2xl border-black/10 bg-white/80 focus-visible:ring-offset-0 dark:border-white/10 dark:bg-white/6"
                 />
               </div>
             </div>
