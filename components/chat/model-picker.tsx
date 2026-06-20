@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { CHAT_MODELS, getChatModel } from '@/lib/llm/catalog';
 import type { TranslationKeys } from '@/lib/i18n/translations';
 import { Badge } from '@/components/ui/badge';
@@ -29,11 +30,13 @@ function ModelLogo({ modelId }: { modelId: string }) {
   const logo = modelLogos[modelId] ?? 'https://models.dev/logos/openrouter.svg';
 
   return (
-    <span className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-background/80 ring-1 ring-border/70">
-      <img
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-background/80 ring-1 ring-border/70 dark:bg-white/90 dark:ring-white/20">
+      <Image
         src={logo}
         alt=""
         aria-hidden="true"
+        width={14}
+        height={14}
         className="h-3.5 w-3.5 object-contain"
       />
     </span>
