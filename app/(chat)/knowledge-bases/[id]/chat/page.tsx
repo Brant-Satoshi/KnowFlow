@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowDown, ArrowLeft, Database, Loader2 } from "lucide-react"
+import { ArrowDown, ArrowLeft, Database, FlaskConical, Loader2 } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { ChatInput } from "@/components/chat-input"
 import { ChatMessages } from "@/components/chat-messages"
@@ -401,7 +401,14 @@ export default function ChatPage() {
                   textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
                 />
               </Link>
-              <SettingsMenu />
+              <div className="flex shrink-0 items-center gap-1.5">
+                <Button asChild variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                  <Link href="/eval" aria-label={t.evalEntry}>
+                    <FlaskConical className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <SettingsMenu />
+              </div>
             </div>
           </header>
 
@@ -542,7 +549,14 @@ export default function ChatPage() {
                 textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
               />
             </Link>
-            <SettingsMenu />
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Button asChild variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                <Link href="/eval" aria-label={t.evalEntry}>
+                  <FlaskConical className="h-4 w-4" />
+                </Link>
+              </Button>
+              <SettingsMenu />
+            </div>
           </div>
         </header>
 

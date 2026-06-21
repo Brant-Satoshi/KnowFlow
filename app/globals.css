@@ -67,6 +67,14 @@
     100% { transform: translate3d(420%, 0, 0) skewX(-18deg); opacity: 0; }
   }
 
+  @keyframes wave-hand {
+    0%, 60%, 100% { transform: rotate(0deg); }
+    10%, 30%      { transform: rotate(14deg); }
+    20%           { transform: rotate(-8deg); }
+    40%           { transform: rotate(-4deg); }
+    50%           { transform: rotate(10deg); }
+  }
+
   /* —— Light tokens ————————————————————————————— */
   :root {
     color-scheme: light;
@@ -83,7 +91,7 @@
     --primary:               106 49% 32%;     /* #3D7A2A */
     --primary-foreground:    0 0% 100%;
 
-    --secondary:             40 25% 93%;
+    --secondary:             40 25% 95%;
     --secondary-foreground:  28 12% 25%;
     --muted:                 40 25% 93%;
     --muted-foreground:      38 12% 48%;      /* slightly softer muted */
@@ -227,6 +235,13 @@
     filter: blur(10px);
     mix-blend-mode: screen;
     will-change: transform, opacity;
+  }
+
+  .wave-hand {
+    display: inline-block;
+    transform-origin: 70% 75%;
+    animation: wave-hand 2.6s ease-in-out infinite;
+    will-change: transform;
   }
 
 }

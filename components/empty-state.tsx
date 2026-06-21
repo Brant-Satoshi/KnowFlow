@@ -53,7 +53,7 @@ export function EmptyState({
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
         ) : (
-          <div aria-hidden className="text-5xl leading-none">👋</div>
+          <div aria-hidden className="wave-hand text-5xl leading-none">👋</div>
         )}
 
         {/* Heading + description */}

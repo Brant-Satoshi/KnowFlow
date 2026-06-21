@@ -57,7 +57,7 @@ export async function rerankChunks(
     const topN = Number.isInteger(rawTopN)
         ? Math.max(1, Math.min(rawTopN, chunks.length))
         : chunks.length;
-    const documents = chunks.map((chunk) => chunk.text);
+    const documents = chunks.map((chunk) => chunk.embeddingText ?? chunk.text);
 
     const cfg = resolveRerankProvider();
 

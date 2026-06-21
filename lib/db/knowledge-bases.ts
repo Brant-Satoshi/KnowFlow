@@ -19,7 +19,20 @@ export type KnowledgeBaseDeleteFile = {
 
 export async function listKnowledgeBases(): Promise<KnowledgeBase[]> {
   return query<KnowledgeBase>(
-    `SELECT ${KB_SELECT} FROM knowledge_bases ORDER BY created_at DESC;`
+    `
+    SELECT
+      kb.id::text,
+      kb.name,
+      kb.description,
+      kb.created_at AS "createdAt",
+      kb.updated_at AS "updatedAt",
+      COUNT(c.id)::int AS "chunkCount"
+    FROM knowledge_bases kb
+    LEFT JOIN files f ON f.knowledge_base_id = kb.id
+    LEFT JOIN chunks c ON c.file_id = f.id
+    GROUP BY kb.id
+    ORDER BY kb.created_at DESC;
+    `
   );
 }
 

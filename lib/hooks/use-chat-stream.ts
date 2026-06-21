@@ -47,6 +47,7 @@ export interface AssistantProgress {
   currentStage: ProgressStage
   failedStage?: ActiveProgressStage
   rerankSkipped?: boolean
+  errorMessage?: string
 }
 
 function isObject(x: unknown): x is Record<string, unknown> {
@@ -486,26 +487,13 @@ export function useChatStream({
         }))
       } catch (error) {
         const isStopped = error instanceof DOMException && error.name === "AbortError"
-        if (!isStopped) {
-          const errorMessage = error instanceof Error ? error.message : "Stream error"
-          setMessages((prev) =>
-            prev.map((message) => {
-              if (message.id !== assistantId) return message
-
-              const fallbackText = getMessageText(message)
-              const nextText =
-                fallbackText.length > 0
-                  ? `${fallbackText}\n\n[Error] ${errorMessage}`
-                  : `[Error] ${errorMessage}`
-              return createTextMessage("assistant", nextText, assistantId)
-            })
-          )
-        }
+        const errorMessage = error instanceof Error ? error.message : "Stream error"
         updateProgress(assistantId, (prev) => ({
           ...prev,
           completedAt: Date.now(),
           currentStage: isStopped ? "stopped" : "error",
           failedStage: getLastActiveStage(prev),
+          errorMessage: isStopped ? undefined : errorMessage,
         }))
       } finally {
         if (abortRef.current === controller) {

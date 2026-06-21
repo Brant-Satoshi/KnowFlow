@@ -1,17 +1,12 @@
-import { replaceFileChunks } from '@/lib/db/chunks';
 import { getFileById, updateFileStatus } from '@/lib/db/files';
-import { chunkText } from '@/lib/rag/chunks';
-import { parseFile } from '@/lib/rag/parse';
 import { NextRequest } from 'next/server';
-import { extname } from 'path';
 import { isValidUuid } from '@/lib/validation';
-import { embedChunk } from '@/lib/rag/embeddings';
-import { readFileFromStorage } from '@/lib/db/storage';
+import { reindexFile } from '@/lib/rag/reindex';
 import { requireUser } from '@/lib/auth/current-user';
 
 export const runtime = "nodejs";
 
-// buffer → parse → clean → chunk → (embed)
+// buffer → parse → clean → chunk → embed → replace (see reindexFile)
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const auth = await requireUser();
     if (auth instanceof Response) return auth;
@@ -39,24 +34,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         await updateFileStatus(id, 'parsing');
 
-        const filePath = `${id}${extname(file.name)}`;
+        const chunkCount = await reindexFile(file, { signal: req.signal });
 
-        const buffer = await readFileFromStorage(filePath);
-
-        const text = clean(await parseFile(file, buffer));
-
-        let chunkDocs = chunkText(text, id)
-
-        chunkDocs = await embedChunk(chunkDocs, { signal: req.signal });
-
-        await replaceFileChunks(id, chunkDocs);
-        
         const updatedFile = await updateFileStatus(id, 'indexed');
         return Response.json({
             requestId: crypto.randomUUID(),
             ok: true,
             data: {
-                chunkCount: chunkDocs.length,
+                chunkCount,
                 file: updatedFile,
             },
         });
@@ -75,12 +60,4 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             error: message,
         }, { status: 500 });
     }
-}
-
-function clean(text: string) {
-    return text
-        .replace(/\n{2,}/g, "\n")
-        .replace(/[ \t]+/g, " ")
-        .replace(/Page \d+/g, "")
-        .trim();
 }

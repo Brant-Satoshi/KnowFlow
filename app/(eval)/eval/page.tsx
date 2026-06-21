@@ -726,6 +726,8 @@ export default function EvalPage() {
   const sectionTitle = useRerank ? evalT.withRerank : evalT.withoutRerank;
   const canRun = Boolean(selectedKbId && selectedDataset) && !isRunning;
   const baseline = baselineId ? history.find(r => r.id === baselineId) ?? null : null;
+  const formatKnowledgeBaseOption = (kb: KnowledgeBase) =>
+    `${kb.name} · ${evalT.chunkCountLabel.replace('{count}', String(kb.chunkCount ?? 0))}`;
 
   return (
     <>
@@ -777,7 +779,7 @@ export default function EvalPage() {
                   <option value="">{evalT.selectPlaceholder}</option>
                   {knowledgeBases.map(kb => (
                     <option key={kb.id} value={kb.id}>
-                      {kb.name}
+                      {formatKnowledgeBaseOption(kb)}
                     </option>
                   ))}
                 </select>

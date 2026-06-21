@@ -354,6 +354,20 @@ function ProcessTimeline({ progress, sourceCount, t }: ProcessTimelineProps) {
   )
 }
 
+// ErrorTag ──────────────────────────────────────────────────────────────
+
+function ErrorTag({ message }: { message: string }) {
+  return (
+    <div
+      role="alert"
+      className="inline-flex items-start gap-1.5 rounded-[7px] border border-destructive/20 bg-destructive/10 px-2.5 py-1.5 text-[12.5px] font-medium text-destructive"
+    >
+      <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
+      <span className="wrap-break-word">{message}</span>
+    </div>
+  )
+}
+
 // SourceBadge / SourcesList ────────────────────────────────────────────
 
 function SourceBadge({ chunk, t }: { chunk: RetrievedChunk; t: ChatT }) {
@@ -493,18 +507,22 @@ function MessageActions({
     setSpeaking(true)
   }
 
+  const hasText = text.length > 0
+
   return (
     <div className="-ml-2 flex items-center gap-1 text-muted-foreground">
-      <button
-        type="button"
-        onClick={handleCopy}
-        aria-label={copied ? t.messageActions.copied : t.messageActions.copy}
-        title={copied ? t.messageActions.copied : t.messageActions.copy}
-        className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-muted/50 hover:text-foreground"
-      >
-        {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
-      </button>
-      {ttsSupported && (
+      {hasText && (
+        <button
+          type="button"
+          onClick={handleCopy}
+          aria-label={copied ? t.messageActions.copied : t.messageActions.copy}
+          title={copied ? t.messageActions.copied : t.messageActions.copy}
+          className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-muted/50 hover:text-foreground"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+        </button>
+      )}
+      {ttsSupported && hasText && (
         <button
           type="button"
           onClick={handleSpeak}
@@ -564,6 +582,10 @@ export function AssistantMessageCard({
     progress?.currentStage === "done" ||
     progress?.currentStage === "error" ||
     progress?.currentStage === "stopped"
+  // A turn interrupted (or errored) before any token arrives has no body, but
+  // the user still needs a way to retry it.
+  const isStoppedOrError =
+    progress?.currentStage === "stopped" || progress?.currentStage === "error"
 
   const citationLookup = useMemo(
     () => new Map(retrievedChunks.map((c) => [c.index, c])),
@@ -611,9 +633,13 @@ export function AssistantMessageCard({
           )}
         </div>
 
+        {progress?.currentStage === "error" && progress.errorMessage && (
+          <ErrorTag message={progress.errorMessage} />
+        )}
+
         <SourcesList citations={citations} messageId={messageId} t={t} />
 
-        {hasBody && (isFinal || !progress) && !isStreaming && (
+        {(hasBody || isStoppedOrError) && (isFinal || !progress) && !isStreaming && (
           <MessageActions
             text={text}
             onRegenerate={onRegenerate ? () => onRegenerate(messageId) : undefined}

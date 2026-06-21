@@ -46,6 +46,7 @@ export interface KnowledgeBase {
   description?: string;
   createdAt: ISODateString;
   updatedAt: ISODateString;
+  chunkCount?: number;
 }
 
 // Files / RAG
@@ -80,6 +81,11 @@ export interface Chunk {
   fileId: string;
   idx: number;
   text: string;
+  // Context-enriched text (document/section titles + text) used only for
+  // embedding and reranking. Display, prompt and citations still use `text`.
+  embeddingText?: string;
+  documentTitle?: string | null;
+  sectionTitle?: string | null;
   meta: ChunkMeta;
   embedding?: number[];
   fileName?: string;

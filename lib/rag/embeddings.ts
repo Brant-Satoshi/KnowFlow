@@ -104,7 +104,7 @@ export async function embedChunk(
   chunks: Chunk[],
   options?: EmbeddingOptions
 ): Promise<Chunk[]> {
-  const texts = chunks.map((chunk) => chunk.text);
+  const texts = chunks.map((chunk) => chunk.embeddingText ?? chunk.text);
   const vectors = await createEmbeddings(texts, options);
 
   return chunks.map((chunk, i) => ({

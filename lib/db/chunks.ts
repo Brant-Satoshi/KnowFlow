@@ -25,8 +25,18 @@ export async function replaceFileChunks(
         ? `[${chunk.embedding.join(',')}]`
         : null;
       await client.query(
-        'INSERT INTO chunks (id, file_id, idx, text, meta, embedding) VALUES ($1, $2, $3, $4, $5, $6::vector)',
-        [chunk.id, fileId, chunk.idx, chunk.text, JSON.stringify(chunk.meta), vector]
+        'INSERT INTO chunks (id, file_id, idx, text, embedding_text, document_title, section_title, meta, embedding) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::vector)',
+        [
+          chunk.id,
+          fileId,
+          chunk.idx,
+          chunk.text,
+          chunk.embeddingText ?? chunk.text,
+          chunk.documentTitle ?? null,
+          chunk.sectionTitle ?? null,
+          JSON.stringify(chunk.meta),
+          vector,
+        ]
       );
     }
     await client.query('COMMIT');
@@ -83,7 +93,9 @@ export async function searchChunks(
   if (knowledgeBaseId) {
     const rows = await query<ChunkWithDistance>(
       `
-      SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text, c.meta, f.name AS "fileName",
+      SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text,
+             c.embedding_text AS "embeddingText", c.document_title AS "documentTitle",
+             c.section_title AS "sectionTitle", c.meta, f.name AS "fileName",
              c.embedding <=> $1::vector AS distance
       FROM chunks c
       JOIN files f ON c.file_id = f.id::uuid
@@ -100,7 +112,9 @@ export async function searchChunks(
 
   const rows = await query<ChunkWithDistance>(
     `
-    SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text, c.meta, f.name AS "fileName",
+    SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text,
+           c.embedding_text AS "embeddingText", c.document_title AS "documentTitle",
+           c.section_title AS "sectionTitle", c.meta, f.name AS "fileName",
            c.embedding <=> $1::vector AS distance
     FROM chunks c
     JOIN files f ON c.file_id = f.id::uuid

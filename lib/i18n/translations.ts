@@ -4,6 +4,7 @@ export const translations = {
   en: {
     home: {
       title: BRAND_NAME,
+      evalEntry: "Evaluation",
       knowledgeBases: "Knowledge Bases",
       knowledgeBasesDesc: "Select a knowledge base to start chatting",
       createKnowledgeBase: "Create Knowledge Base",
@@ -57,6 +58,7 @@ export const translations = {
     },
     chat: {
       title: BRAND_NAME,
+      evalEntry: "Evaluation",
       workspaceLabel: "Workspace",
       workspaceReady: "Ready to chat",
       workspacePreparing: "Indexing in progress",
@@ -217,6 +219,7 @@ export const translations = {
       description: "Run the RAG pipeline against a fixed test set and measure retrieval and answer quality.",
       selectKnowledgeBase: "Select Knowledge Base",
       selectPlaceholder: "Choose a knowledge base...",
+      chunkCountLabel: "{count} chunks",
       runEval: "Run Evaluation",
       running: "Running...",
       noKnowledgeBases: "No knowledge bases found. Create one first.",
@@ -297,6 +300,7 @@ export const translations = {
   zh: {
     home: {
       title: BRAND_NAME,
+      evalEntry: "评测",
       knowledgeBases: "知识库",
       knowledgeBasesDesc: "选择一个知识库开始聊天",
       createKnowledgeBase: "创建知识库",
@@ -350,6 +354,7 @@ export const translations = {
     },
     chat: {
       title: BRAND_NAME,
+      evalEntry: "评测",
       workspaceLabel: "工作区",
       workspaceReady: "可以开始问答",
       workspacePreparing: "正在建立索引",
@@ -380,7 +385,7 @@ export const translations = {
       emptyStateTitle: "任意提问",
       emptyStateDesc: "上传文档来构建您的知识库，然后开始提问。",
       emptyStateWithKnowledgeDesc: "您的知识库已准备就绪。提出任何问题，获得基于文档的回答。",
-      emptyStatePrompt: "您希望此笔记本帮助您做什么？",
+      emptyStatePrompt: "您希望此知识库帮助您做什么？",
       emptyStateAddDocsHint: "打开左侧知识面板添加您的第一个文档",
       suggestions: {
         title: "可以尝试问",
@@ -509,6 +514,7 @@ export const translations = {
       description: "对固定题集运行 RAG 流程，评估检索与回答质量。",
       selectKnowledgeBase: "选择知识库",
       selectPlaceholder: "选择一个知识库...",
+      chunkCountLabel: "{count} 个片段",
       runEval: "运行评测",
       running: "评测中...",
       noKnowledgeBases: "暂无知识库，请先创建。",

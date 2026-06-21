@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowRight, BookmarkPlus, Edit3, Loader2, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react"
+import { ArrowRight, BookmarkPlus, Edit3, FlaskConical, Loader2, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { Button } from "@/components/ui/button"
 import {
@@ -401,6 +401,17 @@ export default function HomePage() {
             <Plus className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">{t.newCollection}</span>
             <span className="sm:hidden">{t.newCollectionShort}</span>
+          </Button>
+          <Button
+            asChild
+            variant="ghost"
+            className="h-8 rounded-full px-3.5 font-mono text-xs font-medium tracking-wide"
+          >
+            <Link href="/eval">
+              <FlaskConical className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{t.evalEntry}</span>
+              <span className="sr-only sm:hidden">{t.evalEntry}</span>
+            </Link>
           </Button>
           <SettingsMenu />
         </div>
