@@ -163,6 +163,8 @@ export async function saveRun(
       precisionAtK: result.precisionAtK ?? null,
       ndcgAtK: result.ndcgAtK ?? null,
       mrr: result.mrr ?? null,
+      avgFaithfulness: result.avgFaithfulness ?? null,
+      avgAnswerRelevance: result.avgAnswerRelevance ?? null,
     });
 
     if (result.cases.length === 0) {
@@ -185,6 +187,8 @@ export async function saveRun(
         answer: item.answer ?? "",
         expectedAnswer: item.expectedAnswer ?? null,
         gradedHits: item.gradedHits ?? null,
+        faithfulness: item.faithfulness ?? null,
+        answerRelevance: item.answerRelevance ?? null,
       })),
     );
   });

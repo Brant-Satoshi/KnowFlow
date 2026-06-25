@@ -86,6 +86,9 @@ export const evalRuns = pgTable(
     ndcgAtK: jsonb("ndcg_at_k").$type<Record<string, number> | null>(),
     mrr: doublePrecision("mrr"),
 
+    avgFaithfulness: doublePrecision("avg_faithfulness"),
+    avgAnswerRelevance: doublePrecision("avg_answer_relevance"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
     (table) => [
@@ -128,6 +131,9 @@ export const evalRunItems = pgTable(
     expectedAnswer: text("expected_answer"),
 
     gradedHits: jsonb("graded_hits").$type<unknown[] | null>(),
+
+    faithfulness: doublePrecision("faithfulness"),
+    answerRelevance: doublePrecision("answer_relevance"),
   },
   (table) => [
      index("eval_run_items_run_idx").on(table.runId, table.idx),
