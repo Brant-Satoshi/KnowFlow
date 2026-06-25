@@ -176,6 +176,10 @@ export interface EvalCaseResult {
   expectedAnswer?: string;
   /** Per-chunk relevance grade (0–3) aligned to `retrievedChunks`. Curated mode only. */
   gradedHits?: number[];
+  /** LLM-judge faithfulness 0–1 (answer grounded in chunks). null when not judged. */
+  faithfulness?: number | null;
+  /** LLM-judge answer relevance 0–1 (answer addresses the question). null when not judged. */
+  answerRelevance?: number | null;
 }
 
 export interface EvalRunResult {
@@ -192,6 +196,10 @@ export interface EvalRunResult {
   precisionAtK?: Record<number, number>;
   ndcgAtK?: Record<number, number>;
   mrr?: number;
+  /** Mean LLM-judge faithfulness over judged cases; null when none judged. */
+  avgFaithfulness?: number | null;
+  /** Mean LLM-judge answer relevance over judged cases; null when none judged. */
+  avgAnswerRelevance?: number | null;
   mode?: 'curated';
   datasetHash?: string;
 }
@@ -223,6 +231,8 @@ export interface EvalRunSummary {
   precisionAtK: Record<string, number> | null;
   ndcgAtK: Record<string, number> | null;
   mrr: number | null;
+  avgFaithfulness: number | null;
+  avgAnswerRelevance: number | null;
   createdAt: ISODateString;
 }
 
@@ -243,6 +253,8 @@ export interface EvalRunItemRecord {
   answer: string;
   expectedAnswer: string | null;
   gradedHits: number[] | null;
+  faithfulness: number | null;
+  answerRelevance: number | null;
 }
 
 /** A run plus its per-case items, as returned by `GET /api/eval/runs/[id]`. */

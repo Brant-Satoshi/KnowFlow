@@ -47,7 +47,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   try {
-    const comparison = await runComparison(cases, { knowledgeBaseId });
+    const comparison = await runComparison(cases, { knowledgeBaseId, judge: true, useRerank });
     const result = useRerank ? comparison.withRerank : comparison.withoutRerank;
     try {
       const datasetId = await ensureDataset(datasetName, undefined, cases);

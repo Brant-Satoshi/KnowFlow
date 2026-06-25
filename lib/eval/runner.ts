@@ -14,6 +14,7 @@ import { buildPrompt, generateAnswer } from '@/lib/llm/chat';
 import { gradeRecalled } from './relevance';
 import { aggregateMetrics } from './metrics';
 import { hashDataset } from './hash';
+import { judgeFaithfulness, judgeAnswerRelevance } from './judge';
 
 const TOP_K_VALUES = [1, 3, 5];
 const FINAL_TOP_K = 5;
@@ -24,9 +25,22 @@ const CASE_CONCURRENCY = 3;
 export interface RunCuratedEvalOpts {
   knowledgeBaseId: string;
   signal?: AbortSignal;
-  // PR 2 hooks (currently no-ops):
+  /** Run LLM-judge faithfulness/answer-relevance on the selected branch. */
   judge?: boolean;
+  /**
+   * Which rerank branch is the "selected" one the caller will keep. Judges run
+   * only on that branch to avoid wasting LLM calls on the discarded one.
+   * Defaults to the rerank-on branch.
+   */
+  useRerank?: boolean;
 }
+
+interface JudgeScores {
+  faithfulness: number | null;
+  answerRelevance: number | null;
+}
+
+const EMPTY_SCORES: JudgeScores = { faithfulness: null, answerRelevance: null };
 
 /**
  * Run a curated evaluation comparison (with/without rerank) over the given cases.
@@ -35,7 +49,8 @@ export interface RunCuratedEvalOpts {
  * configurations sharing the same recalled candidate set. Cases run with
  * bounded concurrency.
  *
- * No LLM judges in PR 1; faithfulness/answer-relevance are deferred.
+ * When `opts.judge` is set, LLM faithfulness/answer-relevance is graded on the
+ * selected branch (`opts.useRerank`) only.
  */
 export async function runComparison(
   cases: EvalCase[],
@@ -102,13 +117,29 @@ async function runCase(c: EvalCase, opts: RunCuratedEvalOpts): Promise<PerCaseRe
     runBranch(c, recalled, recallError, false, opts.signal),
   ]);
 
-  // PR 2 hook: judge calls would go here, in parallel per branch.
-  // const [faithful, relevance] = await Promise.all([judgeFaithfulness(...), judgeAnswerRelevance(...)]);
-
   const outOfScope = isOutOfScope(c);
+
+  // Judge only the branch the caller keeps; skip refusals and pipeline errors.
+  const useRerankSelected = opts.useRerank !== false;
+  const selected = useRerankSelected ? withRerankBranch : withoutRerankBranch;
+  let scores: JudgeScores = EMPTY_SCORES;
+  if (opts.judge && !selected.pipelineError && !outOfScope) {
+    const [faithfulness, answerRelevance] = await Promise.all([
+      judgeFaithfulness(selected.answer, selected.finalChunks, opts.signal),
+      judgeAnswerRelevance(c.question, selected.answer, opts.signal),
+    ]);
+    scores = { faithfulness, answerRelevance };
+  }
+
   return {
-    withRerank: { result: buildCaseResult(c, withRerankBranch, outOfScope), outOfScope },
-    withoutRerank: { result: buildCaseResult(c, withoutRerankBranch, outOfScope), outOfScope },
+    withRerank: {
+      result: buildCaseResult(c, withRerankBranch, outOfScope, useRerankSelected ? scores : EMPTY_SCORES),
+      outOfScope,
+    },
+    withoutRerank: {
+      result: buildCaseResult(c, withoutRerankBranch, outOfScope, useRerankSelected ? EMPTY_SCORES : scores),
+      outOfScope,
+    },
   };
 }
 
@@ -149,6 +180,7 @@ function buildCaseResult(
   c: EvalCase,
   branch: CaseBranchOutcome,
   outOfScope: boolean,
+  scores: JudgeScores,
 ): EvalCaseResult {
   const grades = gradeRecalled(branch.finalChunks, c);
 
@@ -201,6 +233,8 @@ function buildCaseResult(
     answer: branch.answer,
     expectedAnswer: c.expectedAnswer,
     gradedHits: grades,
+    faithfulness: scores.faithfulness,
+    answerRelevance: scores.answerRelevance,
   };
 }
 
@@ -246,9 +280,18 @@ function aggregate(
     precisionAtK: m.precisionAtK,
     ndcgAtK: m.ndcgAtK,
     mrr: m.mrr,
+    avgFaithfulness: meanNullable(caseResults.map(c => c.faithfulness ?? null)),
+    avgAnswerRelevance: meanNullable(caseResults.map(c => c.answerRelevance ?? null)),
     mode: 'curated',
     datasetHash,
   };
+}
+
+/** Mean over the non-null values; null when there are none (e.g. judging off). */
+function meanNullable(values: (number | null)[]): number | null {
+  const present = values.filter((v): v is number => v != null);
+  if (present.length === 0) return null;
+  return present.reduce((a, b) => a + b, 0) / present.length;
 }
 
 /**

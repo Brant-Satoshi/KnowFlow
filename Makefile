@@ -40,6 +40,9 @@ migrate:
 	docker exec -i $(CONTAINER) \
 		psql -U $(USER) -d $(DB) \
 		< db/migrations/008_add_chunk_context.sql
+	docker exec -i $(CONTAINER) \
+		psql -U $(USER) -d $(DB) \
+		< db/migrations/009_add_eval_judge_metrics.sql
 
 # Apply all migrations to DATABASE_URL (Supabase / any remote Postgres) via the
 # local psql client instead of `docker exec`. Migrations are idempotent
@@ -54,6 +57,7 @@ migrate-supabase:
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/006_add_eval.sql
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/007_add_auth.sql
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/008_add_chunk_context.sql
+	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/009_add_eval_judge_metrics.sql
 
 seed:
 	docker exec -i $(CONTAINER) \
