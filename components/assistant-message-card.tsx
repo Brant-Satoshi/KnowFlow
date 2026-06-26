@@ -3,6 +3,7 @@
 import { createContext, isValidElement, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
 import type { Components } from "react-markdown"
 import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { AlertCircle, Check, ChevronDown, Copy, Loader2, RefreshCw, Square, Volume2 } from "lucide-react"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import type { ActiveProgressStage, AssistantProgress } from "@/lib/hooks/use-chat-stream"
@@ -76,7 +77,7 @@ const CodeBlock: Components["pre"] = ({ children, className, node, ...rest }) =>
   return (
     <div className="mt-4 overflow-hidden rounded-xl border border-border bg-secondary">
       <div className="flex items-center justify-between border-b border-border bg-muted/40 px-3 py-1.5 text-[11.5px] text-muted-foreground">
-        <span className="font-mono">{language ?? ""}</span>
+        <span className="font-code">{language ?? ""}</span>
         <button
           type="button"
           onClick={handleCopy}
@@ -86,7 +87,7 @@ const CodeBlock: Components["pre"] = ({ children, className, node, ...rest }) =>
           <span>{copied ? t.messageActions.copied : t.messageActions.copy}</span>
         </button>
       </div>
-      <pre className={cn("overflow-x-auto p-4 text-sm", className)} {...rest}>
+      <pre className={cn("font-code overflow-x-auto p-4 text-sm leading-6", className)} {...rest}>
         {children}
       </pre>
     </div>
@@ -133,12 +134,29 @@ const markdownComponents: Components = {
       {renderWithCitations(children, "bq")}
     </blockquote>
   ),
+  table: ({ children }) => (
+    <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+      <table className="w-full border-collapse text-left text-sm">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => <thead className="bg-muted/50">{children}</thead>,
+  tr: ({ children }) => <tr className="border-b border-border last:border-b-0">{children}</tr>,
+  th: ({ children }) => (
+    <th className="border-r border-border px-3 py-2 font-semibold text-foreground last:border-r-0">
+      {renderWithCitations(children, "th")}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="border-r border-border px-3 py-2 align-top leading-6 last:border-r-0">
+      {renderWithCitations(children, "td")}
+    </td>
+  ),
   code: ({ children, className }) => {
     if (className) {
-      return <code className={cn("font-mono text-[13px]", className)}>{children}</code>
+      return <code className={cn("font-code text-[13px]", className)}>{children}</code>
     }
     return (
-      <code className="rounded-md bg-primary/8 px-1.5 py-0.5 font-mono text-[13px] text-foreground dark:bg-primary/12">
+      <code className="inline-code-token font-code text-[0.92em]">
         {children}
       </code>
     )
@@ -618,12 +636,14 @@ export function AssistantMessageCard({
                 <div className="text-base text-current">
                   {isStreaming ? (
                     <div className="streaming-active wrap-break-word leading-7">
-                      <ReactMarkdown components={markdownComponents}>
+                      <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
                         {text}
                       </ReactMarkdown>
                     </div>
                   ) : hasBody ? (
-                    <ReactMarkdown components={markdownComponents}>{text}</ReactMarkdown>
+                    <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                      {text}
+                    </ReactMarkdown>
                   ) : isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   ) : null}

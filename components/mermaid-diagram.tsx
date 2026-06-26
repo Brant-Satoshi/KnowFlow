@@ -57,7 +57,7 @@ export function MermaidDiagram({ code }: { code: string }) {
   if (failed) {
     return (
       <pre className="mt-4 overflow-x-auto rounded-xl border border-border bg-secondary p-4 text-sm">
-        <code className="font-mono text-[13px]">{code}</code>
+        <code className="font-code text-[13px]">{code}</code>
       </pre>
     )
   }

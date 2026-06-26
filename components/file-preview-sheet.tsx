@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { AlertCircle, Loader2 } from "lucide-react"
 import type { Components } from "react-markdown"
 import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { httpClient } from "@/lib/http/client"
@@ -77,13 +78,30 @@ const markdownComponents: Components = {
       {children}
     </blockquote>
   ),
+  table: ({ children }) => (
+    <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+      <table className="w-full border-collapse text-left text-sm">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => <thead className="bg-muted/50">{children}</thead>,
+  tr: ({ children }) => <tr className="border-b border-border last:border-b-0">{children}</tr>,
+  th: ({ children }) => (
+    <th className="border-r border-border px-3 py-2 font-semibold text-foreground last:border-r-0">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="border-r border-border px-3 py-2 align-top leading-6 last:border-r-0">
+      {children}
+    </td>
+  ),
   hr: () => <hr className="my-6 border-border" />,
   code: ({ children, className }) => {
     if (className) {
-      return <code className={cn("font-mono text-[13px]", className)}>{children}</code>
+      return <code className={cn("font-code text-[13px]", className)}>{children}</code>
     }
     return (
-      <code className="rounded-md bg-primary/8 px-1.5 py-0.5 font-mono text-[13px] text-foreground dark:bg-primary/12">
+      <code className="inline-code-token font-code text-[0.92em]">
         {children}
       </code>
     )
@@ -91,7 +109,7 @@ const markdownComponents: Components = {
   pre: ({ children, className }) => (
     <pre
       className={cn(
-        "mt-4 overflow-x-auto rounded-xl border border-border bg-secondary p-4 text-sm",
+        "mt-4 overflow-x-auto rounded-xl border border-border bg-secondary p-4 font-code text-sm leading-6",
         className,
       )}
     >
@@ -210,13 +228,15 @@ export function FilePreviewSheet({
           )}
 
           {status === "ready" && chunks.length > 0 && asMarkdown && (
-            <article className="break-words text-sm text-foreground">
-              <ReactMarkdown components={markdownComponents}>{markdownText}</ReactMarkdown>
+            <article className="wrap-break-word text-sm text-foreground">
+              <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                {markdownText}
+              </ReactMarkdown>
             </article>
           )}
 
           {status === "ready" && chunks.length > 0 && !asMarkdown && (
-            <article className="whitespace-pre-wrap break-words text-sm leading-7 text-foreground">
+            <article className="whitespace-pre-wrap wrap-break-word text-sm leading-7 text-foreground">
               {chunks.map((chunk) => {
                 const isTarget = chunk.id === chunkId
                 if (isTarget) {

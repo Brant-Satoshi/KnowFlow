@@ -36,6 +36,7 @@
   --radius-xl: calc(var(--radius) + 4px);
   --font-sans: var(--font-dm-sans), "SF Pro Text", "Segoe UI", system-ui, sans-serif;
   --font-mono: var(--font-dm-mono), "Courier New", monospace;
+  --font-code: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --font-display: var(--font-cormorant), "Iowan Old Style", "Palatino Linotype", serif;
 }
 
@@ -118,6 +119,9 @@
     --theme-user-msg-bg:     106 35% 93%;
     --theme-user-msg-text:   106 45% 22%;
     --chat-surface-border:   40 20% 92%;
+    --inline-code-bg:        0 0% 97%;
+    --inline-code-border:    0 0% 84%;
+    --inline-code-text:      0 63% 35%;
 
     /* Card accent bars — 5 warm hues */
     --card-accent-0: #C49A2E;  /* amber */
@@ -169,6 +173,9 @@
     --theme-user-msg-bg:     104 35% 20%;
     --theme-user-msg-text:   104 45% 88%;
     --chat-surface-border:   35 14% 11%;
+    --inline-code-bg:        30 8% 14%;
+    --inline-code-border:    30 7% 27%;
+    --inline-code-text:      2 73% 81%;
 
     /* Card accent bars — brighter in dark mode */
     --card-accent-0: #D4A847;  /* amber */
@@ -183,6 +190,14 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
+  }
+
+  /* Keep rendered code on a conventional editor font stack while preserving
+     DM Mono for UI labels, metrics, badges, and other decorative mono text. */
+  code,
+  pre {
+    --font-mono: var(--font-code);
+    font-family: var(--font-code);
   }
 
   /* Smooth color crossfade only during user-initiated theme switches.
@@ -202,6 +217,18 @@
 
 @layer utilities {
   .loading-dot-breathe   { animation: loading-dot-breathe 1.2s ease-in-out infinite; }
+  .font-code             { font-family: var(--font-code); }
+  .inline-code-token {
+    display: inline;
+    border: 1px solid hsl(var(--inline-code-border));
+    border-radius: 0.45rem;
+    background-color: hsl(var(--inline-code-bg));
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    color: hsl(var(--inline-code-text));
+    line-height: 1.35;
+    padding: 0.05rem 0.4rem 0.1rem;
+  }
   .streaming-cursor      { animation: streaming-cursor-blink 1s steps(1, end) infinite; }
   .streaming-active > *:last-child::after {
     content: '';
