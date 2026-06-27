@@ -21,7 +21,7 @@ const TXT_FIXTURE = path.join(__dirname, "fixtures/sample.txt")
 // Hard requirements — no fallbacks in code, so absence guarantees test failure.
 // OPENROUTER = chat + embeddings + rerank; SUPABASE = file storage
 // (the upload path writes to a Supabase Storage bucket).
-// DATABASE_URL has a localhost:5433/airag default in lib/db/pg.ts, so we don't
+// DATABASE_URL has a localhost:5433/knowflow default in local setup, so we don't
 // gate on it — if the default Postgres isn't reachable the test fails loudly.
 const REQUIRED_ENV = [
   "OPENROUTER_API_KEY",

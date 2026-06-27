@@ -61,7 +61,7 @@ export function ChatInput({
   const needsUpload = !!input.trim() && !hasKnowledge && !isPreparingKnowledge
 
   return (
-    <div className="px-3 pb-3 pt-2 sm:px-5 sm:pb-4 sm:pt-3">
+    <div className="px-3 pb-3 sm:px-5 sm:pb-4">
       <div className="mx-auto max-w-3xl w-full">
         <div className={cn(
           "relative flex flex-col gap-2 rounded-3xl border border-border bg-secondary px-3 py-2 transition-colors sm:px-4 sm:py-2.5",

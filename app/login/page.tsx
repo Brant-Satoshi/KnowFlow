@@ -55,7 +55,10 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-20 flex h-13 items-center justify-between border-b border-border bg-background px-5">
-        <BrandLogo name={BRAND_NAME} iconSize={28} />
+        <BrandLogo
+          name={BRAND_NAME}
+          textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
+        />
         <SettingsMenu />
       </header>
 

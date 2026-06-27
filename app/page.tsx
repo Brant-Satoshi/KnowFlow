@@ -225,11 +225,11 @@ function NewKBCard({ onClick, label }: { onClick: () => void; label: string }) {
 function EmptyState({ onCreate, t }: { onCreate: () => void; t: ReturnType<typeof useLanguage>["home"] }) {
   return (
     <div className="flex flex-col items-center gap-6 py-24 text-center">
-      <p className="font-display text-[38px] font-bold italic leading-none tracking-[-0.01em] text-foreground/50 sm:text-[48px]">
+      <p className="text-[38px] font-bold leading-none tracking-[-0.01em] text-foreground/50 sm:text-[48px]">
         {t.emptyCollectionTitle}
       </p>
-      <p className="font-mono text-sm text-muted-foreground">{t.noKnowledgeBasesHint}</p>
-      <Button onClick={onCreate} className="mt-1 h-9 rounded-full px-6 font-mono text-xs font-medium tracking-wide">
+      <p className="text-sm text-muted-foreground">{t.noKnowledgeBasesHint}</p>
+      <Button onClick={onCreate} className="mt-1 h-9 rounded-full px-6 text-sm font-medium tracking-wide">
         <Plus className="h-3.5 w-3.5" />
         {t.createKnowledgeBase}
       </Button>
@@ -390,7 +390,10 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       {/* ── Header ─────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 flex h-13 items-center justify-between border-b border-border bg-background px-5">
-        <BrandLogo name={t.title} iconSize={28} />
+        <BrandLogo
+          name={t.title}
+          textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
+        />
 
         <div className="flex items-center gap-1.5">
           <Button

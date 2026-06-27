@@ -83,7 +83,10 @@ export function EvalSidebar({
   return (
     <aside className="md:sticky md:top-0 md:h-screen flex flex-col border-b md:border-b-0 md:border-r border-sidebar-border bg-sidebar px-3 py-4 gap-1">
       <Link href="/" className="cursor-pointer flex items-center px-2 pb-4">
-        <BrandLogo name={appName} iconSize={26} />
+        <BrandLogo
+          name={appName}
+          textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
+        />
       </Link>
 
       <div className="px-2 pt-2 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground/70">

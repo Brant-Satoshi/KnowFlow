@@ -1,11 +1,11 @@
 services:
   postgres:
     image: pgvector/pgvector:pg18
-    container_name: ai-rag-postgres
+    container_name: knowflow-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: airag
+      POSTGRES_DB: knowflow
     ports:
       - "5433:5432"
     volumes:

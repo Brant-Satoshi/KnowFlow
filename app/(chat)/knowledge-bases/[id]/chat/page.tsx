@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ArrowDown, ArrowLeft, Database, FlaskConical, Loader2 } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { ChatInput } from "@/components/chat-input"
@@ -33,6 +33,7 @@ const chatSurfaceClass =
 export default function ChatPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const knowledgeBaseId = params.id as string
 
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBase | null>(null)
@@ -52,6 +53,8 @@ export default function ChatPage() {
   // each new selection aborts the prior in-flight update.
   const modelUpdateSeqRef = useRef(0)
   const modelUpdateAbortRef = useRef<AbortController | null>(null)
+  // Deep-link target from ?chatid, consumed once on the first conversation load.
+  const pendingChatIdRef = useRef<string | null>(searchParams.get("chatid"))
 
   const [previewState, setPreviewState] = useState<{ fileId: string; fileName: string; chunkId?: string } | null>(null)
   const openPreview: OpenPreview = useCallback(({ fileId, fileName, chunkId }) => {
@@ -166,7 +169,11 @@ export default function ChatPage() {
         const list: ConversationSummary[] = data?.conversations ?? []
         setConversations(list)
         if (list.length > 0) {
-          setCurrentConversationId(list[0].id)
+          const requested = pendingChatIdRef.current
+          pendingChatIdRef.current = null
+          setCurrentConversationId(
+            requested && list.some((c) => c.id === requested) ? requested : list[0].id
+          )
         }
       } catch (err) {
         if ((err as Error)?.name === "AbortError") return
@@ -185,6 +192,18 @@ export default function ChatPage() {
     }
   }, [knowledgeBaseId, showErrorToast, t.conversationListLoadFailed])
 
+  const syncChatIdToUrl = useCallback(
+    (id: string | null) => {
+      const next = new URLSearchParams(searchParams.toString())
+      if (id) next.set("chatid", id)
+      else next.delete("chatid")
+      const query = next.toString()
+      const base = `/knowledge-bases/${knowledgeBaseId}/chat`
+      router.replace(query ? `${base}?${query}` : base, { scroll: false })
+    },
+    [router, searchParams, knowledgeBaseId]
+  )
+
   const ensureConversation = useCallback(async (): Promise<string | null> => {
     if (currentConversationId) return currentConversationId
     if (creatingConversationRef.current) return null
@@ -202,6 +221,7 @@ export default function ChatPage() {
       setConversations((prev) => [created, ...prev])
       skipNextHydration()
       setCurrentConversationId(created.id)
+      syncChatIdToUrl(created.id)
       return created.id
     } catch (err) {
       console.error("Failed to create conversation:", err)
@@ -211,15 +231,22 @@ export default function ChatPage() {
       creatingConversationRef.current = false
       setCreatingConversation(false)
     }
-  }, [currentConversationId, knowledgeBaseId, skipNextHydration, showErrorToast, t.conversationCreateFailed])
+  }, [currentConversationId, knowledgeBaseId, skipNextHydration, syncChatIdToUrl, showErrorToast, t.conversationCreateFailed])
 
   const handleSelectConversation = useCallback(
     (id: string) => {
       setCurrentConversationId(id)
+      syncChatIdToUrl(id)
       if (isMobile) setMobileTab("ask")
     },
-    [isMobile]
+    [isMobile, syncChatIdToUrl]
   )
+
+  const handleNewConversation = useCallback(() => {
+    setCurrentConversationId(null)
+    setInput("")
+    syncChatIdToUrl(null)
+  }, [syncChatIdToUrl])
 
   const handleRenameConversation = useCallback(
     async (id: string, title: string): Promise<boolean> => {
@@ -293,7 +320,9 @@ export default function ChatPage() {
       })
       if (wasActive) {
         const next = conversations.filter((c) => c.id !== id)
-        setCurrentConversationId(next[0]?.id ?? null)
+        const nextId = next[0]?.id ?? null
+        setCurrentConversationId(nextId)
+        syncChatIdToUrl(nextId)
       }
 
       httpClient
@@ -301,13 +330,16 @@ export default function ChatPage() {
         .catch((err) => {
           console.error("Failed to delete conversation:", err)
           setConversations(snapshot)
-          if (wasActive) setCurrentConversationId(id)
+          if (wasActive) {
+            setCurrentConversationId(id)
+            syncChatIdToUrl(id)
+          }
           showErrorToast(t.conversationDeleteFailed)
         })
 
       return true
     },
-    [conversations, currentConversationId, showErrorToast, t.conversationDeleteFailed]
+    [conversations, currentConversationId, syncChatIdToUrl, showErrorToast, t.conversationDeleteFailed]
   )
 
   const handleSubmit = useCallback(async () => {
@@ -470,6 +502,10 @@ export default function ChatPage() {
                     />
                   )}
                 </div>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-linear-to-t from-card to-transparent"
+                />
                 {scrollDownButton}
                 </div>
 
@@ -511,7 +547,7 @@ export default function ChatPage() {
                 isLoading={conversationsLoading}
                 isCreating={creatingConversation}
                 onSelect={handleSelectConversation}
-                onCreate={() => { setCurrentConversationId(null); setInput("") }}
+                onCreate={handleNewConversation}
                 onRename={handleRenameConversation}
                 onDelete={handleDeleteConversation}
                 fullWidth
@@ -567,7 +603,7 @@ export default function ChatPage() {
             isLoading={conversationsLoading}
             isCreating={creatingConversation}
             onSelect={handleSelectConversation}
-            onCreate={() => { setCurrentConversationId(null); setInput("") }}
+            onCreate={handleNewConversation}
             onRename={handleRenameConversation}
             onDelete={handleDeleteConversation}
             className="rounded-none"
@@ -609,6 +645,10 @@ export default function ChatPage() {
                   />
                 </div>
               )}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-linear-to-t from-card to-transparent"
+              />
               {scrollDownButton}
             </div>
 

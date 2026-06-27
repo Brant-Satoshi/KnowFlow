@@ -10,11 +10,14 @@ import {
   vector,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+import { users, workspaces } from './auth';
 
 export const knowledgeBases = pgTable(
   'knowledge_bases',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     description: text('description'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -22,6 +25,8 @@ export const knowledgeBases = pgTable(
   },
   (table) => [
     index('kb_created_idx').on(table.createdAt.desc()),
+    index('kb_user_idx').on(table.userId),
+    index('kb_workspace_idx').on(table.workspaceId),
   ],
 );
 

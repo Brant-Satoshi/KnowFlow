@@ -16,14 +16,14 @@ export async function GET(req: NextRequest) {
     const id = searchParams.get('id');
 
     if (id) {
-      const knowledgeBase = await getKnowledgeBaseById(id);
+      const knowledgeBase = await getKnowledgeBaseById(id, auth.id);
       if (!knowledgeBase) {
         return Response.json(error('Knowledge base not found'), { status: 404 });
       }
       return Response.json(success({ knowledgeBase }));
     }
 
-    const knowledgeBases = await listKnowledgeBases();
+    const knowledgeBases = await listKnowledgeBases(auth.id);
     return Response.json(success({ knowledgeBases }));
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to list knowledge bases';
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       return Response.json(error('Name is required'), { status: 400 });
     }
 
-    const knowledgeBase = await createKnowledgeBase(name, description);
+    const knowledgeBase = await createKnowledgeBase(name, auth.id, description);
     return Response.json(success({ knowledgeBase }), { status: 201 });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to create knowledge base';
