@@ -20,7 +20,7 @@ export async function GET(
 
   try {
     const { id } = await params;
-    const knowledgeBase = await getKnowledgeBaseById(id);
+    const knowledgeBase = await getKnowledgeBaseById(id, auth.id);
 
     if (!knowledgeBase) {
       return Response.json(error('Knowledge base not found'), { status: 404 });
@@ -42,7 +42,7 @@ export async function PUT(
 
   try {
     const { id } = await params;
-    const existing = await getKnowledgeBaseById(id);
+    const existing = await getKnowledgeBaseById(id, auth.id);
 
     if (!existing) {
       return Response.json(error('Knowledge base not found', { code: 'KB_NOT_FOUND' }), { status: 404 });
@@ -63,7 +63,7 @@ export async function PUT(
       return Response.json(error('Description must be a string', { code: 'KB_UPDATE_FAILED' }), { status: 400 });
     }
 
-    const updated = await updateKnowledgeBase(id, {
+    const updated = await updateKnowledgeBase(id, auth.id, {
       name: typeof name === 'string' ? name.trim() : undefined,
       description: typeof description === 'string' ? description.trim() : undefined,
     });
@@ -89,7 +89,7 @@ export async function DELETE(
       return Response.json(error('Invalid knowledge base ID', { code: 'INVALID_KB_ID' }), { status: 400 });
     }
 
-    const knowledgeBase = await getKnowledgeBaseById(id);
+    const knowledgeBase = await getKnowledgeBaseById(id, auth.id);
 
     if (!knowledgeBase) {
       return Response.json(error('Knowledge base not found', { code: 'KB_NOT_FOUND' }), { status: 404 });
@@ -102,7 +102,7 @@ export async function DELETE(
       );
     }
 
-    const files = await listKnowledgeBaseDeleteFiles(id);
+    const files = await listKnowledgeBaseDeleteFiles(id, auth.id);
     const { failedKeys } = await deleteFiles(files);
 
     if (failedKeys.length > 0) {
@@ -116,7 +116,7 @@ export async function DELETE(
       );
     }
 
-    const deleted = await deleteKnowledgeBase(id);
+    const deleted = await deleteKnowledgeBase(id, auth.id);
 
     if (!deleted) {
       return Response.json(error('Knowledge base not found', { code: 'KB_NOT_FOUND' }), { status: 404 });

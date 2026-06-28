@@ -25,7 +25,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(
   undefined
 )
 
-const STORAGE_KEY = "askbase-language"
+const STORAGE_KEY = "knowflow-language"
 const emptySubscribe = () => () => {}
 
 function getInitialLanguage(): Language {

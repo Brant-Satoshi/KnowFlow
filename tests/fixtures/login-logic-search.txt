@@ -1,0 +1,85 @@
+# RAG Hybrid Search 测试文档
+
+## 测试组一：文件名与函数名
+
+### Chunk A：middleware.ts
+
+`middleware.ts` 用于在 Next.js 项目中执行页面级访问控制。它运行在请求进入页面之前，可以根据 session cookie 判断用户是否已经登录。如果用户没有登录并访问受保护页面，系统会将请求重定向到 `/login`。这个文件只负责页面导航层面的拦截，不负责真正的数据权限校验。真正的用户身份验证和数据库访问控制仍然需要在服务端 API 中完成。
+
+### Chunk B：requireUser()
+
+`requireUser()` 是服务端 API 中使用的用户校验函数。它会读取当前请求中的 session 信息，并到数据库中验证 session 是否真实有效。如果 session 已经过期、被撤销或不存在，该函数会返回未授权错误。它通常用于保护 `/api/documents`、`/api/chat`、`/api/rag/search` 等接口，确保用户只能调用自己有权限访问的服务端资源。
+
+### Chunk C：login.tsx
+
+`login.tsx` 是登录页面组件，主要负责渲染邮箱、密码输入框和登录按钮。用户提交表单后，前端会调用登录接口，服务端验证账号密码并写入 session cookie。这个页面本身不负责数据库权限校验，也不直接访问知识库数据。它只承担用户登录入口和错误提示展示的职责，例如账号不存在、密码错误或网络异常。
+
+## 测试组二：合同编号与付款周期
+
+### Chunk A：HT-2026-001
+
+合同编号 `HT-2026-001` 对应的是企业知识库一期建设项目。该合同约定，服务方需要完成文档上传、基础向量检索、问答页面和引用来源展示。付款周期为每月 15 日前结算一次，甲方根据当月验收情况支付对应服务费用。如果当月存在重大缺陷，甲方可以顺延付款直到问题修复完成。
+
+### Chunk B：HT-2026-002
+
+合同编号 `HT-2026-002` 对应的是 RAG 检索评估平台升级项目。该合同约定，服务方需要补充 hybrid search、metadata filter、Golden Set 管理和 Recall@5 评估功能。付款周期为每季度结算一次，每个季度结束后的 10 个工作日内完成验收，验收通过后甲方支付该季度服务费用。
+
+### Chunk C：HT-2026-003
+
+合同编号 `HT-2026-003` 对应的是企业多租户权限改造项目。该合同约定，服务方需要完成 workspace、workspace_members、documents、chunks 等表的权限隔离设计，并在数据库层开启 RLS 策略。付款周期为项目最终验收后 30 日内一次性结算，验收标准包括越权访问测试和接口权限测试。
+
+## 测试组三：权限缩写与认证概念
+
+### Chunk A：RLS
+
+`RLS` 是 Row Level Security 的缩写，表示行级安全策略。它通常用于数据库层限制用户只能访问自己有权限的数据。在多租户知识库系统中，documents 和 chunks 都应该绑定 `user_id` 或 `workspace_id`，并通过 RLS policy 限制查询范围。这样即使 API 层出现疏漏，数据库层仍然可以阻止用户读取其他租户的数据。
+
+### Chunk B：RBAC
+
+`RBAC` 是 Role Based Access Control 的缩写，表示基于角色的访问控制。它通常通过 admin、editor、viewer 等角色来决定用户能执行哪些操作。在知识库系统中，admin 可以管理成员和删除文档，editor 可以上传和编辑文档，viewer 只能查看和提问。RBAC 更关注用户“能做什么操作”，而不是单行数据是否可见。
+
+### Chunk C：JWT
+
+`JWT` 是 JSON Web Token 的缩写，常用于身份认证和会话传递。服务端可以在用户登录后签发 JWT，客户端在后续请求中携带该 token。服务端解析 JWT 后可以获得用户身份、过期时间和其他声明信息。在 Supabase 场景中，数据库函数如 `auth.uid()` 通常依赖当前请求携带的认证上下文。
+
+## 测试组四：中英混合 RAG 术语
+
+### Chunk A：metadata filter
+
+`metadata filter` 用于在 RAG 检索时按元数据限制搜索范围。常见过滤字段包括 `workspace_id`、`document_id`、`user_id`、`section`、`source_type` 和 `created_at`。它的作用不是提高语义理解能力，而是缩小检索空间，避免模型从错误文档或错误租户中召回内容。例如用户只想问某一份合同，就应该在检索时加上 `document_id` 过滤条件。
+
+### Chunk B：rerank
+
+`rerank` 用于对初步召回的 chunks 重新排序。向量检索或关键词检索通常会先召回 top 20 或 top 50 个候选片段，但这些片段的排序不一定最适合最终回答。rerank 模型会结合用户问题和候选 chunk 内容，重新判断哪几个片段最相关。最终系统通常只把 top 5 或 top 8 的 chunk 放入 prompt，以控制 token 成本并提高回答质量。
+
+### Chunk C：faithfulness
+
+`faithfulness` 用于评估大模型回答是否忠实于检索到的上下文。一个回答看起来流畅并不代表它可靠，因为模型可能会补充资料中没有的信息。在 RAG 系统中，如果答案中的关键结论无法从引用 chunk 中找到依据，就说明 faithfulness 存在问题。企业知识库尤其需要关注这个指标，因为错误答案可能比不回答更危险。
+
+## 测试组五：相似语义但实体不同
+
+### Chunk A：张三
+
+张三负责 RAG 检索模块，主要工作包括文档切分、embedding 生成、向量检索、关键词检索和 RRF 融合排序。他还负责设计 Golden Set，并使用 Recall@5、MRR 和引用命中率评估检索质量。张三的工作重点是让系统能够更稳定地找到正确 chunk，而不是只依赖大模型生成答案。
+
+### Chunk B：李四
+
+李四负责登录权限模块，主要工作包括 session 管理、Supabase Auth、RLS policy、workspace_members 表设计和 API 权限校验。他需要保证用户只能访问自己所在 workspace 的 documents 和 chunks。李四的工作重点是多租户数据隔离，防止用户通过接口或检索结果看到其他租户的知识库内容。
+
+### Chunk C：王五
+
+王五负责部署与运维模块，主要工作包括 Vercel 部署、VPS 迁移、Docker 打包、Nginx 反向代理和 HTTPS 证书配置。他还负责记录接口延迟、模型调用耗时和服务异常日志。王五的工作重点是让项目在国内面试演示时更加稳定，避免因为网络访问问题影响项目展示。
+
+## 测试组六：拼写错误与模糊匹配
+
+### Chunk A：Supabase RLS
+
+`Supabase RLS` 用于在数据库层控制用户可以访问哪些行数据。如果用户发现自己明明上传了文档，但查询时看不到对应数据，常见原因是 RLS policy 没有正确使用 `auth.uid()`，或者服务端请求没有携带正确的用户认证上下文。排查时应该先确认 session 是否有效，再检查 documents 和 chunks 表上的 RLS 策略。
+
+### Chunk B：Supabase Storage
+
+`Supabase Storage` 用于保存用户上传的文件，例如 PDF、Markdown、Word 文档或图片。文件上传后，系统通常会记录 bucket、path、file_name 和 mime_type 等信息。Storage 只负责对象存储，不负责向量检索。真正用于 RAG 搜索的是文件解析后写入 chunks 表的文本内容和 embedding 向量。
+
+### Chunk C：Vercel Deploy
+
+`Vercel Deploy` 适合快速部署 Next.js 项目，可以自动处理构建、预览环境和生产环境发布。对于海外访问场景，Vercel 的体验很好。但如果项目需要在国内稳定演示，可能需要准备 VPS 版本，并通过自己的域名访问。部署层面的优化不能解决 RAG 检索质量问题，但会影响面试演示的稳定性。

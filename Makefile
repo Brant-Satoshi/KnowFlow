@@ -1,7 +1,7 @@
 .PHONY: db-reset db-init migrate migrate-supabase seed logs
 
-CONTAINER=ai-rag-postgres
-DB=airag
+CONTAINER=knowflow-postgres
+DB=knowflow
 USER=postgres
 
 # Connection string for remote Postgres (Supabase). Taken from the shell env if
@@ -43,6 +43,9 @@ migrate:
 	docker exec -i $(CONTAINER) \
 		psql -U $(USER) -d $(DB) \
 		< db/migrations/009_add_eval_judge_metrics.sql
+	docker exec -i $(CONTAINER) \
+		psql -U $(USER) -d $(DB) \
+		< db/migrations/010_add_workspaces.sql
 
 # Apply all migrations to DATABASE_URL (Supabase / any remote Postgres) via the
 # local psql client instead of `docker exec`. Migrations are idempotent
@@ -58,6 +61,7 @@ migrate-supabase:
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/007_add_auth.sql
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/008_add_chunk_context.sql
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/009_add_eval_judge_metrics.sql
+	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/010_add_workspaces.sql
 
 seed:
 	docker exec -i $(CONTAINER) \

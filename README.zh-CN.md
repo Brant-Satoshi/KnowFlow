@@ -1,4 +1,4 @@
-# ai-rag-app
+# KnowFlow
 
 > [English](./README.md) · **简体中文**
 
@@ -40,7 +40,7 @@ pnpm dev                            # http://localhost:3000
 
 ### 初始化数据库
 
-migrations 在 `db/migrations/` 下。`Makefile` 默认走名为 `ai-rag-postgres` 的本地 Docker Postgres 容器：
+migrations 在 `db/migrations/` 下。`Makefile` 默认走名为 `knowflow-postgres` 的本地 Docker Postgres 容器：
 
 ```bash
 make migrate     # 把 001_init … 005_add_conversation_model 跑到容器里

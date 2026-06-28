@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const kb = await getKnowledgeBaseById(knowledgeBaseId);
+    const kb = await getKnowledgeBaseById(knowledgeBaseId, auth.id);
     if (!kb) {
       return Response.json(
         error('Knowledge base not found', { code: 'KB_NOT_FOUND' }),

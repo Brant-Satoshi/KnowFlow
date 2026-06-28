@@ -1,4 +1,4 @@
-# ai-rag-app
+# KnowFlow
 
 > **English** · [简体中文](./README.zh-CN.md)
 
@@ -40,7 +40,7 @@ Optional:
 
 ### Database setup
 
-Migrations live in `db/migrations/`. The `Makefile` targets assume a local Docker Postgres container named `ai-rag-postgres`:
+Migrations live in `db/migrations/`. The `Makefile` targets assume a local Docker Postgres container named `knowflow-postgres`:
 
 ```bash
 make migrate     # runs 001_init … 005_add_conversation_model against the container
