@@ -85,6 +85,7 @@ export function EvalSidebar({
       <Link href="/" className="cursor-pointer flex items-center px-2 pb-4">
         <BrandLogo
           name={appName}
+          wordmarkAccent
           textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
         />
       </Link>
