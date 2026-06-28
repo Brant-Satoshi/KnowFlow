@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, DM_Mono, DM_Sans } from "next/font/google";
+import { IBM_Plex_Mono, Schibsted_Grotesk } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { BRAND_DESCRIPTION, BRAND_NAME } from "@/lib/brand";
@@ -7,26 +7,18 @@ import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 import "./globals.css";
 
-const cormorant = Cormorant_Garamond({
+const schibsted = Schibsted_Grotesk({
   subsets: ["latin"],
-  weight: ["400", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-cormorant",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-schibsted",
   display: "swap",
 });
 
-const dmMono = DM_Mono({
+const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
   style: ["normal", "italic"],
-  variable: "--font-dm-mono",
-  display: "swap",
-});
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-dm-sans",
+  variable: "--font-ibm-plex-mono",
   display: "swap",
 });
 
@@ -48,7 +40,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`antialiased ${cormorant.variable} ${dmMono.variable} ${dmSans.variable}`}>
+      <body className={`antialiased ${schibsted.variable} ${ibmPlexMono.variable}`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
