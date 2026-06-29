@@ -76,19 +76,6 @@ export async function getKnowledgeBaseById(
   return rows[0] ? toKnowledgeBase(rows[0]) : undefined;
 }
 
-export async function getKnowledgeBaseByName(name: string): Promise<KnowledgeBase | undefined> {
-  const rows = await db
-    .select()
-    .from(knowledgeBases)
-    .where(eq(knowledgeBases.name, name))
-    .limit(1);
-  return rows[0] ? toKnowledgeBase(rows[0]) : undefined;
-}
-
-export async function getDefaultKnowledgeBase(): Promise<KnowledgeBase | undefined> {
-  return getKnowledgeBaseByName(DEFAULT_KB_NAME);
-}
-
 async function getDefaultWorkspaceId(userId: string) {
   const [member] = await db
     .select({

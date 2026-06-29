@@ -29,11 +29,6 @@ export async function getFiles(knowledgeBaseId?: string): Promise<FileDoc[]> {
   return rows.map(toFileDoc);
 }
 
-export async function getFileById(id: string): Promise<FileDoc | undefined> {
-  const rows = await db.select().from(files).where(eq(files.id, id)).limit(1);
-  return rows[0] ? toFileDoc(rows[0]) : undefined;
-}
-
 export async function addFile(file: FileDoc, knowledgeBaseId: string): Promise<FileDoc> {
   const rows = await db
     .insert(files)

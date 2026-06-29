@@ -3,6 +3,7 @@ import { success, error } from '@/lib/api/response';
 import { requireUser } from '@/lib/auth/current-user';
 import { deleteMessages } from '@/lib/db/conversations';
 import { isValidUuid } from '@/lib/validation';
+import { isNotFoundOrForbiddenError, requireConversationAccess } from '@/lib/authz/access';
 
 export async function DELETE(
   req: NextRequest,
@@ -35,9 +36,14 @@ export async function DELETE(
       return Response.json(error('messageIds contains invalid UUIDs'), { status: 400 });
     }
 
+    await requireConversationAccess(auth.id, id);
+
     const deleted = await deleteMessages(id, messageIds);
     return Response.json(success({ deleted }));
   } catch (e) {
+    if (isNotFoundOrForbiddenError(e)) {
+      return Response.json(error(e.message, { code: 'CONVERSATION_NOT_FOUND' }), { status: 404 });
+    }
     const message = e instanceof Error ? e.message : 'Failed to delete messages';
     return Response.json(error(message), { status: 500 });
   }

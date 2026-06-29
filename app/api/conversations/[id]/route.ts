@@ -9,6 +9,7 @@ import {
 } from '@/lib/db/conversations';
 import { isKnownChatModel } from '@/lib/llm/catalog';
 import { isValidUuid } from '@/lib/validation';
+import { isNotFoundOrForbiddenError, requireConversationAccess } from '@/lib/authz/access';
 
 export async function GET(
   _req: NextRequest,
@@ -26,6 +27,8 @@ export async function GET(
       );
     }
 
+    await requireConversationAccess(auth.id, id);
+
     const conversation = await getConversationWithMessages(id);
     if (!conversation) {
       return Response.json(
@@ -36,6 +39,9 @@ export async function GET(
 
     return Response.json(success({ conversation }));
   } catch (e) {
+    if (isNotFoundOrForbiddenError(e)) {
+      return Response.json(error(e.message, { code: 'CONVERSATION_NOT_FOUND' }), { status: 404 });
+    }
     const message = e instanceof Error ? e.message : 'Failed to load conversation';
     return Response.json(error(message), { status: 500 });
   }
@@ -93,6 +99,8 @@ export async function PUT(
       }
     }
 
+    await requireConversationAccess(auth.id, id);
+
     let conversation;
     if (hasTitle) {
       conversation = await updateConversationTitle(id, (title as string).trim());
@@ -110,6 +118,9 @@ export async function PUT(
 
     return Response.json(success({ conversation }));
   } catch (e) {
+    if (isNotFoundOrForbiddenError(e)) {
+      return Response.json(error(e.message, { code: 'CONVERSATION_NOT_FOUND' }), { status: 404 });
+    }
     const message = e instanceof Error ? e.message : 'Failed to update conversation';
     return Response.json(error(message), { status: 500 });
   }
@@ -131,6 +142,8 @@ export async function DELETE(
       );
     }
 
+    await requireConversationAccess(auth.id, id);
+
     const deleted = await deleteConversation(id);
     if (!deleted) {
       return Response.json(
@@ -141,6 +154,9 @@ export async function DELETE(
 
     return Response.json(success({ deleted: true }));
   } catch (e) {
+    if (isNotFoundOrForbiddenError(e)) {
+      return Response.json(error(e.message, { code: 'CONVERSATION_NOT_FOUND' }), { status: 404 });
+    }
     const message = e instanceof Error ? e.message : 'Failed to delete conversation';
     return Response.json(error(message), { status: 500 });
   }

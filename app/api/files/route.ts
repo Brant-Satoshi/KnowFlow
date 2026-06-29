@@ -1,7 +1,11 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
 import { requireUser } from '@/lib/auth/current-user';
-import { getFiles } from '@/lib/db/files';
+import {
+  isNotFoundOrForbiddenError,
+  listAccessibleFiles,
+  requireKnowledgeBaseAccess,
+} from '@/lib/authz/access';
 import { isValidUuid } from '@/lib/validation';
 
 export async function GET(req: NextRequest) {
@@ -16,9 +20,16 @@ export async function GET(req: NextRequest) {
       return Response.json(error('Invalid knowledgeBaseId'), { status: 400 });
     }
 
-    const files = await getFiles(knowledgeBaseId || undefined);
+    if (knowledgeBaseId) {
+      await requireKnowledgeBaseAccess(auth.id, knowledgeBaseId);
+    }
+
+    const files = await listAccessibleFiles(auth.id, knowledgeBaseId || undefined);
     return Response.json(success({ files }));
   } catch (e) {
+    if (isNotFoundOrForbiddenError(e)) {
+      return Response.json(error(e.message), { status: 404 });
+    }
     const message = e instanceof Error ? e.message : 'Failed to get files';
     return Response.json(error(message), { status: 500 });
   }

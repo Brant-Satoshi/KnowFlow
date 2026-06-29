@@ -2,7 +2,6 @@ import { searchChunks } from '@/lib/db/chunks';
 import {
   appendMessage,
   DEFAULT_CONVERSATION_TITLE,
-  getConversationById,
   listRecentMessages,
   touchConversation,
   updateConversationModel,
@@ -23,6 +22,7 @@ import { isValidUuid } from '@/lib/validation';
 import { rerankChunks } from '@/lib/rag/rerank';
 import type { RetrievedChunk } from '@/lib/types';
 import { requireUser } from '@/lib/auth/current-user';
+import { isNotFoundOrForbiddenError, requireConversationAccess } from '@/lib/authz/access';
 
 const MAX_HISTORY_MESSAGES = 8;
 
@@ -102,12 +102,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const conversation = await getConversationById(conversationId);
-  if (!conversation) {
-    return Response.json(
-      { requestId, ok: false, error: 'Conversation not found' },
-      { status: 404 },
-    );
+  let conversation;
+  try {
+    conversation = await requireConversationAccess(auth.id, conversationId);
+  } catch (e) {
+    if (isNotFoundOrForbiddenError(e)) {
+      return Response.json(
+        { requestId, ok: false, error: e.message },
+        { status: 404 },
+      );
+    }
+    throw e;
   }
 
   if (knowledgeBaseId && conversation.knowledgeBaseId !== knowledgeBaseId) {

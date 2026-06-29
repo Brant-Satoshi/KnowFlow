@@ -6,6 +6,7 @@ import { requireUser } from '@/lib/auth/current-user';
 import { addFile } from '@/lib/db/files';
 import { supabase, STORAGE_BUCKET } from '@/lib/db/supabase';
 import { isValidUuid } from '@/lib/validation';
+import { isNotFoundOrForbiddenError, requireKnowledgeBaseAccess } from '@/lib/authz/access';
 
 export async function POST(req: NextRequest) {
   const auth = await requireUser();
@@ -23,6 +24,8 @@ export async function POST(req: NextRequest) {
     if (!knowledgeBaseId || !isValidUuid(knowledgeBaseId)) {
       return Response.json(error('Valid knowledgeBaseId is required'), { status: 400 });
     }
+
+    await requireKnowledgeBaseAccess(auth.id, knowledgeBaseId);
 
     const allowedExtensions = ['.md', '.txt', '.pdf', '.doc', '.docx'];
     const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
@@ -61,6 +64,9 @@ export async function POST(req: NextRequest) {
 
     return Response.json(success({ file: fileDoc }));
   } catch (e) {
+    if (isNotFoundOrForbiddenError(e)) {
+      return Response.json(error(e.message), { status: 404 });
+    }
     const message = e instanceof Error ? e.message : 'Upload failed';
     return Response.json(error(message), { status: 500 });
   }
