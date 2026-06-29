@@ -200,7 +200,7 @@ export function FilePreviewSheet({
         side="right"
         className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
       >
-        <SheetHeader className="border-b border-border px-6 py-4">
+        <SheetHeader className="flex h-13 flex-row items-center border-b border-border px-6">
           <SheetTitle className="truncate pr-8 text-base font-semibold text-foreground" title={fileName ?? undefined}>
             {fileName ?? t.filePreview.title}
           </SheetTitle>
