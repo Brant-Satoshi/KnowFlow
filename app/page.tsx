@@ -392,6 +392,7 @@ export default function HomePage() {
       <header className="sticky top-0 z-20 flex h-13 items-center justify-between border-b border-border bg-background px-5">
         <BrandLogo
           name={t.title}
+          wordmarkAccent
           textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
         />
 

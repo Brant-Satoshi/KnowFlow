@@ -424,8 +424,8 @@ export default function ChatPage() {
         <div className="home-orb-float pointer-events-none absolute -right-12 top-32 h-72 w-72 rounded-full bg-[#4A8A5C]/5 blur-3xl dark:bg-[#4A8A5C]/8 [animation-delay:-5s]" />
 
         <div className="relative flex min-h-0 flex-1 flex-col">
-          <header className={cn("px-4 py-3", chatSurfaceClass)}>
-            <div className="flex items-center justify-between gap-3">
+          <header className={cn("flex h-13 items-center px-4", chatSurfaceClass)}>
+            <div className="flex w-full items-center justify-between gap-3">
               <Link href="/" className="min-w-0">
                 <BrandLogo
                   name={knowledgeBase?.name || t.title}
@@ -576,8 +576,8 @@ export default function ChatPage() {
       <div className="home-orb-float pointer-events-none absolute -bottom-28 left-1/3 h-80 w-80 rounded-full bg-[#C05B3C]/4 blur-3xl dark:bg-[#C05B3C]/6 [animation-delay:-9s]" />
 
       <div className="relative flex min-h-0 w-full flex-1 flex-col">
-        <header className={cn("px-4 py-3 sm:px-5", chatSurfaceClass)}>
-          <div className="flex items-center justify-between gap-4">
+        <header className={cn("flex h-13 items-center px-4 sm:px-5", chatSurfaceClass)}>
+          <div className="flex w-full items-center justify-between gap-4">
             <Link href="/" className="min-w-0">
               <BrandLogo
                 name={knowledgeBase?.name || t.title}

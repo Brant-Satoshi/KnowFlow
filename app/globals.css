@@ -34,10 +34,10 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-dm-sans), "SF Pro Text", "Segoe UI", system-ui, sans-serif;
-  --font-mono: var(--font-dm-mono), "Courier New", monospace;
+  --font-sans: var(--font-schibsted), "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), "Courier New", monospace;
   --font-code: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --font-display: var(--font-cormorant), "Iowan Old Style", "Palatino Linotype", serif;
+  --font-display: var(--font-schibsted), "SF Pro Display", "Segoe UI", system-ui, sans-serif;
 }
 
 @layer base {
@@ -80,101 +80,101 @@
   :root {
     color-scheme: light;
 
-    /* Core — soft warm parchment (lighter) */
-    --background:            40 40% 96%;      /* #F8F4E9 light parchment */
-    --foreground:            28 12% 12%;      /* warm near-black */
-    --card:                  40 30% 99%;      /* near-white airy surface */
-    --card-foreground:       28 12% 12%;
-    --popover:               40 30% 99%;
-    --popover-foreground:    28 12% 12%;
+    /* Core — cool blue-grey "Mist" */
+    --background:            190 15% 92%;     /* #E8EDEE cool mist */
+    --foreground:            171 25% 10%;     /* #13201E deep slate-teal */
+    --card:                  0 0% 100%;       /* #FFFFFF crisp surface */
+    --card-foreground:       171 25% 10%;
+    --popover:               0 0% 100%;
+    --popover-foreground:    171 25% 10%;
 
-    /* Primary — deeper forest green */
-    --primary:               106 49% 32%;     /* #3D7A2A */
+    /* Primary — teal */
+    --primary:               175 84% 32%;     /* #0D9488 teal-600 */
     --primary-foreground:    0 0% 100%;
 
-    --secondary:             40 25% 95%;
-    --secondary-foreground:  28 12% 25%;
-    --muted:                 40 25% 93%;
-    --muted-foreground:      38 12% 48%;      /* slightly softer muted */
-    --accent:                106 49% 32%;
+    --secondary:             190 13% 95%;
+    --secondary-foreground:  172 14% 22%;
+    --muted:                 190 13% 94%;
+    --muted-foreground:      172 7% 46%;      /* #6E7E7C cool muted */
+    --accent:                175 84% 32%;
     --accent-foreground:     0 0% 100%;
     --destructive:           0 84% 60%;
     --destructive-foreground:0 0% 98%;
-    --border:                40 20% 92%;
-    --input:                 40 20% 92%;
-    --ring:                  106 49% 32%;
+    --border:                189 9% 84%;
+    --input:                 189 9% 84%;
+    --ring:                  175 84% 32%;
     --radius:                0.75rem;
 
     /* Sidebar */
-    --sidebar-background:            40 32% 94%;
-    --sidebar-foreground:            28 12% 25%;
-    --sidebar-primary:               106 49% 32%;
+    --sidebar-background:            190 16% 90%;
+    --sidebar-foreground:            172 12% 24%;
+    --sidebar-primary:               175 84% 32%;
     --sidebar-primary-foreground:    0 0% 100%;
-    --sidebar-accent:                40 24% 91%;
-    --sidebar-accent-foreground:     28 12% 25%;
-    --sidebar-border:                40 20% 92%;
-    --sidebar-ring:                  106 49% 32%;
+    --sidebar-accent:                190 14% 87%;
+    --sidebar-accent-foreground:     172 12% 24%;
+    --sidebar-border:                189 9% 84%;
+    --sidebar-ring:                  175 84% 32%;
 
     /* Chat surface specifics */
-    --theme-user-msg-bg:     106 35% 93%;
-    --theme-user-msg-text:   106 45% 22%;
-    --chat-surface-border:   40 20% 92%;
-    --inline-code-bg:        0 0% 97%;
-    --inline-code-border:    0 0% 84%;
+    --theme-user-msg-bg:     174 40% 92%;
+    --theme-user-msg-text:   176 55% 20%;
+    --chat-surface-border:   189 9% 84%;
+    --inline-code-bg:        190 14% 96%;
+    --inline-code-border:    190 10% 84%;
     --inline-code-text:      0 63% 35%;
 
-    /* Card accent bars — 5 warm hues */
-    --card-accent-0: #C49A2E;  /* amber */
-    --card-accent-1: #4A8A5C;  /* sage */
-    --card-accent-2: #C05B3C;  /* terracotta */
-    --card-accent-3: #4A6B8A;  /* slate */
-    --card-accent-4: #7A4A8A;  /* plum */
+    /* Card accent bars — 5 hues */
+    --card-accent-0: #D9A441;  /* amber */
+    --card-accent-1: #4E8C5A;  /* sage */
+    --card-accent-2: #C8612C;  /* terracotta */
+    --card-accent-3: #3D6B8E;  /* slate */
+    --card-accent-4: #7D5BA6;  /* plum */
   }
 
   /* —— Dark tokens —————————————————————————————— */
   .dark {
     color-scheme: dark;
 
-    /* Core — warm near-black */
-    --background:            30 14% 4%;       /* #0C0B09 warm near-black */
-    --foreground:            40 30% 89%;      /* #EDE8D9 warm cream */
-    --card:                  35 16% 8%;       /* #161410 warm dark surface */
-    --card-foreground:       40 30% 89%;
-    --popover:               35 16% 7%;
-    --popover-foreground:    40 30% 89%;
+    /* Core — near-black "Carbon" */
+    --background:            165 15% 5%;      /* #0B0F0E carbon */
+    --foreground:            160 9% 93%;      /* #ECEFEE cool off-white */
+    --card:                  168 12% 8%;      /* #121716 carbon surface */
+    --card-foreground:       160 9% 93%;
+    --popover:               168 12% 7%;
+    --popover-foreground:    160 9% 93%;
 
-    /* Primary — bright leaf green */
-    --primary:               104 55% 60%;     /* #7DD45C */
+    /* Primary — bright teal */
+    --primary:               172 66% 50%;     /* #2DD4BF bright teal */
     --primary-foreground:    0 0% 100%;
 
-    --secondary:             35 14% 13%;
-    --secondary-foreground:  40 20% 75%;
-    --muted:                 35 14% 13%;
-    --muted-foreground:      38 11% 42%;      /* warm muted */
-    --accent:                104 55% 60%;
+    --secondary:             168 10% 13%;
+    --secondary-foreground:  165 8% 75%;
+    --muted:                 168 10% 13%;
+    --muted-foreground:      170 5% 50%;      /* #7A8684 cool muted */
+    --accent:                172 66% 50%;
     --accent-foreground:     0 0% 100%;
     --destructive:           0 72% 51%;
     --destructive-foreground:0 0% 98%;
-    --border:                35 14% 11%;
-    --input:                 35 14% 11%;
-    --ring:                  104 55% 60%;
+    --border:                165 6% 14%;
+    --input:                 165 6% 14%;
+    --ring:                  172 66% 50%;
 
     /* Sidebar */
-    --sidebar-background:            30 14% 6%;
-    --sidebar-foreground:            40 25% 85%;
-    --sidebar-primary:               104 55% 60%;
+    --sidebar-background:            165 14% 6%;
+    --sidebar-foreground:            165 8% 85%;
+    --sidebar-primary:               172 66% 50%;
     --sidebar-primary-foreground:    0 0% 100%;
-    --sidebar-accent:                35 14% 12%;
-    --sidebar-accent-foreground:     40 25% 85%;
-    --sidebar-border:                35 14% 11%;
-    --sidebar-ring:                  104 55% 60%;
+    --sidebar-accent:                168 10% 12%;
+    --sidebar-accent-foreground:     165 8% 85%;
+    --sidebar-border:                165 6% 14%;
+    --sidebar-ring:                  172 66% 50%;
 
     /* Chat surface specifics */
-    --theme-user-msg-bg:     104 35% 20%;
-    --theme-user-msg-text:   104 45% 88%;
-    --chat-surface-border:   35 14% 11%;
-    --inline-code-bg:        30 8% 14%;
-    --inline-code-border:    30 7% 27%;
+    --theme-user-msg-bg:     174 40% 18%;
+    --theme-user-msg-text:   174 45% 86%;
+    --chat-surface-border:   165 6% 14%;
+    --inline-code-bg:        168 8% 12%;
+    --inline-code-border:    168 6% 24%;
     --inline-code-text:      2 73% 81%;
 
     /* Card accent bars — brighter in dark mode */
