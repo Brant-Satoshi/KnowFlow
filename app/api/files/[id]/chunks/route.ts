@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
 import { requireUser } from '@/lib/auth/current-user';
-import { getFileById } from '@/lib/db/files';
 import { getChunks } from '@/lib/db/chunks';
 import { isValidUuid } from '@/lib/validation';
+import { isNotFoundOrForbiddenError, requireFileAccess } from '@/lib/authz/access';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireUser();
@@ -16,11 +16,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return Response.json(error('Invalid file ID'), { status: 400 });
     }
 
-    const file = await getFileById(id);
-
-    if (!file) {
-      return Response.json(error('File not found'), { status: 404 });
-    }
+    await requireFileAccess(auth.id, id);
 
     const chunks = await getChunks(id);
 
@@ -29,6 +25,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       chunks,
     }));
   } catch (e) {
+    if (isNotFoundOrForbiddenError(e)) {
+      return Response.json(error(e.message), { status: 404 });
+    }
     const message = e instanceof Error ? e.message : 'Get chunks failed';
     return Response.json(error(message), { status: 500 });
   }

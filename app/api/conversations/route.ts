@@ -5,9 +5,9 @@ import {
   createConversation,
   listConversations,
 } from '@/lib/db/conversations';
-import { getKnowledgeBaseById } from '@/lib/db/knowledge-bases';
 import { isValidUuid } from '@/lib/validation';
 import { isKnownChatModel } from '@/lib/llm/catalog';
+import { isNotFoundOrForbiddenError, requireKnowledgeBaseAccess } from '@/lib/authz/access';
 
 export async function GET(req: NextRequest) {
   const auth = await requireUser();
@@ -24,9 +24,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    await requireKnowledgeBaseAccess(auth.id, knowledgeBaseId);
+
     const conversations = await listConversations(knowledgeBaseId);
     return Response.json(success({ conversations }));
   } catch (e) {
+    if (isNotFoundOrForbiddenError(e)) {
+      return Response.json(error(e.message), { status: 404 });
+    }
     const message = e instanceof Error ? e.message : 'Failed to list conversations';
     return Response.json(error(message), { status: 500 });
   }
@@ -55,13 +60,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const kb = await getKnowledgeBaseById(knowledgeBaseId, auth.id);
-    if (!kb) {
-      return Response.json(
-        error('Knowledge base not found', { code: 'KB_NOT_FOUND' }),
-        { status: 404 }
-      );
-    }
+    await requireKnowledgeBaseAccess(auth.id, knowledgeBaseId);
 
     if (title !== undefined && typeof title !== 'string') {
       return Response.json(error('title must be a string'), { status: 400 });
@@ -78,6 +77,9 @@ export async function POST(req: NextRequest) {
 
     return Response.json(success({ conversation }), { status: 201 });
   } catch (e) {
+    if (isNotFoundOrForbiddenError(e)) {
+      return Response.json(error(e.message, { code: 'KB_NOT_FOUND' }), { status: 404 });
+    }
     const message = e instanceof Error ? e.message : 'Failed to create conversation';
     return Response.json(error(message), { status: 500 });
   }

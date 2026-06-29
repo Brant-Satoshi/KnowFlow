@@ -5,6 +5,7 @@ import { isValidUuid } from '@/lib/validation';
 import { loadDataset } from '@/lib/eval/dataset';
 import { runComparison } from '@/lib/eval/runner';
 import { ensureDataset, saveRun } from '@/lib/db/eval';
+import { isNotFoundOrForbiddenError, requireKnowledgeBaseAccess } from '@/lib/authz/access';
 
 export async function POST(request: NextRequest): Promise<Response> {
   const auth = await requireUser();
@@ -26,6 +27,15 @@ export async function POST(request: NextRequest): Promise<Response> {
   const knowledgeBaseId = b['knowledgeBaseId'];
   if (!knowledgeBaseId || typeof knowledgeBaseId !== 'string' || !isValidUuid(knowledgeBaseId)) {
     return Response.json(error('invalid_request'), { status: 400 });
+  }
+
+  try {
+    await requireKnowledgeBaseAccess(auth.id, knowledgeBaseId);
+  } catch (e) {
+    if (isNotFoundOrForbiddenError(e)) {
+      return Response.json(error(e.message), { status: 404 });
+    }
+    throw e;
   }
 
   if (b['mode'] !== 'curated') {
