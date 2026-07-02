@@ -1,7 +1,7 @@
 import { KnowledgeBase } from '@/lib/types';
 import { db } from './pg';
 import { chunks, files, knowledgeBases } from '@/lib/db/schema/core';
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { workspaceMembers } from './schema/auth';
 
 /** Subquery of every workspace the user belongs to — the KB tenant boundary. */
@@ -39,7 +39,10 @@ export type KnowledgeBaseDeleteFile = {
   knowledgeBaseId: string;
 };
 
-export async function listKnowledgeBases(userId: string): Promise<KnowledgeBase[]> {
+export async function listKnowledgeBases(
+  userId: string,
+  workspaceId?: string
+): Promise<KnowledgeBase[]> {
   const rows = await db
     .select({
       id: knowledgeBases.id,
@@ -52,7 +55,13 @@ export async function listKnowledgeBases(userId: string): Promise<KnowledgeBase[
     .from(knowledgeBases)
     .leftJoin(files, eq(files.knowledgeBaseId, knowledgeBases.id))
     .leftJoin(chunks, eq(chunks.fileId, files.id))
-    .where(inArray(knowledgeBases.workspaceId, userWorkspaceIds(userId)))
+    .where(
+      and(
+        // Membership filter stays even when scoping by workspace — defense in depth.
+        inArray(knowledgeBases.workspaceId, userWorkspaceIds(userId)),
+        ...(workspaceId ? [eq(knowledgeBases.workspaceId, workspaceId)] : [])
+      )
+    )
     .groupBy(knowledgeBases.id)
     .orderBy(desc(knowledgeBases.createdAt));
 
@@ -83,6 +92,12 @@ async function getDefaultWorkspaceId(userId: string) {
     })
     .from(workspaceMembers)
     .where(eq(workspaceMembers.userId, userId))
+    // Deterministic once a user belongs to several workspaces: prefer the one
+    // they own, then the oldest membership.
+    .orderBy(
+      sql`case when ${workspaceMembers.role} = 'owner' then 0 else 1 end`,
+      asc(workspaceMembers.createdAt)
+    )
     .limit(1);
 
   if (!member) {
@@ -94,16 +109,17 @@ async function getDefaultWorkspaceId(userId: string) {
 export async function createKnowledgeBase(
   name: string,
   userId: string,
-  description?: string
+  description?: string,
+  workspaceId?: string
 ): Promise<KnowledgeBase> {
-  const workspaceId = await getDefaultWorkspaceId(userId);
+  const targetWorkspaceId = workspaceId ?? (await getDefaultWorkspaceId(userId));
   const rows = await db
     .insert(knowledgeBases)
     .values({
       name,
       description: description ?? null,
       userId,
-      workspaceId,
+      workspaceId: targetWorkspaceId,
     })
     .returning();
   return toKnowledgeBase(rows[0]);
