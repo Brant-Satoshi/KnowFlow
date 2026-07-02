@@ -24,16 +24,21 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { SettingsMenu } from "@/components/settings-menu"
+import { WorkspaceSwitcher } from "@/components/workspace-switcher"
+import { WorkspaceMembersDialog } from "@/components/workspace-members-dialog"
+import { WorkspaceJoinDialog } from "@/components/workspace-join-dialog"
 import { toast } from "@/components/ui/use-toast"
+import { useAuth } from "@/lib/auth/AuthContext"
 import { useErrorToast } from "@/lib/hooks/use-error-toast"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
-import { KnowledgeBase } from "@/lib/types"
+import { KnowledgeBase, WorkspaceSummary } from "@/lib/types"
 import { httpClient, HttpError } from "@/lib/http/client"
 import { cn } from "@/lib/utils"
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const RECENTS_KEY = "rag-studio-recent-kbs"
 const MAX_RECENTS = 4
+const ACTIVE_WORKSPACE_KEY = "knowflow-active-workspace"
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type KnowledgeBaseErrorData = {
@@ -65,6 +70,19 @@ function pushRecentId(id: string) {
 function removeRecentId(id: string) {
   const ids = getRecentIds().filter((r) => r !== id)
   localStorage.setItem(RECENTS_KEY, JSON.stringify(ids))
+}
+
+function getStoredWorkspaceId(): string | null {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem(ACTIVE_WORKSPACE_KEY)
+}
+
+function setStoredWorkspaceId(id: string | null) {
+  if (id) {
+    localStorage.setItem(ACTIVE_WORKSPACE_KEY, id)
+  } else {
+    localStorage.removeItem(ACTIVE_WORKSPACE_KEY)
+  }
 }
 
 // ── Recents Strip ──────────────────────────────────────────────────────────────
@@ -253,29 +271,84 @@ export default function HomePage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [recentIds, setRecentIds] = useState<string[]>([])
+  const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([])
+  const [workspacesLoaded, setWorkspacesLoaded] = useState(false)
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null)
+  const [isMembersOpen, setIsMembersOpen] = useState(false)
+  const [isJoinOpen, setIsJoinOpen] = useState(false)
   const router = useRouter()
   const { home: t } = useLanguage()
+  const { user } = useAuth()
   const showErrorToast = useErrorToast()
+
+  const activeWorkspace = useMemo(
+    () => workspaces.find((w) => w.id === activeWorkspaceId) ?? null,
+    [workspaces, activeWorkspaceId]
+  )
 
   // Read recents from localStorage on mount
   useEffect(() => {
     setRecentIds(getRecentIds())
   }, [])
 
-  const fetchKnowledgeBases = useCallback(async () => {
+  const fetchWorkspaces = useCallback(async () => {
     try {
-      const data = await httpClient.get<{ knowledgeBases: KnowledgeBase[] }>("/api/knowledge-bases")
-      setKnowledgeBases(sortKnowledgeBases(data.knowledgeBases))
+      const data = await httpClient.get<{ workspaces: WorkspaceSummary[] }>("/api/workspaces")
+      setWorkspaces(data.workspaces)
+      // Drop a stale selection (workspace left, removed from, or deleted).
+      setActiveWorkspaceId((prev) => {
+        if (prev && !data.workspaces.some((w) => w.id === prev)) {
+          setStoredWorkspaceId(null)
+          return null
+        }
+        return prev
+      })
     } catch (error) {
-      console.error("Failed to fetch knowledge bases:", error)
+      console.error("Failed to fetch workspaces:", error)
     } finally {
-      setIsLoading(false)
+      setWorkspacesLoaded(true)
     }
   }, [])
 
   useEffect(() => {
-    fetchKnowledgeBases()
-  }, [fetchKnowledgeBases])
+    setActiveWorkspaceId(getStoredWorkspaceId())
+    void fetchWorkspaces()
+  }, [fetchWorkspaces])
+
+  const handleSelectWorkspace = useCallback((id: string | null) => {
+    setActiveWorkspaceId(id)
+    setStoredWorkspaceId(id)
+  }, [])
+
+  const fetchKnowledgeBases = useCallback(async (workspaceId: string | null) => {
+    try {
+      const data = await httpClient.get<{ knowledgeBases: KnowledgeBase[] }>(
+        workspaceId ? `/api/knowledge-bases?workspaceId=${workspaceId}` : "/api/knowledge-bases"
+      )
+      setKnowledgeBases(sortKnowledgeBases(data.knowledgeBases))
+    } catch (error) {
+      if (workspaceId && error instanceof HttpError && error.status === 404) {
+        // Scoped fetch hit a workspace we no longer belong to: reset to All;
+        // the effect below refetches unscoped.
+        showErrorToast(t.workspaceNotFoundToast)
+        setStoredWorkspaceId(null)
+        setActiveWorkspaceId(null)
+        void fetchWorkspaces()
+        return
+      }
+      console.error("Failed to fetch knowledge bases:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [fetchWorkspaces, showErrorToast, t])
+
+  // Gate on workspacesLoaded so a stale stored id is validated before the
+  // first scoped fetch (avoids a guaranteed 404 + double fetch).
+  useEffect(() => {
+    if (!workspacesLoaded) return
+    setIsLoading(true)
+    void fetchKnowledgeBases(activeWorkspaceId)
+  }, [workspacesLoaded, activeWorkspaceId, fetchKnowledgeBases])
 
   const resetCreateState = () => {
     setNewKbName("")
@@ -302,7 +375,12 @@ export default function HomePage() {
     try {
       const data = await httpClient.post<{ knowledgeBase: KnowledgeBase }>(
         "/api/knowledge-bases",
-        { name: newKbName.trim(), description: newKbDesc.trim() },
+        {
+          name: newKbName.trim(),
+          description: newKbDesc.trim(),
+          // Scoped view → create in that workspace; All → server default.
+          ...(activeWorkspaceId ? { workspaceId: activeWorkspaceId } : {}),
+        },
       )
       const knowledgeBase = data.knowledgeBase
       setKnowledgeBases((prev) => sortKnowledgeBases([knowledgeBase, ...prev]))
@@ -335,7 +413,7 @@ export default function HomePage() {
     } catch (error) {
       if (error instanceof HttpError && error.status === 404) {
         showErrorToast(error.message || t.updateFailed)
-        await fetchKnowledgeBases()
+        await fetchKnowledgeBases(activeWorkspaceId)
         return
       }
       showErrorToast(error instanceof Error ? error.message : t.updateFailed)
@@ -358,7 +436,7 @@ export default function HomePage() {
       if (error instanceof HttpError) {
         if (error.status === 404) {
           showErrorToast(error.message || t.deleteFailed)
-          await fetchKnowledgeBases()
+          await fetchKnowledgeBases(activeWorkspaceId)
           return
         }
         const code = (error.data as KnowledgeBaseErrorData | undefined)?.code
@@ -397,6 +475,14 @@ export default function HomePage() {
         />
 
         <div className="flex items-center gap-1.5">
+          <WorkspaceSwitcher
+            workspaces={workspaces}
+            activeWorkspaceId={activeWorkspaceId}
+            onSelect={handleSelectWorkspace}
+            onManageMembers={() => setIsMembersOpen(true)}
+            onJoin={() => setIsJoinOpen(true)}
+            t={t}
+          />
           <Button
             onClick={() => setIsCreating(true)}
             variant="ghost"
@@ -652,6 +738,30 @@ export default function HomePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Workspace dialogs ───────────────────────────────────────── */}
+      <WorkspaceMembersDialog
+        workspace={activeWorkspace}
+        open={isMembersOpen}
+        onOpenChange={setIsMembersOpen}
+        currentUserId={user?.id ?? ""}
+        onLeft={(workspaceId) => {
+          if (workspaceId === activeWorkspaceId) handleSelectWorkspace(null)
+          void fetchWorkspaces()
+        }}
+        onMembersChanged={fetchWorkspaces}
+        t={t}
+      />
+      <WorkspaceJoinDialog
+        open={isJoinOpen}
+        onOpenChange={setIsJoinOpen}
+        onJoined={(workspace) => {
+          void fetchWorkspaces()
+          // Auto-switch; the KB effect refetches scoped to the joined workspace.
+          handleSelectWorkspace(workspace.id)
+        }}
+        t={t}
+      />
     </div>
   )
 }
