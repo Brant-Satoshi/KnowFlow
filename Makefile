@@ -46,6 +46,9 @@ migrate:
 	docker exec -i $(CONTAINER) \
 		psql -U $(USER) -d $(DB) \
 		< db/migrations/010_add_workspaces.sql
+	docker exec -i $(CONTAINER) \
+		psql -U $(USER) -d $(DB) \
+		< db/migrations/011_add_workspace_invites.sql
 
 # Apply all migrations to DATABASE_URL (Supabase / any remote Postgres) via the
 # local psql client instead of `docker exec`. Migrations are idempotent
@@ -62,6 +65,7 @@ migrate-supabase:
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/008_add_chunk_context.sql
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/009_add_eval_judge_metrics.sql
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/010_add_workspaces.sql
+	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/011_add_workspace_invites.sql
 
 seed:
 	docker exec -i $(CONTAINER) \

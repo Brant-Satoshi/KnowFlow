@@ -39,6 +39,35 @@ export interface ConversationWithMessages extends ConversationSummary {
   messages: StoredMessage[];
 }
 
+// Workspace
+export type WorkspaceRole = 'owner' | 'admin' | 'member';
+/** Roles an invite can grant — the single owner is fixed at workspace creation. */
+export type InviteRole = Exclude<WorkspaceRole, 'owner'>;
+
+export interface WorkspaceSummary {
+  id: string;
+  name: string;
+  /** The current user's role in this workspace. */
+  role: WorkspaceRole;
+  memberCount: number;
+  createdAt: ISODateString;
+}
+
+export interface WorkspaceMember {
+  userId: string;
+  email: string;
+  role: WorkspaceRole;
+  joinedAt: ISODateString;
+}
+
+export interface WorkspaceInvite {
+  id: string;
+  role: InviteRole;
+  token: string;
+  expiresAt: ISODateString;
+  createdAt: ISODateString;
+}
+
 // Knowledge Base
 export interface KnowledgeBase {
   id: string;

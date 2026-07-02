@@ -96,4 +96,4 @@ SSE event order: `progress*` → `meta` → `progress` → `token*` → `done` (
 - **Interactive elements** (`button`, `a`, clickable `div`s) must include `cursor-pointer`.
 - **No new top-level routes**, **no new npm dependencies**, and **don't change the DB schema or API response shape** without explicit ask.
 
-See `CLAUDE.md` for the full set of repo conventions and `Architecture.md` for the design rationale, tradeoffs, and failure-mode strategies.
+See `CLAUDE.md` for the full set of repo conventions and `Architecture.md` for the design rationale, tradeoffs, and failure-mode strategies. Individual decisions and their tradeoffs are recorded in [`docs/adr/`](./docs/adr/README.md).

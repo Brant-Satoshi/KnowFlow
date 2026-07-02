@@ -4,7 +4,8 @@ import { files, knowledgeBases, conversations } from '@/lib/db/schema/core';
 import { evalRuns } from '@/lib/db/schema/eval';
 import { workspaceMembers } from '@/lib/db/schema/auth';
 import { getKnowledgeBaseById } from '@/lib/db/knowledge-bases';
-import type { ConversationSummary, FileDoc } from '@/lib/types';
+import { getWorkspaceRole } from '@/lib/db/workspaces';
+import type { ConversationSummary, FileDoc, WorkspaceRole } from '@/lib/types';
 
 type FileRow = typeof files.$inferSelect;
 type ConversationRow = typeof conversations.$inferSelect;
@@ -47,6 +48,20 @@ export async function requireKnowledgeBaseAccess(userId: string, knowledgeBaseId
   const kb = await getKnowledgeBaseById(knowledgeBaseId, userId);
   if (!kb) throw new NotFoundOrForbiddenError('Knowledge base not found');
   return kb;
+}
+
+/**
+ * Tenancy gate for workspace routes: throws 404-mapped NotFoundOrForbiddenError
+ * for non-members (hides existence). Insufficient-role checks on the returned
+ * value are the route's job and should surface as truthful 403s.
+ */
+export async function requireWorkspaceRole(
+  userId: string,
+  workspaceId: string,
+): Promise<WorkspaceRole> {
+  const role = await getWorkspaceRole(userId, workspaceId);
+  if (!role) throw new NotFoundOrForbiddenError('Workspace not found');
+  return role;
 }
 
 function userWorkspaceJoin(userId: string) {
