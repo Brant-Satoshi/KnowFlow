@@ -3,14 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Loader2, MessageSquare, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -279,35 +272,16 @@ export function ConversationSidebar({
         </div>
       </div>
 
-      <Dialog open={deleteId !== null} onOpenChange={(open) => !open && closeDelete()}>
-        <DialogContent disableAnimation className="rounded-[1.1rem]">
-          <DialogHeader>
-            <DialogTitle>{t.confirmDeleteConversationTitle}</DialogTitle>
-            <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
-              {t.confirmDeleteConversationDesc.replace("{conversationTitle}", deleteTitle)}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={closeDelete}
-              disabled={deleting}
-              className="rounded-lg"
-            >
-              {t.confirmDeleteConversationCancel}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDelete}
-              disabled={deleting}
-              className="rounded-lg"
-            >
-              {deleting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-              {t.confirmDeleteConversationAction}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={deleteId !== null}
+        onOpenChange={(open) => !open && closeDelete()}
+        title={t.confirmDeleteConversationTitle}
+        description={t.confirmDeleteConversationDesc.replace("{conversationTitle}", deleteTitle)}
+        cancelLabel={t.confirmDeleteConversationCancel}
+        confirmLabel={t.confirmDeleteConversationAction}
+        busy={deleting}
+        onConfirm={confirmDelete}
+      />
     </>
   )
 }

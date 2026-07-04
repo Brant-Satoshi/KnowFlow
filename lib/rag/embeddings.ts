@@ -1,5 +1,6 @@
 import { Chunk } from "../types";
 import { resolveEmbeddingProvider, type EmbeddingProviderConfig } from "../models";
+import { extractUpstreamMessage, openRouterFetch, readJsonSafe } from "../llm/openrouter";
 
 const EXPECTED_EMBEDDING_DIMENSIONS = 1536;
 
@@ -33,13 +34,7 @@ function assertValidEmbedding(vector: number[] | undefined, index: number): numb
 }
 
 function getResponseMessage(payload: unknown, status: number): string {
-  if (!payload || typeof payload !== 'object') {
-    return `invalid JSON response (${status})`;
-  }
-
-  const response = payload as { error?: { message?: string } };
-
-  return response.error?.message ?? `invalid response (${status})`;
+  return extractUpstreamMessage(payload) ?? `invalid response (${status})`;
 }
 
 function buildRequestBody(input: string[], cfg: EmbeddingProviderConfig) {
@@ -63,22 +58,8 @@ async function createEmbeddings(
     );
   }
 
-  const res = await fetch(cfg.url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${cfg.apiKey}`,
-    },
-    body: JSON.stringify(buildRequestBody(input, cfg)),
-    signal: options?.signal,
-  });
-
-  let payload: unknown = null;
-  try {
-    payload = await res.json();
-  } catch {
-    payload = null;
-  }
+  const res = await openRouterFetch(cfg, buildRequestBody(input, cfg), options?.signal);
+  const payload = await readJsonSafe(res);
 
   if (!res.ok) {
     throw new Error(`embedding failed: ${getResponseMessage(payload, res.status)}`);

@@ -1,5 +1,6 @@
 import { Chunk } from "../types";
 import { isRerankEnabled, resolveRerankProvider } from "../models";
+import { extractUpstreamMessage, openRouterFetch, readJsonSafe } from "../llm/openrouter";
 
 type OpenRouterRerankResponse = {
     id?: string;
@@ -20,18 +21,6 @@ type OpenRouterRerankResponse = {
         type?: string;
         code?: string;
     };
-}
-
-function getErrorMessage(payload: unknown, status: number): string {
-    if (!payload || typeof payload !== 'object') {
-        return `invalid response (${status})`;
-    }
-
-    const response = payload as {
-        error?: { message?: string };
-    };
-
-    return response.error?.message ?? `invalid response (${status})`;
 }
 
 type RerankOptions = {
@@ -63,32 +52,21 @@ export async function rerankChunks(
 
     let res: Response;
     try {
-        res = await fetch(cfg.url, {
-            method: 'POST',
-            signal: options.signal,
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${cfg.apiKey}`,
-            },
-            body: JSON.stringify({
-                model: cfg.model,
-                query: queryText,
-                documents,
-                top_n: topN,
-            }),
-        });
+        res = await openRouterFetch(
+            cfg,
+            { model: cfg.model, query: queryText, documents, top_n: topN },
+            options.signal,
+        );
     } catch (error) {
         console.error('[rerank] request failed, fallback to recall order:', error);
         return chunks;
     }
-    let payload: unknown = null;
-    try {
-        payload = await res.json();
-    } catch {
-        payload = null;
-    }
+    const payload = await readJsonSafe(res);
     if (!res.ok) {
-        console.error('[rerank] bad response, fallback to recall order:', getErrorMessage(payload, res.status));
+        console.error(
+            '[rerank] bad response, fallback to recall order:',
+            extractUpstreamMessage(payload) ?? `invalid response (${res.status})`,
+        );
         return chunks;
     }
 

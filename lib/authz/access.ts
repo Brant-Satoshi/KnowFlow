@@ -44,6 +44,20 @@ export function isNotFoundOrForbiddenError(e: unknown): e is NotFoundOrForbidden
   return e instanceof NotFoundOrForbiddenError;
 }
 
+/** Truthful 403 for members whose role is insufficient (unlike the 404-mapped tenancy gate). */
+export class ForbiddenError extends Error {
+  readonly code: string;
+  constructor(message: string, code = 'WORKSPACE_FORBIDDEN') {
+    super(message);
+    this.name = 'ForbiddenError';
+    this.code = code;
+  }
+}
+
+export function isForbiddenError(e: unknown): e is ForbiddenError {
+  return e instanceof ForbiddenError;
+}
+
 export async function requireKnowledgeBaseAccess(userId: string, knowledgeBaseId: string) {
   const kb = await getKnowledgeBaseById(knowledgeBaseId, userId);
   if (!kb) throw new NotFoundOrForbiddenError('Knowledge base not found');
@@ -61,6 +75,23 @@ export async function requireWorkspaceRole(
 ): Promise<WorkspaceRole> {
   const role = await getWorkspaceRole(userId, workspaceId);
   if (!role) throw new NotFoundOrForbiddenError('Workspace not found');
+  return role;
+}
+
+/**
+ * Owner-or-admin gate: tenancy check via `requireWorkspaceRole`, then throws a
+ * 403-mapped ForbiddenError unless the member is owner or admin. `action`
+ * completes the message: "Only the owner or an admin can {action}".
+ */
+export async function requireWorkspaceAdmin(
+  userId: string,
+  workspaceId: string,
+  action: string,
+): Promise<WorkspaceRole> {
+  const role = await requireWorkspaceRole(userId, workspaceId);
+  if (role !== 'owner' && role !== 'admin') {
+    throw new ForbiddenError(`Only the owner or an admin can ${action}`);
+  }
   return role;
 }
 

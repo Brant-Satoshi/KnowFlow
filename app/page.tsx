@@ -28,7 +28,10 @@ import { WorkspaceSwitcher } from "@/components/workspace-switcher"
 import { WorkspaceMembersDialog } from "@/components/workspace-members-dialog"
 import { WorkspaceJoinDialog } from "@/components/workspace-join-dialog"
 import { toast } from "@/components/ui/use-toast"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useAuth } from "@/lib/auth/AuthContext"
+import { formatDate } from "@/lib/format"
+import type { Language } from "@/lib/i18n/translations"
 import { useErrorToast } from "@/lib/hooks/use-error-toast"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { displayWorkspaceName } from "@/lib/i18n/workspace-name"
@@ -143,6 +146,7 @@ function KBCard({
   onAddToRecent,
   isRecent,
   t,
+  language,
 }: {
   kb: KnowledgeBase
   index: number
@@ -151,15 +155,10 @@ function KBCard({
   onAddToRecent: (kb: KnowledgeBase) => void
   isRecent: boolean
   t: ReturnType<typeof useLanguage>["home"]
+  language: Language
 }) {
   const volNum = String(index + 1).padStart(2, "0")
   const accentVar = `var(--card-accent-${index % 5})`
-  const fmtDate = (d: string) =>
-    new Date(d).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
 
   return (
     <div className="group relative">
@@ -216,7 +215,7 @@ function KBCard({
             {kb.name}
           </p>
           <div className="mt-2.5 flex items-center justify-between">
-            <p className="font-mono text-[11px] text-muted-foreground">{fmtDate(kb.updatedAt)}</p>
+            <p className="font-mono text-[11px] text-muted-foreground">{formatDate(kb.updatedAt, language)}</p>
             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
         </div>
@@ -576,6 +575,7 @@ export default function HomePage() {
                   }}
                   isRecent={recentIds.includes(kb.id)}
                   t={t}
+                  language={language}
                 />
               ))}
             </div>
@@ -713,38 +713,18 @@ export default function HomePage() {
       </Dialog>
 
       {/* ── Delete dialog ───────────────────────────────────────────── */}
-      <Dialog
+      <ConfirmDialog
         open={deletingKnowledgeBase !== null}
-        onOpenChange={(open) => !isDeleting && !open && resetDeleteState()}
-      >
-        <DialogContent disableAnimation className="rounded-[1.1rem] border-black/8 bg-popover dark:border-white/8 dark:bg-popover">
-          <DialogHeader>
-            <DialogTitle>{t.confirmDeleteTitle}</DialogTitle>
-            <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
-              {t.confirmDeleteDesc.replace("{knowledgeBaseName}", deletingKnowledgeBase?.name || "")}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={resetDeleteState}
-              disabled={isDeleting}
-              className="rounded-lg"
-            >
-              {t.confirmDeleteCancel}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteKnowledgeBase}
-              disabled={isDeleting}
-              className="rounded-lg"
-            >
-              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              {isDeleting ? t.deleting : t.confirmDeleteAction}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={(open) => !open && resetDeleteState()}
+        title={t.confirmDeleteTitle}
+        description={t.confirmDeleteDesc.replace("{knowledgeBaseName}", deletingKnowledgeBase?.name || "")}
+        cancelLabel={t.confirmDeleteCancel}
+        confirmLabel={t.confirmDeleteAction}
+        busyLabel={t.deleting}
+        busy={isDeleting}
+        icon={<Trash2 className="h-4 w-4" />}
+        onConfirm={handleDeleteKnowledgeBase}
+      />
 
       {/* ── Workspace dialogs ───────────────────────────────────────── */}
       <WorkspaceMembersDialog

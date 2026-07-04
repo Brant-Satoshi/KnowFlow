@@ -1,9 +1,7 @@
-import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { success, error } from '@/lib/api/response';
-import { requireUser } from '@/lib/auth/current-user';
-import { isValidUuid } from '@/lib/validation';
-import { isNotFoundOrForbiddenError, requireWorkspaceRole } from '@/lib/authz/access';
+import { parseUuidParam, withAuth } from '@/lib/api/route';
+import { requireWorkspaceAdmin, requireWorkspaceRole } from '@/lib/authz/access';
 import {
   getWorkspaceRole,
   removeWorkspaceMember,
@@ -14,25 +12,22 @@ const patchSchema = z.object({
   role: z.enum(['admin', 'member']),
 });
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string; userId: string }> },
-) {
-  const auth = await requireUser();
-  if (auth instanceof Response) return auth;
+type Ctx = { params: Promise<{ id: string; userId: string }> };
 
-  try {
-    const { id, userId } = await params;
-    if (!isValidUuid(id) || !isValidUuid(userId)) {
-      return Response.json(error('Invalid workspace or user id'), { status: 400 });
-    }
+export const PATCH = withAuth(
+  'Failed to update member role',
+  async (req, user, { params }: Ctx) => {
+    const id = await parseUuidParam(params, 'id', 'workspace id');
+    if (id instanceof Response) return id;
+    const userId = await parseUuidParam(params, 'userId', 'user id');
+    if (userId instanceof Response) return userId;
 
     const parsed = patchSchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) {
       return Response.json(error('role must be "admin" or "member"'), { status: 400 });
     }
 
-    const requesterRole = await requireWorkspaceRole(auth.id, id);
+    const requesterRole = await requireWorkspaceRole(user.id, id);
     if (requesterRole !== 'owner') {
       return Response.json(
         error('Only the owner can change roles', { code: 'ROLE_CHANGE_FORBIDDEN' }),
@@ -57,35 +52,18 @@ export async function PATCH(
     }
 
     return Response.json(success({ member: { userId, role } }));
-  } catch (e) {
-    if (isNotFoundOrForbiddenError(e)) {
-      return Response.json(error(e.message), { status: 404 });
-    }
-    const message = e instanceof Error ? e.message : 'Failed to update member role';
-    return Response.json(error(message), { status: 500 });
-  }
-}
+  },
+);
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string; userId: string }> },
-) {
-  const auth = await requireUser();
-  if (auth instanceof Response) return auth;
+export const DELETE = withAuth(
+  'Failed to remove member',
+  async (req, user, { params }: Ctx) => {
+    const id = await parseUuidParam(params, 'id', 'workspace id');
+    if (id instanceof Response) return id;
+    const userId = await parseUuidParam(params, 'userId', 'user id');
+    if (userId instanceof Response) return userId;
 
-  try {
-    const { id, userId } = await params;
-    if (!isValidUuid(id) || !isValidUuid(userId)) {
-      return Response.json(error('Invalid workspace or user id'), { status: 400 });
-    }
-
-    const requesterRole = await requireWorkspaceRole(auth.id, id);
-    if (requesterRole !== 'owner' && requesterRole !== 'admin') {
-      return Response.json(
-        error('Only the owner or an admin can remove members', { code: 'WORKSPACE_FORBIDDEN' }),
-        { status: 403 },
-      );
-    }
+    const requesterRole = await requireWorkspaceAdmin(user.id, id, 'remove members');
 
     const targetRole = await getWorkspaceRole(userId, id);
     if (!targetRole) {
@@ -111,11 +89,5 @@ export async function DELETE(
     }
 
     return Response.json(success({ removed: true }));
-  } catch (e) {
-    if (isNotFoundOrForbiddenError(e)) {
-      return Response.json(error(e.message), { status: 404 });
-    }
-    const message = e instanceof Error ? e.message : 'Failed to remove member';
-    return Response.json(error(message), { status: 500 });
-  }
-}
+  },
+);

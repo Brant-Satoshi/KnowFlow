@@ -8,6 +8,7 @@ import type {
   EvalRunDetail,
 } from '@/lib/types';
 import type { EvalTranslationKeys, Language } from '@/lib/i18n/translations';
+import { formatDateTime } from '@/lib/format';
 
 /* ───────────────────────── palette (token-mapped) ───────────────────────── */
 
@@ -47,22 +48,13 @@ export const EVAL_STYLES = `
 
 /* ───────────────────────── formatting helpers ───────────────────────── */
 
-export function formatRunDate(iso: string, language: Language): string {
-  return new Date(iso).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 export function baselineLabel(
   r: EvalRunSummary,
   language: Language,
   evalT: EvalTranslationKeys,
 ): string {
   const rerank = r.useRerank ? evalT.rerankOn : evalT.rerankOff;
-  return `${formatRunDate(r.createdAt, language)} · ${r.datasetName ?? ''} · ${rerank} · ${r.passedCases}/${r.totalCases}`;
+  return `${formatDateTime(r.createdAt, language)} · ${r.datasetName ?? ''} · ${rerank} · ${r.passedCases}/${r.totalCases}`;
 }
 
 function at5(

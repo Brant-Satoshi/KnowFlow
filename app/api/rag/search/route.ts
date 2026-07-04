@@ -1,6 +1,5 @@
-import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
-import { requireUser } from '@/lib/auth/current-user';
+import { withAuth } from '@/lib/api/route';
 import { isValidUuid, parseRetrievalFilter } from '@/lib/validation';
 import { embedChunk } from '@/lib/rag/embeddings';
 import { RETRIEVAL } from '@/lib/rag/retrieve';
@@ -11,10 +10,7 @@ import {
   requireKnowledgeBaseAccess,
 } from '@/lib/authz/access';
 
-export async function POST(req: NextRequest) {
-  const auth = await requireUser();
-  if (auth instanceof Response) return auth;
-
+export const POST = withAuth('Search failed', async (req, user) => {
   try {
     const body = await req.json();
     const {
@@ -76,7 +72,7 @@ export async function POST(req: NextRequest) {
 
     let chunks;
     if (fileId) {
-      const file = await requireFileAccess(auth.id, fileId);
+      const file = await requireFileAccess(user.id, fileId);
       if (knowledgeBaseId && file.knowledgeBaseId !== knowledgeBaseId) {
         return Response.json(error('File does not belong to this knowledge base'), { status: 400 });
       }
@@ -84,7 +80,7 @@ export async function POST(req: NextRequest) {
       // (possibly yielding an empty result, which is not an error).
       chunks = await searchChunks(queryEmbedding, topK, maxDistance, file.id, undefined, filter);
     } else if (knowledgeBaseId) {
-      await requireKnowledgeBaseAccess(auth.id, knowledgeBaseId);
+      await requireKnowledgeBaseAccess(user.id, knowledgeBaseId);
       chunks = await searchChunks(queryEmbedding, topK, maxDistance, undefined, knowledgeBaseId, filter);
     }
 
@@ -96,5 +92,4 @@ export async function POST(req: NextRequest) {
     console.error('search error:', e);
     return Response.json(error('Search failed'), { status: 500 });
   }
-
-}
+});

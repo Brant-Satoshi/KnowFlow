@@ -1,16 +1,12 @@
-import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
-import { requireUser } from '@/lib/auth/current-user';
+import { withAuth } from '@/lib/api/route';
 import { isValidUuid, parseRetrievalFilter } from '@/lib/validation';
 import { loadDataset } from '@/lib/eval/dataset';
 import { runComparison } from '@/lib/eval/runner';
 import { ensureDataset, saveRun } from '@/lib/db/eval';
 import { isNotFoundOrForbiddenError, requireKnowledgeBaseAccess } from '@/lib/authz/access';
 
-export async function POST(request: NextRequest): Promise<Response> {
-  const auth = await requireUser();
-  if (auth instanceof Response) return auth;
-
+export const POST = withAuth('eval_failed', async (request, user) => {
   let body: unknown;
   try {
     body = await request.json();
@@ -30,7 +26,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   try {
-    await requireKnowledgeBaseAccess(auth.id, knowledgeBaseId);
+    await requireKnowledgeBaseAccess(user.id, knowledgeBaseId);
   } catch (e) {
     if (isNotFoundOrForbiddenError(e)) {
       return Response.json(error(e.message), { status: 404 });
@@ -82,4 +78,4 @@ export async function POST(request: NextRequest): Promise<Response> {
     console.error('[eval/run] curated error:', e);
     return Response.json(error('eval_failed'), { status: 500 });
   }
-}
+});
