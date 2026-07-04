@@ -10,6 +10,7 @@ import type {
 } from '@/lib/types';
 import { recallChunks, selectFinalChunks } from '@/lib/rag/retrieve';
 import { buildPrompt, generateAnswer } from '@/lib/llm/chat';
+import { isOutOfScope } from './dataset';
 import { gradeRecalled } from './relevance';
 import { aggregateMetrics } from './metrics';
 import { hashDataset } from './hash';
@@ -233,13 +234,6 @@ function buildCaseResult(
     faithfulness: scores.faithfulness,
     answerRelevance: scores.answerRelevance,
   };
-}
-
-function isOutOfScope(c: EvalCase): boolean {
-  return (
-    (c.targetFileNames?.length ?? 0) === 0 &&
-    (c.targetChunkSubstrings?.length ?? 0) === 0
-  );
 }
 
 function aggregate(

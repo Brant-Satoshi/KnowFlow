@@ -187,7 +187,6 @@ export interface EvalCase {
   expectedKeywords: string[];
   category: EvalCaseCategory;
   difficulty: EvalCaseDifficulty;
-  answerable: boolean;
   targetFileNames?: string[];
   targetChunkSubstrings?: string[];
   expectedAnswer?: string;
