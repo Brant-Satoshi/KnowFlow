@@ -23,7 +23,7 @@ import { useFileState } from "@/lib/hooks/use-file-state"
 import { useScrollToBottom } from "@/lib/hooks/use-scroll-to-bottom"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { PreviewContext, type OpenPreview } from "@/lib/preview-context"
-import type { ConversationSummary, KnowledgeBase } from "@/lib/types"
+import type { ConversationSummary, KnowledgeBase, RetrievalFilter } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const chatSurfaceClass =
@@ -48,6 +48,8 @@ export default function ChatPage() {
   const [creatingConversation, setCreatingConversation] = useState(false)
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
   const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_CHAT_MODEL_ID)
+  // Per-session retrieval filter; not persisted, resets with the per-KB page remount.
+  const [retrievalFilter, setRetrievalFilter] = useState<RetrievalFilter>({})
   const creatingConversationRef = useRef(false)
   // Guards rapid model switches: only the latest PUT may roll the UI back, and
   // each new selection aborts the prior in-flight update.
@@ -99,6 +101,7 @@ export default function ChatPage() {
     knowledgeBaseId,
     conversationId: currentConversationId ?? undefined,
     selectedModel,
+    retrievalFilter,
     scrollRef,
     scrollToBottom,
     onConversationTitleUpdated: useCallback((id: string, title: string) => {
@@ -520,6 +523,9 @@ export default function ChatPage() {
                   selectedModel={selectedModel}
                   onModelChange={handleModelChange}
                   isModelDisabled={isStreaming}
+                  files={files}
+                  retrievalFilter={retrievalFilter}
+                  onRetrievalFilterChange={setRetrievalFilter}
                 />
               </section>
             </TabsContent>
@@ -663,6 +669,9 @@ export default function ChatPage() {
               selectedModel={selectedModel}
               onModelChange={handleModelChange}
               isModelDisabled={isStreaming}
+              files={files}
+              retrievalFilter={retrievalFilter}
+              onRetrievalFilterChange={setRetrievalFilter}
             />
           </section>
 

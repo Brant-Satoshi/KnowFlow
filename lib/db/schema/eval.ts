@@ -11,6 +11,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { knowledgeBases } from "./core";
+import type { RetrievalFilter } from "@/lib/types";
 
 export const evalDatasets = pgTable(
     "eval_datasets",
@@ -88,6 +89,8 @@ export const evalRuns = pgTable(
 
     avgFaithfulness: doublePrecision("avg_faithfulness"),
     avgAnswerRelevance: doublePrecision("avg_answer_relevance"),
+
+    filter: jsonb("filter").$type<RetrievalFilter | null>(),
 
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

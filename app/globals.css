@@ -80,6 +80,11 @@
   :root {
     color-scheme: light;
 
+    --font-schibsted: "Schibsted Grotesk";
+    --font-ibm-plex-mono: "IBM Plex Mono";
+    --font-inter-tight: "Inter Tight";
+    --font-jetbrains-mono: "JetBrains Mono";
+
     /* Core — cool blue-grey "Mist" */
     --background:            190 15% 92%;     /* #E8EDEE cool mist */
     --foreground:            171 25% 10%;     /* #13201E deep slate-teal */

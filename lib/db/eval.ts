@@ -2,13 +2,14 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/pg";
 import { evalRuns, evalRunItems } from "@/lib/db/schema/eval";
 import { evalCases, evalDatasets } from "@/lib/db/schema/eval";
-import type { EvalCase, EvalRunResult } from "@/lib/types";
+import type { EvalCase, EvalRunResult, RetrievalFilter } from "@/lib/types";
 import { hashDataset } from "../eval/hash";
 
 export type SaveRunOptions = {
   datasetId?: string | null;
   datasetName?: string | null;
   useRerank: boolean;
+  filter?: RetrievalFilter;
 };
 
 export async function ensureDataset(
@@ -165,6 +166,7 @@ export async function saveRun(
       mrr: result.mrr ?? null,
       avgFaithfulness: result.avgFaithfulness ?? null,
       avgAnswerRelevance: result.avgAnswerRelevance ?? null,
+      filter: opts.filter ?? null,
     });
 
     if (result.cases.length === 0) {

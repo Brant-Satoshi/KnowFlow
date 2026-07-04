@@ -3,12 +3,15 @@
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Switch } from '@/components/ui/switch';
+import { RetrievalFilterControl } from '@/components/chat/retrieval-filter';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type {
+  FileListItem,
   KnowledgeBase,
   EvalRunResult,
   EvalRunSummary,
   EvalRunDetail,
+  RetrievalFilter,
 } from '@/lib/types';
 import { listDatasetNames } from '@/lib/eval/dataset';
 import type { DatasetValidationResult } from '@/lib/eval/validate';
@@ -51,6 +54,8 @@ function EvalPageContent() {
   const [selectedKbId, setSelectedKbId] = useState('');
   const [selectedDataset, setSelectedDataset] = useState(() => datasetNames[0] ?? '');
   const [useRerank, setUseRerank] = useState(true);
+  const [evalFilter, setEvalFilter] = useState<RetrievalFilter>({});
+  const [kbFiles, setKbFiles] = useState<FileListItem[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<EvalRunResult | null>(null);
   const [runError, setRunError] = useState('');
@@ -127,6 +132,27 @@ function EvalPageContent() {
     loadHistory(selectedKbId);
   }, [selectedKbId, loadHistory]);
 
+  // The retrieval filter is KB-specific: reset it and refetch the file list on KB change.
+  useEffect(() => {
+    setEvalFilter({});
+    if (!selectedKbId) {
+      setKbFiles([]);
+      return;
+    }
+    let cancelled = false;
+    httpClient
+      .get<{ files: FileListItem[] }>(`/api/files?knowledgeBaseId=${selectedKbId}`)
+      .then(data => {
+        if (!cancelled) setKbFiles(data.files);
+      })
+      .catch(() => {
+        if (!cancelled) setKbFiles([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedKbId]);
+
   const loadDetail = useCallback(
     async (runId: string) => {
       setLoadingDetail(true);
@@ -157,6 +183,9 @@ function EvalPageContent() {
         datasetName: selectedDataset,
         useRerank,
       };
+      if (evalFilter.fileIds?.length || evalFilter.fileTypes?.length || evalFilter.titleQuery) {
+        body.filter = evalFilter;
+      }
       const data = await httpClient.post<EvalRunResult>('/api/eval/run', body);
       setResult(data);
       selectTab('overview');
@@ -209,7 +238,7 @@ function EvalPageContent() {
                   value={selectedKbId}
                   onChange={e => setSelectedKbId(e.target.value)}
                   aria-label={evalT.selectKnowledgeBase}
-                  className="h-9 border border-border bg-card px-3 rounded-lg text-[12.5px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer max-w-[16rem]"
+                  className="eval-select h-9 border border-border bg-card pl-3 pr-9 rounded-lg text-[12.5px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer max-w-[16rem]"
                 >
                   <option value="">{evalT.selectPlaceholder}</option>
                   {knowledgeBases.map(kb => (
@@ -223,12 +252,34 @@ function EvalPageContent() {
                 onChange={e => setSelectedDataset(e.target.value)}
                 disabled={isRunning}
                 aria-label={evalT.datasetLabel}
-                className="h-9 border border-border bg-card px-3 rounded-lg text-[12.5px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer disabled:cursor-not-allowed"
+                className="eval-select h-9 border border-border bg-card pl-3 pr-9 rounded-lg text-[12.5px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer disabled:cursor-not-allowed"
               >
                 {datasetNames.map(name => (
                   <option key={name} value={name}>{name}</option>
                 ))}
               </select>
+
+              <RetrievalFilterControl
+                files={kbFiles.filter(f => f.status === 'indexed')}
+                value={evalFilter}
+                onChange={setEvalFilter}
+                disabled={isRunning || !selectedKbId}
+                labels={{
+                  button: evalT.filterButtonLabel,
+                  aria: evalT.filterAriaLabel,
+                  filesLabel: evalT.filterFilesLabel,
+                  noFiles: evalT.filterNoFiles,
+                  typesLabel: evalT.filterTypesLabel,
+                  typePdf: evalT.filterTypePdf,
+                  typeMarkdown: evalT.filterTypeMarkdown,
+                  typeWord: evalT.filterTypeWord,
+                  typeText: evalT.filterTypeText,
+                  titleLabel: evalT.filterTitleLabel,
+                  titlePlaceholder: evalT.filterTitlePlaceholder,
+                  clear: evalT.filterClear,
+                }}
+                triggerClassName="h-9 cursor-pointer gap-1.5 rounded-lg border-border bg-card text-[12.5px] font-sans shadow-none"
+              />
 
               <label htmlFor="rerank-toggle" className="h-9 flex items-center gap-2.5 border border-border bg-card px-3 rounded-lg cursor-pointer select-none">
                 <span className="text-[12.5px] font-sans text-foreground">{evalT.rerankToggleLabel}</span>

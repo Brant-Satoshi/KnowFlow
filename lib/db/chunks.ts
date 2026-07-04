@@ -1,4 +1,4 @@
-import { Chunk } from '@/lib/types';
+import { Chunk, RetrievalFileType, RetrievalFilter } from '@/lib/types';
 import { query, execute, getPool } from './pg';
 
 export async function getChunks(fileId?: string): Promise<Chunk[]> {
@@ -80,53 +80,92 @@ function attachDistance(rows: ChunkWithDistance[]): Chunk[] {
   }));
 }
 
+const FILE_TYPE_EXTENSIONS: Record<RetrievalFileType, string[]> = {
+  pdf: ['.pdf'],
+  markdown: ['.md'],
+  word: ['.doc', '.docx'],
+  text: ['.txt'],
+};
+
+/** Escape LIKE wildcards so user input matches literally (default escape char is backslash). */
+function escapeLike(s: string): string {
+  return s.replace(/[\\%_]/g, (m) => '\\' + m);
+}
+
 export async function searchChunks(
   queryEmbedding: number[],
   topK: number = 5,
   maxDistance: number = 0.4,
   fileId?: string,
   knowledgeBaseId?: string,
+  filter?: RetrievalFilter,
 ): Promise<Chunk[]> {
   const vectorStr = `[${queryEmbedding.join(',')}]`;
+  const hasFilter = Boolean(
+    filter?.fileIds?.length || filter?.fileTypes?.length || filter?.titleQuery,
+  );
 
-  // If knowledgeBaseId is provided, join with files to filter by knowledge base
+  const params: unknown[] = [vectorStr, maxDistance];
+  const where = ['c.embedding IS NOT NULL', 'c.embedding <=> $1::vector < $2'];
+
   if (knowledgeBaseId) {
-    const rows = await query<ChunkWithDistance>(
-      `
-      SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text,
-             c.embedding_text AS "embeddingText", c.document_title AS "documentTitle",
-             c.section_title AS "sectionTitle", c.meta, f.name AS "fileName",
-             c.embedding <=> $1::vector AS distance
-      FROM chunks c
-      JOIN files f ON c.file_id = f.id::uuid
-      WHERE c.embedding IS NOT NULL
-      AND c.embedding <=> $1::vector < $2
-      AND f.knowledge_base_id = $3::uuid
-      ORDER BY c.embedding <=> $1::vector
-      LIMIT $4
-      `,
-      [vectorStr, maxDistance, knowledgeBaseId, topK]
-    );
-    return attachDistance(rows);
+    params.push(knowledgeBaseId);
+    where.push(`f.knowledge_base_id = $${params.length}::uuid`);
   }
+  if (fileId) {
+    params.push(fileId);
+    where.push(`c.file_id = $${params.length}`);
+  }
+  // fileIds intersects with fileId when both are given (possibly empty result).
+  if (filter?.fileIds?.length) {
+    params.push(filter.fileIds);
+    where.push(`c.file_id = ANY($${params.length}::uuid[])`);
+  }
+  if (filter?.fileTypes?.length) {
+    params.push(filter.fileTypes.flatMap(t => FILE_TYPE_EXTENSIONS[t].map(ext => `%${ext}`)));
+    where.push(`f.name ILIKE ANY($${params.length})`);
+  }
+  if (filter?.titleQuery) {
+    params.push(`%${escapeLike(filter.titleQuery)}%`);
+    where.push(
+      `(c.document_title ILIKE $${params.length} OR c.section_title ILIKE $${params.length})`
+    );
+  }
+  params.push(topK);
 
-  const rows = await query<ChunkWithDistance>(
-    `
+  const sql = `
     SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text,
            c.embedding_text AS "embeddingText", c.document_title AS "documentTitle",
            c.section_title AS "sectionTitle", c.meta, f.name AS "fileName",
            c.embedding <=> $1::vector AS distance
     FROM chunks c
     JOIN files f ON c.file_id = f.id::uuid
-    WHERE c.embedding IS NOT NULL
-    AND c.embedding <=> $1::vector < $2
-    ${fileId ? 'AND c.file_id = $3' : ''}
+    WHERE ${where.join('\n    AND ')}
     ORDER BY c.embedding <=> $1::vector
-    LIMIT ${fileId ? '$4' : '$3'}
-    `,
-    fileId
-      ? [vectorStr, maxDistance, fileId, topK]
-      : [vectorStr, maxDistance, topK]
-  );
-  return attachDistance(rows);
+    LIMIT $${params.length}
+    `;
+
+  if (!hasFilter) {
+    return attachDistance(await query<ChunkWithDistance>(sql, params));
+  }
+
+  // Filtered search must be exact: pgvector post-filters the hnsw.ef_search
+  // (default 40) HNSW candidates, so a selective filter (e.g. one small file)
+  // could silently drop matches outside that window. Disabling index scans for
+  // this query forces an exact scan over the filtered rows — cheap at the
+  // per-KB corpus sizes here. Revisit with pgvector 0.8 iterative scans if
+  // filtered KBs grow large.
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SET LOCAL enable_indexscan = off');
+    const result = await client.query<ChunkWithDistance>(sql, params);
+    await client.query('COMMIT');
+    return attachDistance(result.rows);
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
 }

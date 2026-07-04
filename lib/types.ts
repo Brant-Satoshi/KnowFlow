@@ -120,6 +120,21 @@ export interface Chunk {
   fileName?: string;
 }
 
+/** Extension groups selectable in retrieval filters (matched against files.name). */
+export type RetrievalFileType = 'pdf' | 'markdown' | 'word' | 'text';
+
+/**
+ * Conditional filter applied on top of vector search. Dimensions are ANDed;
+ * values within a dimension are ORed. Empty arrays / empty strings are
+ * normalized away by `parseRetrievalFilter` before reaching SQL.
+ */
+export interface RetrievalFilter {
+  fileIds?: string[];
+  fileTypes?: RetrievalFileType[];
+  /** Case-insensitive substring match on document_title OR section_title. */
+  titleQuery?: string;
+}
+
 export type RetrievedChunkScoreType = 'rerank' | 'vector';
 
 export interface RetrievedChunk {
@@ -263,6 +278,8 @@ export interface EvalRunSummary {
   mrr: number | null;
   avgFaithfulness: number | null;
   avgAnswerRelevance: number | null;
+  /** Retrieval filter applied to the run; null when the run was unfiltered. */
+  filter: RetrievalFilter | null;
   createdAt: ISODateString;
 }
 

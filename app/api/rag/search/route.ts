@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
 import { requireUser } from '@/lib/auth/current-user';
-import { isValidUuid } from '@/lib/validation';
+import { isValidUuid, parseRetrievalFilter } from '@/lib/validation';
 import { embedChunk } from '@/lib/rag/embeddings';
 import { searchChunks } from '@/lib/db/chunks';
 import {
@@ -47,6 +47,12 @@ export async function POST(req: NextRequest) {
       return Response.json(error('maxDistance must be between 0 and 1'), { status: 400 });
     }
 
+    const filterResult = parseRetrievalFilter(body.filter);
+    if (!filterResult.ok) {
+      return Response.json(error(filterResult.error), { status: 400 });
+    }
+    const filter = filterResult.filter;
+
     if (fileId && !isValidUuid(fileId)) {
       return Response.json(error('Invalid fileId'), { status: 400 });
     }
@@ -73,10 +79,12 @@ export async function POST(req: NextRequest) {
       if (knowledgeBaseId && file.knowledgeBaseId !== knowledgeBaseId) {
         return Response.json(error('File does not belong to this knowledge base'), { status: 400 });
       }
-      chunks = await searchChunks(queryEmbedding, topK, maxDistance, file.id);
+      // fileId keeps its access-scope role; filter.fileIds intersects with it
+      // (possibly yielding an empty result, which is not an error).
+      chunks = await searchChunks(queryEmbedding, topK, maxDistance, file.id, undefined, filter);
     } else if (knowledgeBaseId) {
       await requireKnowledgeBaseAccess(auth.id, knowledgeBaseId);
-      chunks = await searchChunks(queryEmbedding, topK, maxDistance, undefined, knowledgeBaseId);
+      chunks = await searchChunks(queryEmbedding, topK, maxDistance, undefined, knowledgeBaseId, filter);
     }
 
     return Response.json(success({ chunks }));

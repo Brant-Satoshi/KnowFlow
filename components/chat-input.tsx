@@ -3,9 +3,11 @@
 import React, { useEffect, useRef } from "react"
 import { ArrowUp, Square } from "lucide-react"
 import { ModelPicker } from "@/components/chat/model-picker"
+import { RetrievalFilterControl } from "@/components/chat/retrieval-filter"
 import { Textarea } from "@/components/ui/textarea"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { cn } from "@/lib/utils"
+import type { FileListItem, RetrievalFilter } from "@/lib/types"
 
 interface ChatInputProps {
   input: string
@@ -18,6 +20,9 @@ interface ChatInputProps {
   selectedModel: string
   onModelChange: (modelId: string) => void
   isModelDisabled?: boolean
+  files: FileListItem[]
+  retrievalFilter: RetrievalFilter
+  onRetrievalFilterChange: (filter: RetrievalFilter) => void
 }
 
 export function ChatInput({
@@ -31,6 +36,9 @@ export function ChatInput({
   selectedModel,
   onModelChange,
   isModelDisabled,
+  files,
+  retrievalFilter,
+  onRetrievalFilterChange,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { t } = useLanguage()
@@ -79,13 +87,36 @@ export function ChatInput({
           />
 
           <div className="flex items-center justify-between gap-2">
-            <ModelPicker
-              value={selectedModel}
-              onChange={onModelChange}
-              disabled={isModelDisabled}
-              t={t}
-              triggerClassName="h-8 w-[160px] cursor-pointer rounded-full border-border/70 bg-background/45 px-3 text-[12px] shadow-none focus:ring-1 focus:ring-primary/35 focus:ring-offset-0 sm:w-[180px]"
-            />
+            <div className="flex min-w-0 items-center gap-1.5">
+              <ModelPicker
+                value={selectedModel}
+                onChange={onModelChange}
+                disabled={isModelDisabled}
+                t={t}
+                triggerClassName="h-8 w-[160px] cursor-pointer rounded-full border-border/70 bg-background/45 px-3 text-[12px] shadow-none focus:ring-1 focus:ring-primary/35 focus:ring-offset-0 sm:w-[180px]"
+              />
+              <RetrievalFilterControl
+                files={files.filter(f => f.status === "indexed")}
+                value={retrievalFilter}
+                onChange={onRetrievalFilterChange}
+                disabled={isModelDisabled}
+                labels={{
+                  button: t.filterButtonLabel,
+                  aria: t.filterAriaLabel,
+                  filesLabel: t.filterFilesLabel,
+                  noFiles: t.filterNoFiles,
+                  typesLabel: t.filterTypesLabel,
+                  typePdf: t.filterTypePdf,
+                  typeMarkdown: t.filterTypeMarkdown,
+                  typeWord: t.filterTypeWord,
+                  typeText: t.filterTypeText,
+                  titleLabel: t.filterTitleLabel,
+                  titlePlaceholder: t.filterTitlePlaceholder,
+                  clear: t.filterClear,
+                }}
+                triggerClassName="h-8 shrink-0 cursor-pointer gap-1 rounded-full border-border/70 bg-background/45 px-3 text-[12px] shadow-none"
+              />
+            </div>
 
             {isLoading ? (
               <button

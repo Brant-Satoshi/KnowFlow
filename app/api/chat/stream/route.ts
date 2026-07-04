@@ -18,7 +18,7 @@ import {
 } from '@/lib/llm/chat';
 import { embedText } from '@/lib/rag/embeddings';
 import { NextRequest } from 'next/server';
-import { isValidUuid } from '@/lib/validation';
+import { isValidUuid, parseRetrievalFilter } from '@/lib/validation';
 import { rerankChunks } from '@/lib/rag/rerank';
 import type { RetrievedChunk } from '@/lib/types';
 import { requireUser } from '@/lib/auth/current-user';
@@ -93,6 +93,15 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+
+  const filterResult = parseRetrievalFilter((body as Record<string, unknown>).filter);
+  if (!filterResult.ok) {
+    return Response.json(
+      { requestId, ok: false, error: filterResult.error },
+      { status: 400 },
+    );
+  }
+  const retrievalFilter = filterResult.filter;
 
   const conversationId = getStringField(body, 'conversationId');
   if (!conversationId || !isValidUuid(conversationId)) {
@@ -176,6 +185,7 @@ export async function POST(request: NextRequest) {
           0.6,
           undefined,
           conversation.knowledgeBaseId,
+          retrievalFilter,
         );
         send('progress', {
           requestId,
