@@ -6,12 +6,12 @@ import type { EvalTranslationKeys, Language } from '@/lib/i18n/translations';
 import {
   METRIC_SPECS,
   metricsFromSummary,
-  formatRunDate,
   GOOD,
   GOLD,
   type RunMetrics,
   type MetricSpec,
 } from './shared';
+import { formatDateTime } from '@/lib/format';
 
 const RUN_COLORS = [GOOD, GOLD, 'hsl(var(--muted-foreground))'];
 const RUN_LETTERS = ['A', 'B', 'C'];
@@ -82,7 +82,7 @@ export function CompareTab({
     { label: evalT.rerankToggleLabel, value: r => (r.useRerank ? evalT.rerankOn : evalT.rerankOff) },
     { label: evalT.attrMode, value: r => (r.mode === 'curated' ? evalT.modeCurated : r.mode) },
     { label: evalT.attrCases, value: r => `${r.passedCases}/${r.totalCases}` },
-    { label: evalT.attrDate, value: r => formatRunDate(r.createdAt, language) },
+    { label: evalT.attrDate, value: r => formatDateTime(r.createdAt, language) },
   ];
 
   return (
@@ -98,7 +98,7 @@ export function CompareTab({
             <span className="w-[7px] h-[7px] rounded-full" style={{ background: RUN_COLORS[i] }} />
             <span className="font-semibold" style={{ color: RUN_COLORS[i] }}>{RUN_LETTERS[i]}</span>
             <span className="text-foreground">{r.datasetName ?? '—'}</span>
-            <span className="text-[11px] text-muted-foreground">{formatRunDate(r.createdAt, language)}</span>
+            <span className="text-[11px] text-muted-foreground">{formatDateTime(r.createdAt, language)}</span>
             <button
               type="button"
               onClick={() => remove(r.id)}
@@ -119,7 +119,7 @@ export function CompareTab({
             <option value="">+ {evalT.compareAddRun}</option>
             {available.map(r => (
               <option key={r.id} value={r.id}>
-                {r.datasetName ?? '—'} · {formatRunDate(r.createdAt, language)} · {r.useRerank ? evalT.rerankOn : evalT.rerankOff}
+                {r.datasetName ?? '—'} · {formatDateTime(r.createdAt, language)} · {r.useRerank ? evalT.rerankOn : evalT.rerankOff}
               </option>
             ))}
           </select>

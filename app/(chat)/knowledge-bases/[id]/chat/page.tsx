@@ -419,6 +419,100 @@ export default function ChatPage() {
     )
   }
 
+  // Shared between the mobile and desktop layouts below — the two branches
+  // differ only in their responsive wrappers, not in what they mount.
+  const chatHeader = (
+    <header className={cn("flex h-13 items-center px-4 sm:px-5", chatSurfaceClass)}>
+      <div className="flex w-full items-center justify-between gap-4">
+        <Link href="/" className="min-w-0">
+          <BrandLogo
+            name={knowledgeBase?.name || t.title}
+            className="min-w-0"
+            textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
+          />
+        </Link>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button asChild variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+            <Link href="/eval" aria-label={t.evalEntry}>
+              <FlaskConical className="h-4 w-4" />
+            </Link>
+          </Button>
+          <SettingsMenu />
+        </div>
+      </div>
+    </header>
+  )
+
+  const chatMessagesEl = (
+    <ChatMessages
+      messages={messages}
+      isLoading={isLoading}
+      isStreaming={isStreaming}
+      citationsMap={citationsMap}
+      retrievedChunksMap={retrievedChunksMap}
+      progressMap={progressMap}
+      onRegenerate={regenerateFrom}
+    />
+  )
+
+  const emptyStateEl = (
+    <EmptyState
+      hasKnowledge={hasKnowledge}
+      isPreparingKnowledge={isParsingOrUploading}
+      onSuggestionClick={handleSuggestionClick}
+      onUpload={handleUpload}
+    />
+  )
+
+  const chatInputEl = (
+    <ChatInput
+      input={input}
+      onChange={setInput}
+      onSubmit={handleSubmit}
+      onStop={handleStop}
+      isLoading={isLoading}
+      hasKnowledge={hasKnowledge}
+      isPreparingKnowledge={isParsingOrUploading}
+      selectedModel={selectedModel}
+      onModelChange={handleModelChange}
+      isModelDisabled={isStreaming}
+      files={files}
+      retrievalFilter={retrievalFilter}
+      onRetrievalFilterChange={setRetrievalFilter}
+    />
+  )
+
+  const conversationSidebarProps = {
+    conversations,
+    currentId: currentConversationId,
+    isLoading: conversationsLoading,
+    isCreating: creatingConversation,
+    onSelect: handleSelectConversation,
+    onCreate: handleNewConversation,
+    onRename: handleRenameConversation,
+    onDelete: handleDeleteConversation,
+  }
+
+  const knowledgePanelProps = {
+    files,
+    onUpload: handleUpload,
+    onParse: handleParse,
+    onDelete: handleDelete,
+    parsingIds,
+    uploading,
+    initialLoading: isInitialLoading,
+  }
+
+  const filePreviewEl = (
+    <FilePreviewSheet
+      open={previewState !== null}
+      fileId={previewState?.fileId ?? null}
+      fileName={previewState?.fileName ?? null}
+      chunkId={previewState?.chunkId}
+      onOpenChange={(next) => { if (!next) setPreviewState(null) }}
+    />
+  )
+
   if (isMobile) {
     return (
       <PreviewContext.Provider value={openPreview}>
@@ -427,25 +521,7 @@ export default function ChatPage() {
         <div className="home-orb-float pointer-events-none absolute -right-12 top-32 h-72 w-72 rounded-full bg-[#4A8A5C]/5 blur-3xl dark:bg-[#4A8A5C]/8 [animation-delay:-5s]" />
 
         <div className="relative flex min-h-0 flex-1 flex-col">
-          <header className={cn("flex h-13 items-center px-4", chatSurfaceClass)}>
-            <div className="flex w-full items-center justify-between gap-3">
-              <Link href="/" className="min-w-0">
-                <BrandLogo
-                  name={knowledgeBase?.name || t.title}
-                  className="min-w-0"
-                  textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
-                />
-              </Link>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <Button asChild variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                  <Link href="/eval" aria-label={t.evalEntry}>
-                    <FlaskConical className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <SettingsMenu />
-              </div>
-            </div>
-          </header>
+          {chatHeader}
 
           <Tabs
             value={mobileTab}
@@ -485,24 +561,9 @@ export default function ChatPage() {
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
                   ) : hasMessages ? (
-                    <div className="px-4 py-5">
-                      <ChatMessages
-                        messages={messages}
-                        isLoading={isLoading}
-                        isStreaming={isStreaming}
-                        citationsMap={citationsMap}
-                        retrievedChunksMap={retrievedChunksMap}
-                        progressMap={progressMap}
-                        onRegenerate={regenerateFrom}
-                      />
-                    </div>
+                    <div className="px-4 py-5">{chatMessagesEl}</div>
                   ) : (
-                    <EmptyState
-                      hasKnowledge={hasKnowledge}
-                      isPreparingKnowledge={isParsingOrUploading}
-                      onSuggestionClick={handleSuggestionClick}
-                      onUpload={handleUpload}
-                    />
+                    emptyStateEl
                   )}
                 </div>
                 <div
@@ -512,34 +573,14 @@ export default function ChatPage() {
                 {scrollDownButton}
                 </div>
 
-                <ChatInput
-                  input={input}
-                  onChange={setInput}
-                  onSubmit={handleSubmit}
-                  onStop={handleStop}
-                  isLoading={isLoading}
-                  hasKnowledge={hasKnowledge}
-                  isPreparingKnowledge={isParsingOrUploading}
-                  selectedModel={selectedModel}
-                  onModelChange={handleModelChange}
-                  isModelDisabled={isStreaming}
-                  files={files}
-                  retrievalFilter={retrievalFilter}
-                  onRetrievalFilterChange={setRetrievalFilter}
-                />
+                {chatInputEl}
               </section>
             </TabsContent>
 
             <TabsContent value="knowledge" className="-mt-px flex min-h-0 flex-1 overflow-hidden">
               <KnowledgePanel
-                files={files}
-                onUpload={handleUpload}
-                onParse={handleParse}
-                onDelete={handleDelete}
-                parsingIds={parsingIds}
-                uploading={uploading}
+                {...knowledgePanelProps}
                 collapsed={false}
-                initialLoading={isInitialLoading}
                 onToggle={() => undefined}
                 fullWidth={true}
                 className="rounded-none"
@@ -548,14 +589,7 @@ export default function ChatPage() {
 
             <TabsContent value="chats" className="-mt-px flex min-h-0 flex-1 overflow-hidden">
               <ConversationSidebar
-                conversations={conversations}
-                currentId={currentConversationId}
-                isLoading={conversationsLoading}
-                isCreating={creatingConversation}
-                onSelect={handleSelectConversation}
-                onCreate={handleNewConversation}
-                onRename={handleRenameConversation}
-                onDelete={handleDeleteConversation}
+                {...conversationSidebarProps}
                 fullWidth
                 className="rounded-none"
               />
@@ -563,13 +597,7 @@ export default function ChatPage() {
           </Tabs>
         </div>
       </div>
-      <FilePreviewSheet
-        open={previewState !== null}
-        fileId={previewState?.fileId ?? null}
-        fileName={previewState?.fileName ?? null}
-        chunkId={previewState?.chunkId}
-        onOpenChange={(next) => { if (!next) setPreviewState(null) }}
-      />
+      {filePreviewEl}
       </PreviewContext.Provider>
     )
   }
@@ -582,38 +610,10 @@ export default function ChatPage() {
       <div className="home-orb-float pointer-events-none absolute -bottom-28 left-1/3 h-80 w-80 rounded-full bg-[#C05B3C]/4 blur-3xl dark:bg-[#C05B3C]/6 [animation-delay:-9s]" />
 
       <div className="relative flex min-h-0 w-full flex-1 flex-col">
-        <header className={cn("flex h-13 items-center px-4 sm:px-5", chatSurfaceClass)}>
-          <div className="flex w-full items-center justify-between gap-4">
-            <Link href="/" className="min-w-0">
-              <BrandLogo
-                name={knowledgeBase?.name || t.title}
-                className="min-w-0"
-                textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
-              />
-            </Link>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <Button asChild variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                <Link href="/eval" aria-label={t.evalEntry}>
-                  <FlaskConical className="h-4 w-4" />
-                </Link>
-              </Button>
-              <SettingsMenu />
-            </div>
-          </div>
-        </header>
+        {chatHeader}
 
         <div className="-mt-px flex min-h-0 min-w-0 flex-1">
-          <ConversationSidebar
-            conversations={conversations}
-            currentId={currentConversationId}
-            isLoading={conversationsLoading}
-            isCreating={creatingConversation}
-            onSelect={handleSelectConversation}
-            onCreate={handleNewConversation}
-            onRename={handleRenameConversation}
-            onDelete={handleDeleteConversation}
-            className="rounded-none"
-          />
+          <ConversationSidebar {...conversationSidebarProps} className="rounded-none" />
 
           <section className={cn("-ml-px flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none", chatSurfaceClass)}>
             <div className="relative min-h-0 flex-1">
@@ -626,29 +626,14 @@ export default function ChatPage() {
                   ref={setContainerRef}
                   className="h-full overflow-y-auto overscroll-contain px-4 py-6 [-webkit-overflow-scrolling:touch] sm:px-6"
                 >
-                  <div className="mx-auto max-w-3xl w-full">
-                    <ChatMessages
-                      messages={messages}
-                      isLoading={isLoading}
-                      isStreaming={isStreaming}
-                      citationsMap={citationsMap}
-                      retrievedChunksMap={retrievedChunksMap}
-                      progressMap={progressMap}
-                      onRegenerate={regenerateFrom}
-                    />
-                  </div>
+                  <div className="mx-auto max-w-3xl w-full">{chatMessagesEl}</div>
                 </div>
               ) : (
                 <div
                   ref={setContainerRef}
                   className="h-full overflow-y-auto overscroll-contain px-1 [-webkit-overflow-scrolling:touch] sm:px-2"
                 >
-                  <EmptyState
-                    hasKnowledge={hasKnowledge}
-                    isPreparingKnowledge={isParsingOrUploading}
-                    onSuggestionClick={handleSuggestionClick}
-                    onUpload={handleUpload}
-                  />
+                  {emptyStateEl}
                 </div>
               )}
               <div
@@ -658,32 +643,12 @@ export default function ChatPage() {
               {scrollDownButton}
             </div>
 
-            <ChatInput
-              input={input}
-              onChange={setInput}
-              onSubmit={handleSubmit}
-              onStop={handleStop}
-              isLoading={isLoading}
-              hasKnowledge={hasKnowledge}
-              isPreparingKnowledge={isParsingOrUploading}
-              selectedModel={selectedModel}
-              onModelChange={handleModelChange}
-              isModelDisabled={isStreaming}
-              files={files}
-              retrievalFilter={retrievalFilter}
-              onRetrievalFilterChange={setRetrievalFilter}
-            />
+            {chatInputEl}
           </section>
 
           <KnowledgePanel
-            files={files}
-            onUpload={handleUpload}
-            onParse={handleParse}
-            onDelete={handleDelete}
-            parsingIds={parsingIds}
-            uploading={uploading}
+            {...knowledgePanelProps}
             collapsed={panelCollapsed}
-            initialLoading={isInitialLoading}
             onToggle={() => setPanelCollapsed((prev) => !prev)}
             side="right"
             className="-ml-px rounded-none"
@@ -691,13 +656,7 @@ export default function ChatPage() {
         </div>
       </div>
     </div>
-    <FilePreviewSheet
-      open={previewState !== null}
-      fileId={previewState?.fileId ?? null}
-      fileName={previewState?.fileName ?? null}
-      chunkId={previewState?.chunkId}
-      onOpenChange={(next) => { if (!next) setPreviewState(null) }}
-    />
+    {filePreviewEl}
     </PreviewContext.Provider>
   )
 }
