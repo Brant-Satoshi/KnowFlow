@@ -1,6 +1,6 @@
 'use client';
 
-import type { EvalRunResult, EvalRunSummary } from '@/lib/types';
+import type { EvalRunResult, EvalRunSummary, RetrievalFileType, RetrievalFilter } from '@/lib/types';
 import type { EvalTranslationKeys, Language } from '@/lib/i18n/translations';
 import {
   METRIC_SPECS,
@@ -25,6 +25,27 @@ const LEADERBOARD_KEYS = ['faithfulness', 'answerRelevance', 'precision', 'recal
 const LEADERBOARD_SPECS = LEADERBOARD_KEYS.map(k => METRIC_SPECS.find(s => s.key === k)).filter((s): s is MetricSpec => !!s);
 
 const RANK_DOT = [GOOD, GOLD, 'hsl(var(--muted-foreground))'];
+
+/** Tooltip summary of a run's retrieval filter, one part per active dimension. */
+function filterSummary(filter: RetrievalFilter, evalT: EvalTranslationKeys): string {
+  const typeLabels: Record<RetrievalFileType, string> = {
+    pdf: evalT.filterTypePdf,
+    markdown: evalT.filterTypeMarkdown,
+    word: evalT.filterTypeWord,
+    text: evalT.filterTypeText,
+  };
+  const parts: string[] = [];
+  if (filter.fileIds?.length) {
+    parts.push(evalT.filterTooltipFiles.replace('{count}', String(filter.fileIds.length)));
+  }
+  if (filter.fileTypes?.length) {
+    parts.push(evalT.filterTooltipTypes.replace('{list}', filter.fileTypes.map(t => typeLabels[t]).join(', ')));
+  }
+  if (filter.titleQuery) {
+    parts.push(evalT.filterTooltipTitle.replace('{query}', filter.titleQuery));
+  }
+  return parts.join(' · ');
+}
 
 function bestValue(spec: MetricSpec, rows: EvalRunSummary[]): number | null {
   const vals = rows.map(r => spec.value(metricsFromSummary(r))).filter((v): v is number => v != null);
@@ -87,6 +108,14 @@ function Leaderboard({
                       <span className="text-[11px] text-muted-foreground">
                         {formatRunDate(run.createdAt, language)} · {run.useRerank ? evalT.rerankOn : evalT.rerankOff}
                       </span>
+                      {run.filter && (
+                        <span
+                          className="font-mono text-[9.5px] rounded-md px-1.5 py-px border border-border text-muted-foreground"
+                          title={filterSummary(run.filter, evalT)}
+                        >
+                          {evalT.filterActiveBadge}
+                        </span>
+                      )}
                       {ri === 0 && history.length > 1 && (
                         <span
                           className="font-mono text-[9.5px] rounded-md px-1.5 py-px ml-0.5"
@@ -157,7 +186,7 @@ export function OverviewTab({
   }
 
   return (
-    <div className="flex flex-col gap-4 max-w-[1180px]">
+    <div className="flex flex-col gap-4 max-w-295">
       {curMetrics && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {HERO_SPECS.map((spec, i) => {

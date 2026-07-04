@@ -4,13 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type { UIMessage } from "ai"
 import { readSseStream } from "@/lib/chat/sse"
 import { httpClient } from "@/lib/http/client"
-import type { RetrievedChunk, StoredMessage } from "@/lib/types"
+import type { RetrievalFilter, RetrievedChunk, StoredMessage } from "@/lib/types"
 
 interface UseChatStreamParams {
   knowledgeBaseId?: string
   conversationId?: string
   /** OpenRouter model id (from catalog). When omitted, server uses its own default. */
   selectedModel?: string
+  /** Retrieval filter sent with each request when any dimension is active. */
+  retrievalFilter?: RetrievalFilter
   scrollRef: React.RefObject<HTMLDivElement | null>
   scrollToBottom: () => void
   onConversationTitleUpdated?: (conversationId: string, title: string) => void
@@ -154,6 +156,7 @@ export function useChatStream({
   knowledgeBaseId,
   conversationId,
   selectedModel,
+  retrievalFilter,
   scrollRef,
   scrollToBottom,
   onConversationTitleUpdated,
@@ -379,6 +382,7 @@ export function useChatStream({
           conversationId: string
           knowledgeBaseId?: string
           model?: string
+          filter?: RetrievalFilter
         } = {
           message: trimmedText,
           requestId: assistantId,
@@ -392,6 +396,15 @@ export function useChatStream({
 
         if (selectedModel) {
           payload.model = selectedModel
+        }
+
+        if (
+          retrievalFilter &&
+          (retrievalFilter.fileIds?.length ||
+            retrievalFilter.fileTypes?.length ||
+            retrievalFilter.titleQuery)
+        ) {
+          payload.filter = retrievalFilter
         }
 
         const response = await httpClient.stream("POST", "/api/chat/stream", payload, {
@@ -519,7 +532,7 @@ export function useChatStream({
       fullTextRef.current = ""
       retrievedChunksRef.current = []
     },
-    [appendStep, conversationId, flushAssistantBuffer, isLoading, knowledgeBaseId, onConversationTitleUpdated, scheduleFlush, scrollToBottom, selectedModel, updateProgress]
+    [appendStep, conversationId, flushAssistantBuffer, isLoading, knowledgeBaseId, onConversationTitleUpdated, retrievalFilter, scheduleFlush, scrollToBottom, selectedModel, updateProgress]
   )
 
   // Regenerate from a specific assistant turn. Removes the preceding user

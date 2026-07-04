@@ -6,6 +6,7 @@ import type {
   EvalRunComparison,
   EvalRunResult,
   EvalTopKHit,
+  RetrievalFilter,
 } from '@/lib/types';
 import { embedText } from '@/lib/rag/embeddings';
 import { searchChunks } from '@/lib/db/chunks';
@@ -33,6 +34,8 @@ export interface RunCuratedEvalOpts {
    * Defaults to the rerank-on branch.
    */
   useRerank?: boolean;
+  /** Per-run retrieval filter; both rerank branches share the filtered recall set. */
+  filter?: RetrievalFilter;
 }
 
 interface JudgeScores {
@@ -106,6 +109,7 @@ async function runCase(c: EvalCase, opts: RunCuratedEvalOpts): Promise<PerCaseRe
       MAX_DISTANCE,
       undefined,
       opts.knowledgeBaseId,
+      opts.filter,
     );
   } catch (e) {
     recallError = true;

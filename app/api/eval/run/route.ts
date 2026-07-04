@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { success, error } from '@/lib/api/response';
 import { requireUser } from '@/lib/auth/current-user';
-import { isValidUuid } from '@/lib/validation';
+import { isValidUuid, parseRetrievalFilter } from '@/lib/validation';
 import { loadDataset } from '@/lib/eval/dataset';
 import { runComparison } from '@/lib/eval/runner';
 import { ensureDataset, saveRun } from '@/lib/db/eval';
@@ -49,6 +49,12 @@ export async function POST(request: NextRequest): Promise<Response> {
     return Response.json(error('invalid_request'), { status: 400 });
   }
 
+  const filterResult = parseRetrievalFilter(b['filter']);
+  if (!filterResult.ok) {
+    return Response.json(error('invalid_request'), { status: 400 });
+  }
+  const filter = filterResult.filter;
+
   let cases;
   try {
     cases = loadDataset(datasetName);
@@ -57,7 +63,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   try {
-    const comparison = await runComparison(cases, { knowledgeBaseId, judge: true, useRerank });
+    const comparison = await runComparison(cases, { knowledgeBaseId, judge: true, useRerank, filter });
     const result = useRerank ? comparison.withRerank : comparison.withoutRerank;
     try {
       const datasetId = await ensureDataset(datasetName, undefined, cases);
@@ -66,6 +72,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         useRerank,
         datasetId,
         datasetName,
+        filter,
       });
     } catch (error) {
       console.error("Failed to persist eval run", error);
