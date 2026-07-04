@@ -3,6 +3,7 @@ import { success, error } from '@/lib/api/response';
 import { requireUser } from '@/lib/auth/current-user';
 import { isValidUuid, parseRetrievalFilter } from '@/lib/validation';
 import { embedChunk } from '@/lib/rag/embeddings';
+import { RETRIEVAL } from '@/lib/rag/retrieve';
 import { searchChunks } from '@/lib/db/chunks';
 import {
   isNotFoundOrForbiddenError,
@@ -20,8 +21,8 @@ export async function POST(req: NextRequest) {
       query,
       fileId: rawFileId,
       knowledgeBaseId: rawKnowledgeBaseId,
-      topK = 5,
-      maxDistance = 0.4,
+      topK = RETRIEVAL.finalTopK,
+      maxDistance = RETRIEVAL.maxDistance,
     } = body;
     const fileId = typeof rawFileId === 'string' ? rawFileId : undefined;
     const knowledgeBaseId = typeof rawKnowledgeBaseId === 'string' ? rawKnowledgeBaseId : undefined;

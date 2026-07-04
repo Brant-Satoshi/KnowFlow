@@ -3,13 +3,15 @@ import { embedText } from '@/lib/rag/embeddings';
 import { rerankChunks } from '@/lib/rag/rerank';
 import type { Chunk, RetrievalFilter } from '@/lib/types';
 
-// Single source of truth for the chat/eval retrieval pipeline. Eval must
-// retrieve exactly like production chat, or its scores measure a pipeline
-// that never runs.
-const RECALL_TOP_K = 20;
-const RECALL_MAX_DISTANCE = 0.6;
-const RERANK_TOP_N = 8;
-const FINAL_TOP_K = 5;
+// Single source of truth for retrieval parameters, shared by chat, eval,
+// and the manual search API. Eval must retrieve exactly like production
+// chat, or its scores measure a pipeline that never runs.
+export const RETRIEVAL = {
+  recallTopK: 20,
+  maxDistance: 0.6,
+  rerankTopN: 8,
+  finalTopK: 5,
+} as const;
 
 export interface RecallOptions {
   knowledgeBaseId: string;
@@ -22,8 +24,8 @@ export async function recallChunks(question: string, opts: RecallOptions): Promi
   const embedding = await embedText(question, { signal: opts.signal });
   return searchChunks(
     embedding,
-    RECALL_TOP_K,
-    RECALL_MAX_DISTANCE,
+    RETRIEVAL.recallTopK,
+    RETRIEVAL.maxDistance,
     undefined,
     opts.knowledgeBaseId,
     opts.filter,
@@ -49,9 +51,9 @@ export async function selectFinalChunks(
     mode === 'off'
       ? recalled
       : await rerankChunks(question, recalled, {
-          topN: RERANK_TOP_N,
+          topN: RETRIEVAL.rerankTopN,
           force: mode === 'force',
           signal,
         });
-  return ordered.slice(0, FINAL_TOP_K);
+  return ordered.slice(0, RETRIEVAL.finalTopK);
 }
