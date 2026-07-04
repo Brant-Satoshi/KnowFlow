@@ -8,9 +8,7 @@ import type {
   EvalTopKHit,
   RetrievalFilter,
 } from '@/lib/types';
-import { embedText } from '@/lib/rag/embeddings';
-import { searchChunks } from '@/lib/db/chunks';
-import { rerankChunks } from '@/lib/rag/rerank';
+import { recallChunks, selectFinalChunks } from '@/lib/rag/retrieve';
 import { buildPrompt, generateAnswer } from '@/lib/llm/chat';
 import { gradeRecalled } from './relevance';
 import { aggregateMetrics } from './metrics';
@@ -18,9 +16,6 @@ import { hashDataset } from './hash';
 import { judgeFaithfulness, judgeAnswerRelevance } from './judge';
 
 const TOP_K_VALUES = [1, 3, 5];
-const FINAL_TOP_K = 5;
-const SEARCH_TOP_K = 20;
-const MAX_DISTANCE = 0.6;
 const CASE_CONCURRENCY = 3;
 
 export interface RunCuratedEvalOpts {
@@ -102,15 +97,11 @@ async function runCase(c: EvalCase, opts: RunCuratedEvalOpts): Promise<PerCaseRe
   let recallError = false;
 
   try {
-    const embedding = await embedText(c.question);
-    recalled = await searchChunks(
-      embedding,
-      SEARCH_TOP_K,
-      MAX_DISTANCE,
-      undefined,
-      opts.knowledgeBaseId,
-      opts.filter,
-    );
+    recalled = await recallChunks(c.question, {
+      knowledgeBaseId: opts.knowledgeBaseId,
+      filter: opts.filter,
+      signal: opts.signal,
+    });
   } catch (e) {
     recallError = true;
     console.error('[eval/runner] recall error:', e);
@@ -161,10 +152,12 @@ async function runBranch(
 
   if (!pipelineError) {
     try {
-      const ordered = useRerank
-        ? await rerankChunks(c.question, recalled, { topN: 8, force: true, signal })
-        : recalled;
-      finalChunks = ordered.slice(0, FINAL_TOP_K);
+      finalChunks = await selectFinalChunks(
+        c.question,
+        recalled,
+        useRerank ? 'force' : 'off',
+        signal,
+      );
       answer = await generateAnswer(buildPrompt(c.question, finalChunks), { signal });
     } catch (e) {
       pipelineError = true;

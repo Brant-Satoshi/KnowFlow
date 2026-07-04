@@ -22,10 +22,9 @@ Next.js App Router RAG chat app. PostgreSQL + pgvector for vector storage.
 - `/eval` — evaluation
 - `/login`, `/register` — authentication
 
-**RAG pipeline** (per chat request at `app/api/chat/stream/route.ts`):
-1. Embed the user query → `lib/rag/embeddings.ts` (`embedText`)
-2. Vector search top-20 chunks with cosine distance < 0.4 → `lib/db/chunks.ts` (`searchChunks`)
-3. Rerank via OpenRouter/Cohere → `lib/rag/rerank.ts` (`rerankChunks`), take top-5
+**RAG pipeline** (per chat request at `app/api/chat/stream/route.ts`; retrieval stages shared with the eval runner via `lib/rag/retrieve.ts`):
+1. Embed the user query + vector search top-20 chunks with cosine distance < 0.6 → `lib/rag/retrieve.ts` (`recallChunks`)
+2. Rerank via OpenRouter/Cohere (top-8), take top-5 → `lib/rag/retrieve.ts` (`selectFinalChunks`)
 4. Build prompt → `lib/llm/chat.ts` (`buildPrompt`)
 5. Stream answer from MiniMax → `lib/llm/chat.ts` (`streamAnswer`), returned as SSE
 
