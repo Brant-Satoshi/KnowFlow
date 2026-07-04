@@ -48,7 +48,15 @@ const LABELS = {
 
 const emptySubscribe = () => () => {}
 
-export function SettingsMenu() {
+export function SettingsMenu({
+  trigger,
+  side,
+  align = "end",
+}: {
+  trigger?: React.ReactNode
+  side?: "top" | "right" | "bottom" | "left"
+  align?: "start" | "center" | "end"
+} = {}) {
   const { language, setLanguage } = useLanguage()
   const { user, logout } = useAuth()
   const { theme, setTheme } = useThemeWithTransition()
@@ -59,13 +67,15 @@ export function SettingsMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 gap-2 px-2 sm:px-3">
-          <Settings className="h-4 w-4" />
-          <span className="hidden sm:inline">{labels.settings}</span>
-          <span className="sr-only sm:hidden">{labels.settings}</span>
-        </Button>
+        {trigger ?? (
+          <Button variant="outline" size="sm" className="h-8 gap-2 px-2 sm:px-3">
+            <Settings className="h-4 w-4" />
+            <span className="hidden sm:inline">{labels.settings}</span>
+            <span className="sr-only sm:hidden">{labels.settings}</span>
+          </Button>
+        )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-60 rounded-xl p-2">
+      <DropdownMenuContent side={side} align={align} className="w-60 rounded-xl p-2">
         <DropdownMenuLabel className="px-2 pb-1 pt-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           {labels.theme}
         </DropdownMenuLabel>

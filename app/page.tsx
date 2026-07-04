@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowRight, BookmarkPlus, Edit3, FlaskConical, Loader2, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react"
-import { BrandLogo } from "@/components/brand-logo"
+import { ArrowRight, BookmarkPlus, Edit3, Loader2, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react"
+import { HomeSidebar, type HomeSection } from "./_components/home-sidebar"
+import { PublicKnowledgeBases } from "./_components/home-public-kbs"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -23,7 +24,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
-import { SettingsMenu } from "@/components/settings-menu"
 import { WorkspaceSwitcher } from "@/components/workspace-switcher"
 import { WorkspaceMembersDialog } from "@/components/workspace-members-dialog"
 import { WorkspaceJoinDialog } from "@/components/workspace-join-dialog"
@@ -31,6 +31,7 @@ import { toast } from "@/components/ui/use-toast"
 import { useAuth } from "@/lib/auth/AuthContext"
 import { useErrorToast } from "@/lib/hooks/use-error-toast"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { displayWorkspaceName } from "@/lib/i18n/workspace-name"
 import { KnowledgeBase, WorkspaceSummary } from "@/lib/types"
 import { httpClient, HttpError } from "@/lib/http/client"
 import { cn } from "@/lib/utils"
@@ -202,10 +203,10 @@ function KBCard({
         onClick={() => pushRecentId(kb.id)}
         className={cn(
           "home-card-enter flex h-40 cursor-pointer flex-col justify-between rounded-2xl bg-card p-4 sm:h-55",
-          "transition-shadow duration-200 hover:shadow-[0_8px_28px_rgba(0,0,0,0.10)] dark:hover:shadow-[0_8px_28px_rgba(0,0,0,0.35)]"
+          "transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_28px_rgba(0,0,0,0.10)] dark:hover:shadow-[0_8px_28px_rgba(0,0,0,0.35)]"
         )}
         style={{
-          borderTop: `3px solid ${accentVar}`,
+          borderTop: `4px solid ${accentVar}`,
           animationDelay: `${index * 55}ms`,
         }}
       >
@@ -276,8 +277,9 @@ export default function HomePage() {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null)
   const [isMembersOpen, setIsMembersOpen] = useState(false)
   const [isJoinOpen, setIsJoinOpen] = useState(false)
+  const [activeSection, setActiveSection] = useState<HomeSection>("workspace")
   const router = useRouter()
-  const { home: t } = useLanguage()
+  const { home: t, language } = useLanguage()
   const { user } = useAuth()
   const showErrorToast = useErrorToast()
 
@@ -318,6 +320,17 @@ export default function HomePage() {
   const handleSelectWorkspace = useCallback((id: string | null) => {
     setActiveWorkspaceId(id)
     setStoredWorkspaceId(id)
+  }, [])
+
+  const handleSelectSection = useCallback((section: HomeSection) => {
+    setActiveSection(section)
+    // Clearing search re-mounts the public section (hidden during search) so the
+    // active nav item always points at visible content; scroll after that render.
+    setSearchQuery("")
+    const id = section === "workspace" ? "my-knowledge-bases" : "public-knowledge-bases"
+    requestAnimationFrame(() =>
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })
+    )
   }, [])
 
   const fetchKnowledgeBases = useCallback(async (workspaceId: string | null) => {
@@ -465,54 +478,24 @@ export default function HomePage() {
   }, [knowledgeBases, searchQuery])
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 flex h-13 items-center justify-between border-b border-border bg-background px-5">
-        <BrandLogo
-          name={t.title}
-          wordmarkAccent
-          textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
-        />
-
-        <div className="flex items-center gap-1.5">
-          <WorkspaceSwitcher
-            workspaces={workspaces}
-            activeWorkspaceId={activeWorkspaceId}
-            onSelect={handleSelectWorkspace}
-            onManageMembers={() => setIsMembersOpen(true)}
-            onJoin={() => setIsJoinOpen(true)}
-            t={t}
-          />
-          <Button
-            onClick={() => setIsCreating(true)}
-            variant="ghost"
-            className="h-8 rounded-full px-3.5 font-mono text-xs font-medium tracking-wide"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t.newCollection}</span>
-            <span className="sm:hidden">{t.newCollectionShort}</span>
-          </Button>
-          <Button
-            asChild
-            variant="ghost"
-            className="h-8 rounded-full px-3.5 font-mono text-xs font-medium tracking-wide"
-          >
-            <Link href="/eval">
-              <FlaskConical className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{t.evalEntry}</span>
-              <span className="sr-only sm:hidden">{t.evalEntry}</span>
-            </Link>
-          </Button>
-          <SettingsMenu />
-        </div>
-      </header>
+    <div className="min-h-screen bg-background md:grid md:grid-cols-[232px_1fr]">
+      {/* ── Sidebar ────────────────────────────────────────────────── */}
+      <HomeSidebar
+        activeSection={activeSection}
+        onSelectSection={handleSelectSection}
+        onCreate={() => setIsCreating(true)}
+        userEmail={user?.email}
+        workspaceLabel={
+          activeWorkspace ? displayWorkspaceName(activeWorkspace.name, t) : t.allWorkspaces
+        }
+        t={t}
+      />
 
       {/* ── Main ───────────────────────────────────────────────────── */}
-      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-        {/* Page heading */}
+      <main className="min-w-0 max-w-310 px-4 py-10 sm:px-6 lg:px-8">
+        {/* Inline editorial search */}
         <div className="mb-9">
-          {/* Inline editorial search */}
-          <div className="mt-4 flex items-center gap-3 border-b border-border pb-3">
+          <div className="flex items-center gap-3 border-b border-border pb-3">
             <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <input
               value={searchQuery}
@@ -532,7 +515,7 @@ export default function HomePage() {
         </div>
 
         {/* Recents */}
-        {!isLoading && (
+        {!isLoading && !searchQuery.trim() && (
           <RecentsStrip
             kbs={knowledgeBases}
             recentIds={recentIds}
@@ -544,45 +527,69 @@ export default function HomePage() {
           />
         )}
 
-        {/* Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-40 rounded-2xl sm:h-55" />
-            ))}
+        {/* ── My knowledge bases ─────────────────────────────────── */}
+        <section id="my-knowledge-bases" className="mb-12 scroll-mt-10">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div className="flex items-baseline gap-3.5">
+              <h2 className="font-sans text-xl font-semibold tracking-[-0.01em] text-foreground">
+                {t.myKnowledgeBases}
+              </h2>
+              <span className="font-mono text-xs text-muted-foreground">
+                {t.kbCountLabel.replace("{count}", String(filteredKnowledgeBases.length))}
+              </span>
+            </div>
+            <WorkspaceSwitcher
+              workspaces={workspaces}
+              activeWorkspaceId={activeWorkspaceId}
+              onSelect={handleSelectWorkspace}
+              onManageMembers={() => setIsMembersOpen(true)}
+              onJoin={() => setIsJoinOpen(true)}
+              t={t}
+            />
           </div>
-        ) : filteredKnowledgeBases.length === 0 && !searchQuery ? (
-          <EmptyState onCreate={() => setIsCreating(true)} t={t} />
-        ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <NewKBCard onClick={() => setIsCreating(true)} label={t.newCollection} />
-            {filteredKnowledgeBases.map((kb, index) => (
-              <KBCard
-                key={kb.id}
-                kb={kb}
-                index={index}
-                onEdit={(kb) => {
-                  setEditingKnowledgeBase(kb)
-                  setEditName(kb.name)
-                  setEditDescription(kb.description || "")
-                }}
-                onDelete={setDeletingKnowledgeBase}
-                onAddToRecent={(kb) => {
-                  pushRecentId(kb.id)
-                  setRecentIds(getRecentIds())
-                }}
-                isRecent={recentIds.includes(kb.id)}
-                t={t}
-              />
-            ))}
-          </div>
-        )}
 
-        {!isLoading && filteredKnowledgeBases.length === 0 && searchQuery && (
-          <p className="mt-12 text-center font-mono text-sm text-muted-foreground">
-            {t.noResults.replace("{query}", searchQuery)}
-          </p>
-        )}
+          {isLoading ? (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-40 rounded-2xl sm:h-55" />
+              ))}
+            </div>
+          ) : filteredKnowledgeBases.length === 0 && !searchQuery ? (
+            <EmptyState onCreate={() => setIsCreating(true)} t={t} />
+          ) : (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-4">
+              <NewKBCard onClick={() => setIsCreating(true)} label={t.newCollection} />
+              {filteredKnowledgeBases.map((kb, index) => (
+                <KBCard
+                  key={kb.id}
+                  kb={kb}
+                  index={index}
+                  onEdit={(kb) => {
+                    setEditingKnowledgeBase(kb)
+                    setEditName(kb.name)
+                    setEditDescription(kb.description || "")
+                  }}
+                  onDelete={setDeletingKnowledgeBase}
+                  onAddToRecent={(kb) => {
+                    pushRecentId(kb.id)
+                    setRecentIds(getRecentIds())
+                  }}
+                  isRecent={recentIds.includes(kb.id)}
+                  t={t}
+                />
+              ))}
+            </div>
+          )}
+
+          {!isLoading && filteredKnowledgeBases.length === 0 && searchQuery && (
+            <p className="mt-12 text-center font-mono text-sm text-muted-foreground">
+              {t.noResults.replace("{query}", searchQuery)}
+            </p>
+          )}
+        </section>
+
+        {/* ── Public knowledge bases ─────────────────────────────── */}
+        {!searchQuery.trim() && <PublicKnowledgeBases t={t} language={language} />}
       </main>
 
       {/* ── Create dialog ───────────────────────────────────────────── */}
