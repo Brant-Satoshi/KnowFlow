@@ -2,7 +2,7 @@
 
 import type { useLanguage } from "@/lib/i18n/LanguageContext"
 import type { RetrievedChunk } from "@/lib/types"
-import { CitationHoverCardBody } from "@/components/inline-citation"
+import { CitationHoverCardBody } from "@/components/chat/inline-citation"
 import { HoverCard, HoverCardTrigger } from "@/components/ui/hover-card"
 import { useOpenPreview } from "@/lib/preview-context"
 import { cn } from "@/lib/utils"

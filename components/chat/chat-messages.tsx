@@ -4,7 +4,7 @@ import type { UIMessage } from "ai"
 import { cn } from "@/lib/utils"
 import type { RetrievedChunk } from "@/lib/types"
 import type { AssistantProgress } from "@/lib/hooks/use-chat-stream"
-import { AssistantMessageCard } from "@/components/assistant-message-card"
+import { AssistantMessageCard } from "@/components/chat/assistant-message-card"
 
 function getUIMessageText(message: UIMessage): string {
   if (!message.parts || !Array.isArray(message.parts)) return ""
