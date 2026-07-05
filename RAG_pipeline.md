@@ -174,6 +174,7 @@ const recalledChunks = await searchChunks(
   0.6,
   undefined,
   conversation.knowledgeBaseId,
+  retrievalFilter, // 可选 metadata 过滤：fileIds / fileTypes / titleQuery
 );
 
 const rerankedChunks = await rerankChunks(message, recalledChunks, {
@@ -248,6 +249,7 @@ LIMIT $4
 | `topK` | `20` |
 | `maxDistance` | `0.6` |
 | `knowledgeBaseId` | 当前 conversation 所属 KB |
+| `filter` | 可选 `RetrievalFilter`（`fileIds` / `fileTypes` / `titleQuery`），编译为额外 `WHERE` 条件，维度间 AND、维度内 OR |
 
 检索结果会把 distance 临时放入：
 
@@ -396,6 +398,12 @@ progress { requestId, stage: "reranked", finalCount, rerankSkipped: true }
 error { requestId, message }
 ```
 
+新会话首问时，标题异步生成完成后还会插入一条（时机不定）：
+
+```text
+title { requestId, conversationId, title }
+```
+
 ---
 
 ## 6. Citation 与 retrievedChunks
@@ -480,11 +488,13 @@ POST /api/rag/search
 | 字段 | 说明 |
 | --- | --- |
 | `query` | 必填，检索文本 |
-| `fileId` | 可选，只检索单个文件 |
+| `knowledgeBaseId` | 与 `fileId` 二选一必填，在整个 KB 内检索 |
+| `fileId` | 与 `knowledgeBaseId` 二选一必填，只检索单个文件 |
 | `topK` | 默认 `5`，范围 `1..20` |
-| `maxDistance` | 默认 `0.4`，范围 `0..1` |
+| `maxDistance` | 默认 `0.4`，范围 `0..1`（聊天链路用的是 `0.6`） |
+| `filter` | 可选 `RetrievalFilter`：`{ fileIds?, fileTypes?, titleQuery? }`，维度间 AND、维度内 OR |
 
-注意：该接口当前按 `fileId` 过滤，不按 `knowledgeBaseId` 过滤；聊天接口会按 conversation 所属知识库过滤。
+注意：接口要求登录，且经 `lib/authz/access.ts` 校验 KB / 文件归属；`fileId` 与 `filter.fileIds` 同时给出时取交集（可能为空，不算错误）。
 
 ### 8.2 Eval
 
@@ -492,10 +502,14 @@ Eval 相关代码在：
 
 | 路径 | 作用 |
 | --- | --- |
-| `app/api/eval/run/route.ts` | 启动评测 |
+| `app/api/eval/run/route.ts` | 启动评测（curated 数据集，支持 `filter`） |
+| `app/api/eval/runs/*` | 历史 run 列表 / 详情 |
+| `app/api/eval/validate/route.ts` | 校验数据集 |
+| `lib/eval/dataset.ts` | 数据集加载 |
 | `lib/eval/runner.ts` | 跑 RAG case、对比 rerank 分支 |
 | `lib/eval/metrics.ts` | recall、precision、NDCG、MRR 等指标 |
 | `lib/eval/relevance.ts` | retrieved chunk 相关性打分 |
+| `lib/eval/judge.ts` | LLM judge（faithfulness / answer relevance） |
 
 Eval 和聊天链路复用 `embedText()`、`searchChunks()`、`rerankChunks()`、`buildPrompt()`、`generateAnswer()`。
 

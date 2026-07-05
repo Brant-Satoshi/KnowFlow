@@ -4,7 +4,9 @@
 
 A Next.js (App Router) RAG chat application. Upload documents into a knowledge base, ask questions, get streamed answers with inline citations back to the source chunks.
 
-Stack: Next.js 16 (React 19) · PostgreSQL + pgvector (Supabase-hosted) · MiniMax (chat + embeddings) · OpenRouter / Cohere (rerank) · Supabase Storage (file blobs) · Tailwind v4 + Radix UI.
+Stack: Next.js 16 (React 19) · PostgreSQL + pgvector (Supabase-hosted) · OpenRouter (chat + embeddings + Cohere rerank) · Supabase Storage (file blobs) · Tailwind v4 + Radix UI.
+
+Multi-tenant: session-cookie auth, and every knowledge base belongs to a workspace with owner/admin/member roles, invite links, and a workspace switcher on the home page.
 
 ---
 
@@ -43,11 +45,11 @@ Optional:
 Migrations live in `db/migrations/`. The `Makefile` targets assume a local Docker Postgres container named `knowflow-postgres`:
 
 ```bash
-make migrate     # runs 001_init … 005_add_conversation_model against the container
+make migrate     # runs 001_init … 012_add_eval_run_filter against the container
 make seed        # optional fixtures
 ```
 
-If you're pointing at Supabase / a remote Postgres, apply the SQL files in order with whatever client you prefer.
+If you're pointing at Supabase / a remote Postgres, run `make migrate-supabase` (applies the same files via `psql` against `DATABASE_URL`; migrations are idempotent).
 
 ---
 
@@ -65,13 +67,14 @@ If you're pointing at Supabase / a remote Postgres, apply the SQL files in order
 
 ## Routes
 
-Three user-facing pages — do not add more:
+Five user-facing pages — do not add more:
 
-- `/` — Knowledge Base list (CRUD)
+- `/` — Knowledge Base list (CRUD) with workspace switcher / members / join dialogs
 - `/knowledge-bases/[id]/chat` — RAG chat scoped to a single KB
 - `/eval` — offline evaluation dashboard
+- `/login`, `/register` — authentication
 
-API surface lives under `app/api/` (knowledge bases, files, conversations, RAG search, chat stream, eval run). See `Architecture.md` for the full inventory.
+API surface lives under `app/api/` (auth, workspaces, knowledge bases, files, conversations, RAG search, chat stream, eval run). See `Architecture.md` for the full inventory.
 
 ---
 
@@ -80,12 +83,28 @@ API surface lives under `app/api/` (knowledge bases, files, conversations, RAG s
 `POST /api/chat/stream` (SSE):
 
 1. Embed the user query (`lib/rag/embeddings.ts`)
-2. Vector-search top-20 chunks scoped to the KB, cosine distance < 0.4 (`lib/db/chunks.ts`)
+2. Vector-search top-20 chunks scoped to the KB, cosine distance < 0.6, optionally narrowed by a retrieval filter (file / type / title) (`lib/db/chunks.ts`)
 3. Rerank via Cohere/OpenRouter, keep top-8 (`lib/rag/rerank.ts`)
 4. Slice to top-5 as the evidence pack
 5. Build a citation-aware prompt and stream tokens back (`lib/llm/chat.ts`)
 
-SSE event order: `progress*` → `meta` → `progress` → `token*` → `done` (or `error`). Every event carries the `requestId`.
+SSE event order: `progress*` → `meta` → `progress` → `token*` → `done` (or `error`), plus a `title` event when a conversation title is auto-generated. Every event carries the `requestId`.
+
+### Retrieval metadata filter
+
+`POST /api/chat/stream`, `/api/rag/search`, and `/api/eval/run` all accept an optional `filter` object that narrows vector search before reranking (exposed in the chat and eval UIs; eval runs persist it on `eval_runs.filter`):
+
+```jsonc
+{
+  "filter": {
+    "fileIds": ["<uuid>", "..."],        // max 50, ORed
+    "fileTypes": ["pdf", "markdown"],    // pdf | markdown | word | text (by file extension), ORed
+    "titleQuery": "chapter 3"            // case-insensitive substring on document/section title, max 200 chars
+  }
+}
+```
+
+Dimensions are ANDed; values within a dimension are ORed. Validation lives in `parseRetrievalFilter` (`lib/validation.ts`); the filter compiles to extra SQL `WHERE` clauses in `searchChunks` (`lib/db/chunks.ts`).
 
 ---
 

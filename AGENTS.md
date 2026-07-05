@@ -9,9 +9,10 @@
 pnpm dev          # start the development server
 pnpm build        # production build and type-check
 pnpm lint         # run ESLint
+pnpm test:e2e     # Playwright end-to-end tests
 ```
 
-No test runner is configured. Use `pnpm build` to catch type errors.
+No unit test runner is configured. Use `pnpm build` to catch type errors.
 
 ## Routes
 - `/` - Knowledge Base list
@@ -24,6 +25,7 @@ No test runner is configured. Use `pnpm build` to catch type errors.
 - `lib/rag/` - RAG flow, including chunking, embeddings, and search
 - `lib/db/` - PostgreSQL database operations
 - `lib/auth/` - Authentication (sessions, users, password, cookies)
+- `lib/authz/` - Workspace access guards (`requireKnowledgeBaseAccess` etc.); all KB-scoped API routes must use them
 - `lib/eval/` - Evaluation datasets and run logic
 - `lib/api/` - API response helpers
 - `lib/i18n/` - Translations
@@ -44,12 +46,10 @@ All API endpoints must include `requestId`:
 All user-visible strings must use the translation system. Do not hardcode English or Chinese text in JSX, `aria-label`, placeholders, titles, toast messages, dialog text, buttons, menus, or empty states.
 
 - Translation file: `lib/i18n/translations.ts`.
-- There are two top-level translation sections:
-  - `home`, accessed with `const { home: t } = useLanguage()`.
-  - `chat`, accessed with `const { t } = useLanguage()`.
+- There are four top-level translation sections per language: `home`, `chat`, `eval`, `auth`. `useLanguage()` exposes them as `{ home, t (= chat), evalT, authT }`.
 - Add keys to both `en` and `zh` whenever introducing new strings.
 - For parameterized strings, use a `{placeholder}` convention and replace at the call site, for example `t.noResults.replace("{query}", searchQuery)`.
-- Sub-components that render text must receive `t` as a prop, typed as `ReturnType<typeof useLanguage>["home" | "chat"]`, rather than calling `useLanguage()` themselves, unless they are already client components with clear ownership.
+- Sub-components that render text must receive `t` as a prop, typed as `ReturnType<typeof useLanguage>["home" | "t" | "evalT" | "authT"]`, rather than calling `useLanguage()` themselves, unless they are already client components with clear ownership.
 - Developer-only messages, such as thrown errors that are not shown to users, do not need translation.
 
 ## Frontend Conventions

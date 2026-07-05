@@ -35,7 +35,7 @@ validated to be exactly 1536 dimensions, matching the `chunks.embedding vector(1
 ## Stage 2 — Vector search (recall)
 
 ```
-searchChunks(queryEmbedding, topK=20, maxDistance=0.4, knowledgeBaseId)
+searchChunks(queryEmbedding, topK=20, maxDistance=0.6, knowledgeBaseId, filter?)
 →  Chunk[]  (≤ 20 results)
 ```
 
@@ -48,11 +48,21 @@ SELECT ..., c.embedding <=> $1::vector AS distance
 FROM chunks c
 JOIN files f ON c.file_id = f.id::uuid
 WHERE c.embedding IS NOT NULL
-  AND c.embedding <=> $1::vector < 0.4        -- hard distance cutoff
+  AND c.embedding <=> $1::vector < 0.6        -- hard distance cutoff
   AND f.knowledge_base_id = $3::uuid
+  -- optional RetrievalFilter clauses (ANDed):
+  --   c.file_id = ANY($n::uuid[])                              (fileIds)
+  --   f.name ILIKE ANY($n)                                     (fileTypes, by extension)
+  --   c.document_title ILIKE $n OR c.section_title ILIKE $n    (titleQuery)
 ORDER BY c.embedding <=> $1::vector
 LIMIT 20
 ```
+
+An optional `RetrievalFilter` (`{ fileIds?, fileTypes?, titleQuery? }`, validated
+by `parseRetrievalFilter` in `lib/validation.ts`) narrows recall before
+reranking. Dimensions are ANDed; values within a dimension are ORed. The same
+filter shape is accepted by `/api/chat/stream`, `/api/rag/search`, and
+`/api/eval/run`.
 
 The `<=>` operator is accelerated by an HNSW index on `chunks.embedding`.
 Distance is stored in `chunk.meta._distance` and later converted to a
@@ -164,6 +174,10 @@ done     { requestId }
 
 On any error: `error { requestId, message }` replaces the tail of the sequence.
 
+A `title { conversationId, title }` event may also arrive at any point: on the
+first message of a conversation the title is generated asynchronously and
+pushed when ready.
+
 ---
 
 ## Data flow diagram
@@ -175,14 +189,14 @@ User message
 [1] embedText()          → vector[1536]
      │
      ▼
-[2] searchChunks()       → ≤20 Chunk[]   (pgvector cosine, HNSW)
+[2] searchChunks()       → ≤20 Chunk[]   (pgvector cosine, HNSW, optional metadata filter)
      │
      ▼
 [3] rerankChunks()       → ≤8 Chunk[]    (Cohere cross-encoder via OpenRouter)
      │
      ▼  slice(0, 5)
 [4] buildPrompt()        → string
-    streamLlmAnswer()    → SSE token stream (MiniMax / OpenRouter)
+    streamLlmAnswer()    → SSE token stream (OpenRouter)
      │
      ▼
 [5] appendMessage()      → persisted to DB
@@ -195,7 +209,7 @@ User message
 | Decision | Rationale |
 |---|---|
 | Recall 20, rerank to 8, prompt with 5 | Broad recall increases coverage; reranker improves precision; small final window keeps prompt cost low and avoids context dilution |
-| Hard distance cutoff 0.4 | Prevents semantically unrelated chunks from entering the pipeline even if they are the "closest" available |
+| Hard distance cutoff 0.6 | Prevents semantically unrelated chunks from entering the pipeline even if they are the "closest" available |
 | Rerank fallback to recall order | Reranker is a quality enhancement, not a hard dependency — requests complete even if OpenRouter is down |
 | Cosine distance via pgvector HNSW | Approximate nearest-neighbour at scale; HNSW trades a small accuracy loss for sub-millisecond search on large vector sets |
 | SSE `progress` events | Lets the UI surface which stage is running without polling; useful for debugging latency in each stage |

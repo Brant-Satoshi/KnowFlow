@@ -17,8 +17,8 @@
 
 * 不做模型训练/微调；优先做工程化约束与可靠性闭环。
 * 不承诺"全知回答"；**缺证据时必须拒答**（提示"I couldn't find relevant information in the knowledge base."）。
-* 不做复杂权限矩阵（无 auth / 无 RBAC / 无多租户隔离）。
-* 不增加新的顶层页面路由（固定为 `/`、`/knowledge-bases/[id]/chat`、`/eval` 三个）。
+* 权限模型止步于 workspace 级（session 认证 + owner/admin/member 角色 + 邀请制协作，见 ADR 006/007/008）；不做更细粒度的 KB 级 ACL。
+* 不增加新的顶层页面路由（固定为 `/`、`/knowledge-bases/[id]/chat`、`/eval`、`/login`、`/register` 五个）。
 
 ---
 
@@ -26,14 +26,17 @@
 
 ```
 [Browser/Client]
-  ├─ /                              (Knowledge Base 列表 / CRUD)
+  ├─ /                              (Knowledge Base 列表 / CRUD + workspace 切换/成员/加入对话框)
   ├─ /knowledge-bases/[id]/chat     (RAG Chat：SSE 流式、Abort、引用面板)
-  └─ /eval                          (题集跑分 + with/without rerank 对比)
+  ├─ /eval                          (题集跑分 + with/without rerank 对比)
+  └─ /login、/register              (认证)
 
         │ HTTPS (JSON) + SSE (text/event-stream)
         ▼
 
 [Next.js Route Handlers — app/api/*]
+  ├─ /api/auth/*                     (register / login / logout / me，session cookie)
+  ├─ /api/workspaces/*               ([id] / members / invites / join / leave)
   ├─ /api/knowledge-bases            (GET / POST / [id] GET/PUT/DELETE)
   ├─ /api/files                      (GET 列表)
   ├─ /api/files/upload               (POST 上传 → Supabase Storage + DB)
@@ -43,22 +46,27 @@
   ├─ /api/conversations              (GET / POST，挂在 KB 下)
   ├─ /api/conversations/[id]         (GET / PATCH / DELETE)
   ├─ /api/conversations/[id]/messages(GET / POST 历史消息)
-  ├─ /api/rag/search                 (POST 纯检索，调试/eval 用)
-  ├─ /api/chat/stream                (POST SSE：progress → meta → token* → done|error)
-  └─ /api/eval/run                   (POST 自动跑题集 + 双跑对比)
+  ├─ /api/rag/search                 (POST 纯检索，调试/eval 用，支持 RetrievalFilter)
+  ├─ /api/chat/stream                (POST SSE：progress → meta → token* → done|error，+title)
+  ├─ /api/eval/run                   (POST 跑 curated 题集 + 双跑对比，支持 RetrievalFilter)
+  ├─ /api/eval/runs、runs/[id]       (GET 历史 run 列表 / 详情)
+  └─ /api/eval/validate              (POST 校验数据集)
 
   统一响应：{ requestId, ok, data?, error? }（见 lib/api/response.ts）
+  KB 相关路由统一经 lib/authz/access.ts 守卫（跨租户 404，匿名 401）
 
         │
         ├──────────────┬────────────────────┬────────────────────┐
         ▼              ▼                    ▼                    ▼
 
 [Supabase Storage]  [PostgreSQL]         [pgvector (HNSW)]     [外部模型服务]
- (上传原文)         knowledge_bases       chunks.embedding       MiniMax  (chat + embedding)
-                    files                 vector(1536) +         OpenRouter (rerank, 备选 chat)
-                    chunks                hnsw vector_cosine_ops
-                    conversations
-                    messages
+ (上传原文)         users / sessions      chunks.embedding       OpenRouter（单网关：
+                    workspaces/members/   vector(1536) +          chat + embedding +
+                      invites             hnsw vector_cosine_ops  Cohere rerank）
+                    knowledge_bases
+                    files / chunks
+                    conversations/messages
+                    eval_*（4 张）
 
         ▲              ▲                    ▲                    ▲
         └──────────────┴── requestId 串联日志 + stage progress ──┘
@@ -73,6 +81,19 @@
 
 ```
 app/api/
+├── auth/
+│   ├── register/route.ts       # POST 注册（自动建默认 workspace）
+│   ├── login/route.ts          # POST 登录 → session cookie
+│   ├── logout/route.ts         # POST 登出
+│   └── me/route.ts             # GET 当前用户
+├── workspaces/
+│   ├── route.ts                # GET 我的 workspace 列表 / POST 创建
+│   ├── join/route.ts           # POST 凭邀请码加入
+│   └── [id]/
+│       ├── route.ts            # GET / PATCH / DELETE
+│       ├── members/            # GET 列表；[userId] PATCH 改角色 / DELETE 移除
+│       ├── invites/            # GET / POST；[inviteId] DELETE 撤销
+│       └── leave/route.ts      # POST 退出
 ├── knowledge-bases/
 │   ├── route.ts                # GET 列表 / POST 创建
 │   └── [id]/route.ts           # GET / PUT / DELETE
@@ -93,7 +114,9 @@ app/api/
 ├── chat/
 │   └── stream/route.ts         # POST SSE 流式问答（核心）
 └── eval/
-    └── run/route.ts            # POST 自动题集 + rerank 对比
+    ├── run/route.ts            # POST 跑 curated 题集 + rerank 双跑对比
+    ├── runs/route.ts           # GET 历史 run 列表；[id]/route.ts GET 详情
+    └── validate/route.ts       # POST 校验数据集
 ```
 
 ### 3.2 Core Libraries
@@ -101,28 +124,33 @@ app/api/
 ```
 lib/
 ├── api/response.ts             # 统一 { requestId, ok, data?, error? } + success()/error()
+├── auth/                       # session cookie 认证（sessions / users / password / cookie / current-user）
+├── authz/access.ts             # workspace 访问守卫（requireKnowledgeBaseAccess 等，跨租户 404）
 ├── chat/sse.ts                 # 客户端 SSE 解析
 ├── db/
-│   ├── schema/                 # Drizzle ORM 模型（core.ts + eval.ts），仅供类型推断
+│   ├── schema/                 # Drizzle ORM 模型（core.ts + eval.ts + auth.ts），仅供类型推断
 │   ├── pg.ts                   # pg Pool + query/execute helpers
 │   ├── supabase.ts             # Supabase 客户端 + STORAGE_BUCKET
 │   ├── storage.ts              # 上传/删除文件 blob（Supabase Storage）
 │   ├── knowledge-bases.ts      # KB CRUD
 │   ├── files.ts                # 文件元数据 CRUD
-│   ├── chunks.ts               # chunk CRUD + searchChunks (HNSW + KB 过滤)
+│   ├── chunks.ts               # chunk CRUD + searchChunks (HNSW + KB 过滤 + RetrievalFilter)
 │   ├── conversations.ts        # 会话 + 消息 CRUD
+│   ├── workspaces.ts           # workspace / 成员 / 邀请持久化
 │   └── eval.ts                 # eval 数据集/运行持久化
-├── llm/chat.ts                 # buildPrompt / streamLlmAnswer / generateAnswer + 多 provider
+├── eval/                       # 数据集加载/校验、runner、LLM judge、指标计算
+├── llm/                        # chat.ts（buildPrompt / streamLlmAnswer / generateAnswer）、catalog.ts（模型列表）、prompts.ts
 ├── rag/
 │   ├── parse.ts                # PDF (pdf2json) / DOCX (mammoth) / MD / TXT 解析
 │   ├── chunks.ts               # chunkSize + overlap 分块
-│   ├── embeddings.ts           # MiniMax 或 OpenAI 兼容（按 env 自动选择，强校验 1536 维）
+│   ├── embeddings.ts           # OpenRouter（OpenAI 兼容 /embeddings，强校验 1536 维）
+│   ├── reindex.ts              # 重建索引
 │   └── rerank.ts               # OpenRouter → Cohere rerank-v3.5，失败回退原顺序
 ├── hooks/                      # use-chat-stream、use-file-state、use-error-toast
 ├── i18n/                       # LanguageContext + en/zh translations
 ├── telemetry/requestId.ts      # crypto.randomUUID()
 ├── types.ts                    # 共享类型（见下）
-├── validation.ts               # isValidUuid / isSummaryQuery
+├── validation.ts               # isValidUuid / parseRetrievalFilter 等
 └── utils.ts
 ```
 
@@ -130,28 +158,39 @@ lib/
 
 ## 4. 核心数据模型
 
-### 4.1 数据库表（9 张：5 core + 4 eval，见 `db/migrations/`）
+### 4.1 数据库表（14 张：5 auth + 5 core + 4 eval，见 `db/migrations/`）
 
 ```sql
+-- auth / workspace（lib/db/schema/auth.ts）
+users             (id uuid PK, email UNIQUE, password_hash, created_at, updated_at)
+sessions          (id text PK, user_id FK, created_at, expires_at)
+workspaces        (id uuid PK, name, owner_id FK, created_at, updated_at)
+workspace_members (workspace_id FK, user_id FK, role, created_at)  -- role: owner|admin|member
+workspace_invites (id uuid PK, workspace_id FK, role, token UNIQUE, created_by FK, expires_at, created_at)
+
 -- core（lib/db/schema/core.ts）
-knowledge_bases (id uuid PK, name, description, created_at, updated_at)
+knowledge_bases (id uuid PK, user_id FK, workspace_id FK, name, description, created_at, updated_at)
 files           (id uuid PK, name, type, size, status, knowledge_base_id FK NOT NULL, created_at)
-chunks          (id text PK, file_id FK, idx, text, meta jsonb, embedding vector(1536))
+chunks          (id text PK, file_id FK, idx, text, embedding_text, document_title, section_title, meta jsonb, embedding vector(1536))
 conversations   (id uuid PK, knowledge_base_id FK, title, model, created_at, updated_at)
 messages        (id uuid PK, conversation_id FK, role, content, retrieved_chunks jsonb, created_at)
 
 -- eval（lib/db/schema/eval.ts）
 eval_datasets   (id uuid PK, name UNIQUE, description, dataset_hash, case_count, created_at, updated_at)
 eval_cases      (id uuid PK, dataset_id FK, case_key, question, expected_keywords jsonb, category, difficulty, target_file_names jsonb, target_chunk_substrings jsonb, expected_answer, notes, idx)
-eval_runs       (id uuid PK, knowledge_base_id FK, dataset_id FK NULL, dataset_name, dataset_hash, mode, use_rerank, total_cases, passed_cases, retrieval_hit_rate, citation_hit_rate, avg_latency_ms, recall_at_k jsonb, precision_at_k jsonb, ndcg_at_k jsonb, mrr)
-eval_run_items  (id uuid PK, run_id FK, idx, case_key, question, passed, failure_reasons jsonb, retrieval_hit, citation_hit, latency_ms, retrieved_chunks jsonb, top_k_hits jsonb, answer, expected_answer, graded_hits jsonb)
+eval_runs       (id uuid PK, knowledge_base_id FK, dataset_id FK NULL, dataset_name, dataset_hash, mode, use_rerank, total_cases, passed_cases, retrieval_hit_rate, citation_hit_rate, avg_latency_ms, recall_at_k jsonb, precision_at_k jsonb, ndcg_at_k jsonb, mrr, avg_faithfulness, avg_answer_relevance, filter jsonb)
+eval_run_items  (id uuid PK, run_id FK, idx, case_key, question, passed, failure_reasons jsonb, retrieval_hit, citation_hit, latency_ms, retrieved_chunks jsonb, top_k_hits jsonb, answer, expected_answer, graded_hits jsonb, faithfulness, answer_relevance)
 
 INDEX chunks_file_idx          ON chunks(file_id, idx)
 INDEX chunks_embedding_hnsw    ON chunks USING hnsw (embedding vector_cosine_ops)
 INDEX files_kb_idx             ON files(knowledge_base_id)
 INDEX kb_created_idx           ON knowledge_bases(created_at DESC)
+INDEX kb_user_idx / kb_workspace_idx ON knowledge_bases(user_id / workspace_id)
 INDEX conversations_kb_idx     ON conversations(knowledge_base_id, updated_at DESC)
 INDEX messages_conv_created_idx ON messages(conversation_id, created_at)
+UNIQUE users_email_unique / workspace_invites_token_unique
+UNIQUE workspace_members_single_owner_idx  -- 每个 workspace 恰好一个 owner
+INDEX sessions_user_idx / sessions_expires_idx / workspaces_owner_idx / workspace_members_user_idx
 INDEX eval_datasets_name_unique ON eval_datasets(name)  -- UNIQUE
 INDEX eval_cases_dataset_idx   ON eval_cases(dataset_id, idx)
 INDEX eval_runs_kb_idx         ON eval_runs(knowledge_base_id, created_at)
@@ -164,7 +203,7 @@ INDEX eval_run_items_run_idx   ON eval_run_items(run_id, idx)
 * `chunks.embedding` 在 002 之后**可空**——文件刚解析、还没向量化的中间状态。`searchChunks` 强制 `embedding IS NOT NULL`。
 * `chunks.meta` 是 jsonb，持久化 `{ page?, start?, end? }`；检索时还会临时挂上 `_distance` 与 `_rerankScore`（不写回 DB）。
 * `messages.retrieved_chunks` 是 jsonb 数组（`RetrievedChunk[]`），重打开会话时直接还原引用面板。
-* **迁移约定**：Drizzle 模型在 `lib/db/schema/*.ts`，仅供 ORM 类型推断；手写 `db/migrations/00x_*.sql` 才是 source of truth，经 `make migrate` 应用（`drizzle-kit` 不生成迁移，产物进 scratch `./drizzle`，见 `drizzle.config.ts`）。新增表须同时在 `Makefile` 的 `migrate` 目标补一行（逐文件显式列出，无通配）。
+* **迁移约定**：Drizzle 模型在 `lib/db/schema/*.ts`，仅供 ORM 类型推断；手写 `db/migrations/0xx_*.sql` 才是 source of truth，经 `make migrate`（本地 Docker）或 `make migrate-supabase`（远程，走 `DATABASE_URL`）应用（`drizzle-kit` 不生成迁移，产物进 scratch `./drizzle`，见 `drizzle.config.ts`）。新增表须同时在 `Makefile` 的两个 migrate 目标各补一行（逐文件显式列出，无通配）。
 
 ### 4.2 共享类型（`lib/types.ts` 摘要）
 
@@ -209,14 +248,17 @@ interface RetrievedChunk {
 
 ```
 1. embedText(query)                                         ← lib/rag/embeddings.ts
-2. searchChunks(emb, topK=20, maxDistance=0.4, kbId)        ← cosine distance, HNSW
-                                                              强制按 KB 过滤
+2. searchChunks(emb, topK=20, maxDistance=0.6, kbId,        ← cosine distance, HNSW
+                filter?)                                      强制按 KB 过滤；可叠加
+                                                              RetrievalFilter（fileIds/
+                                                              fileTypes/titleQuery）
 3. rerankChunks(query, recalled, { topN: 8 })               ← Cohere rerank-v3.5
    - 仅当 recalled.length > 1 才发请求
    - 任一异常（网络/4xx/无 results）回退到原召回顺序
 4. finalChunks = reranked.slice(0, 5)                       ← 进 prompt 的"证据包"
 5. buildPrompt(question, finalChunks)                       ← 强制 [n] 引用、缺证据拒答
-6. streamLlmAnswer(...)                                     ← MiniMax abab6.5-chat 默认
+6. streamLlmAnswer(...)                                     ← OpenRouter，模型 = 会话选择
+                                                              → env → catalog 第一项；
                                                               fetch + 手动解析 SSE delta
 7. onComplete → 落库 messages 行（含 retrievedChunks 快照）
 ```
@@ -230,10 +272,11 @@ interface RetrievedChunk {
 | `token`    | `delta: string` | 每个 token（按 `/\s+/` 切片 + 10ms 节流） |
 | `done`     | `requestId` | 正常结束 |
 | `error`    | `message` 或 `{ status, error }` | 任一阶段抛错 |
+| `title`    | `conversationId, title` | 新会话首问时异步生成标题后推送 |
 
 **设计要点**
 
-* `topK=20` + `maxDistance=0.4` 是召回上限/阈值；rerank 把"精度"还回来。
+* `topK=20` + `maxDistance=0.6` 是召回上限/阈值；rerank 把"精度"还回来。
 * **拒答优先于编造**：prompt 显式要求"找不到就说找不到"，rerank 后证据不足时也走拒答分支。
 * `history` 取最近 8 条且**在持久化新 user 消息之前**取（避免把当前消息当历史发回去）。
 * `requestId` 客户端可传入并复用为 assistant 消息 id —— 流式中断后能精确定位到那条消息做 regenerate。
@@ -242,12 +285,16 @@ interface RetrievedChunk {
 
 ### 5.3 Eval（`/eval`）
 
-`POST /api/eval/run` 从指定 KB 抽 5 个代表性 chunk，自动生成"What does the knowledge base say about: <seed>?"问题，**双跑** with/without rerank，同时打分：
+`POST /api/eval/run` 加载指定的 **curated 数据集**（`lib/eval/dataset.ts`，按 name 解析；`/api/eval/validate` 可先校验），可选叠加 `RetrievalFilter`，**双跑** with/without rerank，同时打分：
 
-* `retrievalHit` —— 种子 chunk 是否出现在最终 top-5
+* `retrievalHit` —— 目标 chunk（target_file_names / target_chunk_substrings）是否出现在最终 top-5
 * `topKHits` —— 在召回阶段 top-1 / top-3 / top-5 命中情况
 * `citationHit` —— 答案里同时存在 `[n]` 引用 **且** 命中至少一个 expected keyword
+* 排序指标 —— `recall@k` / `precision@k` / `ndcg@k` / `mrr`
+* LLM judge（`lib/eval/judge.ts`）—— 逐 case 打 `faithfulness` / `answerRelevance`，聚合为 `avg_faithfulness` / `avg_answer_relevance`
 * `latencyMs`、`avgLatencyMs`、`retrievalHitRate`、`citationHitRate`、`passedCases`
+
+run 与逐 case 结果持久化到 `eval_runs` / `eval_run_items`（含所用 filter），历史可在 `/eval` 页面回看（`/api/eval/runs`）。
 
 回归门禁：调整 chunkSize / topK / prompt / rerank 开关时，跑 `/eval` 比较 with vs without。
 
@@ -267,7 +314,7 @@ interface RetrievedChunk {
 
 ### 6.3 召回阈值与 topK
 
-* `topK=20 / maxDistance=0.4 / rerank topN=8 / final 5` —— 经验值。
+* `topK=20 / maxDistance=0.6 / rerank topN=8 / final 5` —— 经验值。
 * 太严：召回为空 → 拒答率虚高；太松：噪声进 prompt → 引用错位/幻觉。
 * 调参靠 `/eval`，不靠人肉看几条结果。
 
@@ -307,7 +354,7 @@ interface RetrievedChunk {
 
 ### 7.3 成本指标（待补）
 
-* 当前 `streamLlmAnswer` 没记录 token 用量；MiniMax 流式响应里有 usage 字段时可补一个 `tokens_in/out`。
+* 当前 `streamLlmAnswer` 没记录 token 用量；OpenRouter 流式响应里有 usage 字段时可补一个 `tokens_in/out`。
 * `Cost per conversation` 暂未实现。
 
 ### 7.4 观测约定
@@ -326,7 +373,7 @@ interface RetrievedChunk {
 
 ### 8.1 检索失败（无相关 chunk）
 
-* `searchChunks` 受 `maxDistance=0.4` 卡控，可能返回空数组。
+* `searchChunks` 受 `maxDistance=0.6` 卡控（叠加 RetrievalFilter 时更严），可能返回空数组。
 * 空数组照样进 `rerankChunks` → 直接返回原（空）数组 → `buildPrompt` 把"Context: "留空 → LLM 按 system 指令输出"I couldn't find relevant information in the knowledge base."
 * 客户端看到 `meta.retrievedChunks=[]` 即可触发"无引用"提示。
 
@@ -363,7 +410,7 @@ interface RetrievedChunk {
 
 ## 9. 安全与合规（当前底线）
 
-* **没有用户系统 / 鉴权**——所有 API 公开。仅在生产环境部署前必须补 auth + KB 归属校验。
+* **认证与多租户**：session cookie 认证（opaque token 存 `sessions` 表，见 ADR 006）；每个 KB 归属一个 workspace，所有 KB 相关 API 经 `lib/authz/access.ts` 守卫（`knowledge_bases ⨝ workspace_members` join），跨租户返回 404、匿名 401（见 ADR 007）。协作走邀请码（`workspace_invites`，token 唯一、可过期、可撤销，见 ADR 008）。
 * **Prompt 注入防护**：system 指令固定在 `buildPrompt`，不接受用户改写；目前没有 tool calling，所以工具白名单也尚未需要。
 * **数据隔离**：`searchChunks` 强制按 `knowledgeBaseId` JOIN `files` 过滤，跨 KB 不会串。`POST /api/chat/stream` 也校验 conversation 属于传入的 KB。
 * **敏感信息**：日志里只打 `requestId` + 错误 message，**不打**用户原文或 chunk 内容。原始文件 blob 走 Supabase Storage，依赖其 bucket 权限设置。
@@ -382,7 +429,7 @@ interface RetrievedChunk {
 
 ### 待硬编码改为可调（TODO）
 
-* `topK=20` / `maxDistance=0.4` / rerank `topN=8` / final 5 —— 现在散在 `route.ts`，应抽到一个 `lib/rag/config.ts`。
+* `topK=20` / `maxDistance=0.6` / rerank `topN=8` / final 5 —— 现在散在 `route.ts`，应抽到一个 `lib/rag/config.ts`。
 * `chunkSize` / `overlap` —— 在 `lib/rag/chunks.ts` 里。
 * `MAX_HISTORY_MESSAGES = 8`。
 
@@ -400,16 +447,17 @@ interface RetrievedChunk {
 
 ### ✅ 已实现
 
-* 三个固定页面 + 完整 API CRUD
+* 五个固定页面 + 完整 API CRUD
+* session 认证 + workspace 多租户隔离（app 层守卫）+ 邀请制协作（成员/角色/邀请码）
 * 多 KB 隔离 + 会话 + 历史消息持久化
-* 上传 → 解析 → 分块 → 向量化 → HNSW 检索 → Cohere rerank → MiniMax 流式生成
-* 引用面板、SSE progress、abort、regenerate
-* `/eval` 双跑对比（with/without rerank）
+* 上传 → 解析 → 分块 → 向量化 → HNSW 检索 → Cohere rerank → OpenRouter 流式生成
+* 检索 metadata 过滤（fileIds / fileTypes / titleQuery，chat/search/eval 通用）
+* 引用面板、SSE progress、abort、regenerate、会话标题自动生成
+* `/eval` curated 数据集双跑对比（with/without rerank）+ LLM judge（faithfulness / answer relevance）+ 历史回看
 * i18n（en/zh 双语，强约束）
 
 ### 🟡 已知缺口
 
-* 没有用户 / 鉴权 / 多租户
 * 解析-索引同步执行，没队列没重试
 * `citation_invalid` 服务端事后校验未做
 * token 用量 / 成本指标未采集
