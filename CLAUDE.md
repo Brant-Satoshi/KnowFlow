@@ -93,6 +93,8 @@ All user-visible strings must use the translation system — no hardcoded Englis
 ## Frontend Conventions
 
 - Interactive elements (`button`, `a`, clickable `div`s) must include `cursor-pointer`.
+- UI components: shadcn/ui only (Button, Dialog, Input, Card, DropdownMenu, …) with lucide-react icons — no MUI / antd / inline CSS.
+- Colors: use Tailwind semantic tokens (`bg-background`, `text-foreground`, `border-border`, `text-muted-foreground`, `bg-card`, `bg-muted`) — never raw palette classes like `text-gray-800`, `bg-white`, `text-black`.
 
 ## Constraints
 
