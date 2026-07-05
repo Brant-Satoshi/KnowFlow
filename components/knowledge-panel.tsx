@@ -10,14 +10,7 @@ import {
   Upload,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -25,6 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { formatBytes } from "@/lib/format"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useOpenPreview } from "@/lib/preview-context"
 import { FileListItem } from "@/lib/types"
@@ -43,12 +37,6 @@ interface KnowledgePanelProps {
   fullWidth?: boolean
   side?: "left" | "right"
   className?: string
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 // File extension → accent color
@@ -388,7 +376,7 @@ export function KnowledgePanel({
                                   {file.name}
                                 </p>
                                 <div className="mt-1 flex items-center gap-1.5">
-                                  <span className="text-[10.5px] text-muted-foreground">{formatSize(file.size)}</span>
+                                  <span className="text-[10.5px] text-muted-foreground">{formatBytes(file.size)}</span>
                                   <StatusBadge status={displayStatus} label={t.status[displayStatus as keyof typeof t.status] ?? displayStatus} />
 
                                   <div className="ml-auto flex items-center gap-1.5">
@@ -427,24 +415,15 @@ export function KnowledgePanel({
       </div>
 
       {/* Delete confirm dialog */}
-      <Dialog open={deleteFileId !== null} onOpenChange={open => !open && handleCloseDeleteDialog()}>
-        <DialogContent disableAnimation className="rounded-[1.1rem]">
-          <DialogHeader>
-            <DialogTitle>{t.confirmDeleteTitle}</DialogTitle>
-            <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
-              {t.confirmDeleteDesc.replace("{fileName}", deleteFileName)}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCloseDeleteDialog} className="rounded-lg">
-              {t.confirmDeleteCancel}
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete} className="rounded-lg">
-              {t.confirmDeleteAction}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={deleteFileId !== null}
+        onOpenChange={open => !open && handleCloseDeleteDialog()}
+        title={t.confirmDeleteTitle}
+        description={t.confirmDeleteDesc.replace("{fileName}", deleteFileName)}
+        cancelLabel={t.confirmDeleteCancel}
+        confirmLabel={t.confirmDeleteAction}
+        onConfirm={handleConfirmDelete}
+      />
     </>
   )
 }

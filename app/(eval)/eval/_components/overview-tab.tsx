@@ -8,12 +8,12 @@ import {
   metricDelta,
   metricsFromResult,
   metricsFromSummary,
-  formatRunDate,
   GOOD,
   BAD,
   GOLD,
   type MetricSpec,
 } from './shared';
+import { formatDateTime } from '@/lib/format';
 import { TrendChart, ScatterChart } from './charts';
 
 /** The five hero metrics shown as cards. */
@@ -106,7 +106,7 @@ function Leaderboard({
                       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: RANK_DOT[ri] ?? 'hsl(var(--muted-foreground) / 0.5)' }} />
                       <span className="text-foreground">{run.datasetName ?? '—'}</span>
                       <span className="text-[11px] text-muted-foreground">
-                        {formatRunDate(run.createdAt, language)} · {run.useRerank ? evalT.rerankOn : evalT.rerankOff}
+                        {formatDateTime(run.createdAt, language)} · {run.useRerank ? evalT.rerankOn : evalT.rerankOff}
                       </span>
                       {run.filter && (
                         <span

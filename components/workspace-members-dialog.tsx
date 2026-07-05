@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { formatDateTime } from "@/lib/format"
 import { useErrorToast } from "@/lib/hooks/use-error-toast"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { displayWorkspaceName } from "@/lib/i18n/workspace-name"
@@ -71,6 +73,7 @@ export function WorkspaceMembersDialog({
   const [isRemoving, setIsRemoving] = useState(false)
   const [isConfirmingLeave, setIsConfirmingLeave] = useState(false)
   const [isLeaving, setIsLeaving] = useState(false)
+  const { language } = useLanguage()
   const showErrorToast = useErrorToast()
 
   const viewerRole = workspace?.role
@@ -215,15 +218,7 @@ export function WorkspaceMembersDialog({
   }
 
   const formatExpiry = (iso: string) =>
-    t.inviteExpiresLabel.replace(
-      "{date}",
-      new Date(iso).toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    )
+    t.inviteExpiresLabel.replace("{date}", formatDateTime(iso, language))
 
   return (
     <>
@@ -422,81 +417,35 @@ export function WorkspaceMembersDialog({
       </Dialog>
 
       {/* Remove-member confirmation */}
-      <Dialog
+      <ConfirmDialog
         open={confirmingRemove !== null}
-        onOpenChange={(next) => !isRemoving && !next && setConfirmingRemove(null)}
-      >
-        <DialogContent
-          disableAnimation
-          className="rounded-[1.1rem] border-black/8 bg-popover dark:border-white/8 dark:bg-popover"
-        >
-          <DialogHeader>
-            <DialogTitle>{t.removeMemberConfirmTitle}</DialogTitle>
-            <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
-              {t.removeMemberConfirmDesc.replace("{email}", confirmingRemove?.email || "")}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmingRemove(null)}
-              disabled={isRemoving}
-              className="rounded-lg"
-            >
-              {t.cancel}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleRemove}
-              disabled={isRemoving}
-              className="rounded-lg"
-            >
-              {isRemoving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              {isRemoving ? t.removing : t.removeMemberAction}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={(next) => !next && setConfirmingRemove(null)}
+        title={t.removeMemberConfirmTitle}
+        description={t.removeMemberConfirmDesc.replace("{email}", confirmingRemove?.email || "")}
+        cancelLabel={t.cancel}
+        confirmLabel={t.removeMemberAction}
+        busyLabel={t.removing}
+        busy={isRemoving}
+        icon={<Trash2 className="h-4 w-4" />}
+        onConfirm={handleRemove}
+      />
 
       {/* Leave-workspace confirmation */}
-      <Dialog
+      <ConfirmDialog
         open={isConfirmingLeave}
-        onOpenChange={(next) => !isLeaving && setIsConfirmingLeave(next)}
-      >
-        <DialogContent
-          disableAnimation
-          className="rounded-[1.1rem] border-black/8 bg-popover dark:border-white/8 dark:bg-popover"
-        >
-          <DialogHeader>
-            <DialogTitle>{t.leaveConfirmTitle}</DialogTitle>
-            <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
-              {t.leaveConfirmDesc.replace(
-                "{workspaceName}",
-                workspace ? displayWorkspaceName(workspace.name, t) : "",
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsConfirmingLeave(false)}
-              disabled={isLeaving}
-              className="rounded-lg"
-            >
-              {t.cancel}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleLeave}
-              disabled={isLeaving}
-              className="rounded-lg"
-            >
-              {isLeaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-              {isLeaving ? t.leaving : t.leaveWorkspace}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setIsConfirmingLeave}
+        title={t.leaveConfirmTitle}
+        description={t.leaveConfirmDesc.replace(
+          "{workspaceName}",
+          workspace ? displayWorkspaceName(workspace.name, t) : "",
+        )}
+        cancelLabel={t.cancel}
+        confirmLabel={t.leaveWorkspace}
+        busyLabel={t.leaving}
+        busy={isLeaving}
+        icon={<LogOut className="h-4 w-4" />}
+        onConfirm={handleLeave}
+      />
     </>
   )
 }

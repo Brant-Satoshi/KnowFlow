@@ -1,18 +1,15 @@
-import { NextRequest } from 'next/server';
 import { extname } from 'path';
 import { FileDoc } from '@/lib/types';
 import { success, error } from '@/lib/api/response';
-import { requireUser } from '@/lib/auth/current-user';
+import { withAuth } from '@/lib/api/route';
 import { addFile } from '@/lib/db/files';
 import { supabase, STORAGE_BUCKET } from '@/lib/db/supabase';
 import { isValidUuid } from '@/lib/validation';
-import { isNotFoundOrForbiddenError, requireKnowledgeBaseAccess } from '@/lib/authz/access';
+import { requireKnowledgeBaseAccess } from '@/lib/authz/access';
 
-export async function POST(req: NextRequest) {
-  const auth = await requireUser();
-  if (auth instanceof Response) return auth;
-
-  try {
+export const POST = withAuth(
+  'Upload failed',
+  async (req, user) => {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const knowledgeBaseId = formData.get('knowledgeBaseId') as string | null;
@@ -25,7 +22,7 @@ export async function POST(req: NextRequest) {
       return Response.json(error('Valid knowledgeBaseId is required'), { status: 400 });
     }
 
-    await requireKnowledgeBaseAccess(auth.id, knowledgeBaseId);
+    await requireKnowledgeBaseAccess(user.id, knowledgeBaseId);
 
     const allowedExtensions = ['.md', '.txt', '.pdf', '.doc', '.docx'];
     const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
@@ -63,11 +60,5 @@ export async function POST(req: NextRequest) {
     await addFile(fileDoc, knowledgeBaseId);
 
     return Response.json(success({ file: fileDoc }));
-  } catch (e) {
-    if (isNotFoundOrForbiddenError(e)) {
-      return Response.json(error(e.message), { status: 404 });
-    }
-    const message = e instanceof Error ? e.message : 'Upload failed';
-    return Response.json(error(message), { status: 500 });
-  }
-}
+  },
+);

@@ -1,4 +1,3 @@
-import { searchChunks } from '@/lib/db/chunks';
 import {
   appendMessage,
   DEFAULT_CONVERSATION_TITLE,
@@ -16,10 +15,9 @@ import {
   type ChatHistoryMessage,
   type SseSend,
 } from '@/lib/llm/chat';
-import { embedText } from '@/lib/rag/embeddings';
+import { recallChunks, selectFinalChunks } from '@/lib/rag/retrieve';
 import { NextRequest } from 'next/server';
 import { isValidUuid, parseRetrievalFilter } from '@/lib/validation';
-import { rerankChunks } from '@/lib/rag/rerank';
 import type { RetrievedChunk } from '@/lib/types';
 import { requireUser } from '@/lib/auth/current-user';
 import { isNotFoundOrForbiddenError, requireConversationAccess } from '@/lib/authz/access';
@@ -178,15 +176,11 @@ export async function POST(request: NextRequest) {
 
       try {
         send('progress', { requestId, stage: 'searching' });
-        const queryEmbedding = await embedText(message, { signal: request.signal });
-        const recalledChunks = await searchChunks(
-          queryEmbedding,
-          20,
-          0.6,
-          undefined,
-          conversation.knowledgeBaseId,
-          retrievalFilter,
-        );
+        const recalledChunks = await recallChunks(message, {
+          knowledgeBaseId: conversation.knowledgeBaseId,
+          filter: retrievalFilter,
+          signal: request.signal,
+        });
         send('progress', {
           requestId,
           stage: 'searched',
@@ -197,12 +191,12 @@ export async function POST(request: NextRequest) {
         if (rerankWillRun) {
           send('progress', { requestId, stage: 'reranking' });
         }
-        const rerankedChunks = await rerankChunks(message, recalledChunks, {
-          signal: request.signal,
-          topN: 8,
-        });
-
-        const finalChunks = rerankedChunks.slice(0, 5);
+        const finalChunks = await selectFinalChunks(
+          message,
+          recalledChunks,
+          'auto',
+          request.signal,
+        );
         send('progress', {
           requestId,
           stage: 'reranked',

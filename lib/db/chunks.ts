@@ -94,8 +94,8 @@ function escapeLike(s: string): string {
 
 export async function searchChunks(
   queryEmbedding: number[],
-  topK: number = 5,
-  maxDistance: number = 0.4,
+  topK: number,
+  maxDistance: number,
   fileId?: string,
   knowledgeBaseId?: string,
   filter?: RetrievalFilter,

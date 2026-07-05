@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
 import type { useLanguage } from "@/lib/i18n/LanguageContext"
 import type { Language } from "@/lib/i18n/translations"
+import { formatDate } from "@/lib/format"
 
 type HomeT = ReturnType<typeof useLanguage>["home"]
 
@@ -23,19 +24,6 @@ const PUBLIC_KBS = [
   updatedAt: string
   accent: number
 }[]
-
-// Explicit locale keyed to the app language: these cards are SSR'd, so a
-// browser-locale date would mismatch the server-rendered HTML at hydration.
-// The updatedAt values are calendar dates (YYYY-MM-DD), which Date parses as
-// UTC midnight — format in UTC too so the day never shifts by timezone.
-function fmtDate(d: string, language: Language) {
-  return new Date(d).toLocaleDateString(language === "zh" ? "zh-CN" : "en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  })
-}
 
 export function PublicKnowledgeBases({
   t,
@@ -99,7 +87,10 @@ export function PublicKnowledgeBases({
               <div className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
                 <span className="truncate">{kb.maintainer}</span>
                 <span className="h-0.75 w-0.75 shrink-0 rounded-full bg-border" />
-                <span className="shrink-0">{`${t.updatedLabel} ${fmtDate(kb.updatedAt, language)}`}</span>
+                {/* These cards are SSR'd: format with the app-language locale (not the
+                    browser's) and in UTC — updatedAt is a calendar date parsed as UTC
+                    midnight — so server and client HTML never diverge at hydration. */}
+                <span className="shrink-0">{`${t.updatedLabel} ${formatDate(kb.updatedAt, language, { utc: true })}`}</span>
               </div>
 
               <div className="mt-1 flex gap-2.5">

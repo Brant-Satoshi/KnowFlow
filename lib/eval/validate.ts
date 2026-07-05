@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
-import { loadDataset } from '@/lib/eval/dataset';
+import { isOutOfScope, loadDataset } from '@/lib/eval/dataset';
 import type { EvalCase, EvalCaseCategory, EvalCaseDifficulty } from '@/lib/types';
 
 /**
@@ -117,7 +117,7 @@ function validateCase(
   const targetFiles = c.targetFileNames ?? [];
   const substrings = c.targetChunkSubstrings ?? [];
   const keywords = c.expectedKeywords ?? [];
-  const isOutOfScope = c.category === 'out_of_scope';
+  const outOfScope = isOutOfScope(c);
 
   // ── structural / enum ──
   if (!c.id || !c.id.trim()) {
@@ -179,7 +179,7 @@ function validateCase(
   }
 
   // ── completeness (out_of_scope cases are intentionally empty) ──
-  if (!isOutOfScope) {
+  if (!outOfScope) {
     if (keywords.length === 0) {
       issues.push({ code: 'empty_keywords', severity: 'warning', field: 'expectedKeywords' });
     }

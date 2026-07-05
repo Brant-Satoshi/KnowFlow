@@ -28,12 +28,11 @@ Next.js App Router RAG chat app. PostgreSQL + pgvector for vector storage.
 - Every knowledge base belongs to a workspace. Access is enforced by the guards in `lib/authz/access.ts` (`requireKnowledgeBaseAccess`, `requireConversationAccess`, `requireFileAccess`, `requireEvalRunAccess`, `requireWorkspaceRole`) — every API route touching KB-scoped data must go through them; cross-tenant access returns 404, anonymous 401.
 - Workspace membership/invite/join/leave endpoints live under `/api/workspaces/*`. Roles: owner / admin / member (each workspace has exactly one owner).
 
-**RAG pipeline** (per chat request at `app/api/chat/stream/route.ts`):
-1. Embed the user query → `lib/rag/embeddings.ts` (`embedText`)
-2. Vector search top-20 chunks with cosine distance < 0.6, optionally narrowed by a `RetrievalFilter` (`fileIds` / `fileTypes` / `titleQuery`; type in `lib/types.ts`, parsed via `parseRetrievalFilter` in `lib/validation.ts`) → `lib/db/chunks.ts` (`searchChunks`)
-3. Rerank via OpenRouter/Cohere → `lib/rag/rerank.ts` (`rerankChunks`, topN 8), then take top-5
-4. Build prompt → `lib/llm/chat.ts` (`buildPrompt`)
-5. Stream answer via OpenRouter → `lib/llm/chat.ts` (`streamLlmAnswer`), returned as SSE
+**RAG pipeline** (per chat request at `app/api/chat/stream/route.ts`; retrieval stages shared with the eval runner via `lib/rag/retrieve.ts`, params centralized in its exported `RETRIEVAL` config):
+1. Embed the user query + vector search top-20 chunks with cosine distance < 0.6, optionally narrowed by a `RetrievalFilter` (`fileIds` / `fileTypes` / `titleQuery`; type in `lib/types.ts`, parsed via `parseRetrievalFilter` in `lib/validation.ts`) → `lib/rag/retrieve.ts` (`recallChunks`)
+2. Rerank via OpenRouter/Cohere (topN 8), then take top-5 → `lib/rag/retrieve.ts` (`selectFinalChunks`)
+3. Build prompt → `lib/llm/chat.ts` (`buildPrompt`)
+4. Stream answer via OpenRouter → `lib/llm/chat.ts` (`streamLlmAnswer`), returned as SSE
 
 The same `RetrievalFilter` is accepted by `/api/rag/search` and `/api/eval/run`.
 
