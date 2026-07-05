@@ -116,7 +116,7 @@ function stripCode(text: string): string {
     .replace(/`[^`\n]+`/g, "")
 }
 
-// Keep this regex in sync with CITATION_PATTERN in components/inline-citation.tsx.
+// Keep this regex in sync with CITATION_PATTERN in components/chat/inline-citation.tsx.
 function parseUsedIndices(text: string): Set<number> {
   const prose = stripCode(text)
   const indices = new Set<number>()
