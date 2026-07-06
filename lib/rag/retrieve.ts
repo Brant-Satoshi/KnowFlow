@@ -11,6 +11,9 @@ export const RETRIEVAL = {
   maxDistance: 0.6,
   rerankTopN: 8,
   finalTopK: 5,
+  // pg_trgm word_similarity floor for the keyword leg. The extension default
+  // (0.6) is unreachable for CJK queries against continuous prose.
+  keywordSimThreshold: 0.05,
 } as const;
 
 export interface RecallOptions {
