@@ -38,7 +38,7 @@ Next.js App Router RAG chat app. PostgreSQL + pgvector for vector storage.
 3. Build prompt → `lib/llm/chat.ts` (`buildPrompt`)
 4. Stream answer via OpenRouter → `lib/llm/chat.ts` (`streamLlmAnswer`), returned as SSE
 
-The same `RetrievalFilter` is accepted by `/api/rag/search` and `/api/eval/run`.
+The same `RetrievalFilter` is accepted by `/api/rag/search` and `/api/eval/run`. `/api/rag/search` also accepts `mode: 'vector' | 'keyword'` — keyword mode runs pg_trgm `word_similarity` against `chunks.embedding_text` (`keywordSearchChunks` in `lib/db/chunks.ts`, GIN trigram index) without calling the embedding API; the chat pipeline itself remains vector-only.
 
 **SSE event types**: `progress` (stages: searching → searched → reranking → reranked → generating) interleaved with `meta` → `token`+ → `done` | `error`; plus `title` when a conversation title is auto-generated. All carry `requestId`.
 

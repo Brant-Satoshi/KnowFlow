@@ -46,7 +46,7 @@
   ├─ /api/conversations              (GET / POST，挂在 KB 下)
   ├─ /api/conversations/[id]         (GET / PATCH / DELETE)
   ├─ /api/conversations/[id]/messages(GET / POST 历史消息)
-  ├─ /api/rag/search                 (POST 纯检索，调试/eval 用，支持 RetrievalFilter)
+  ├─ /api/rag/search                 (POST 纯检索，调试/eval 用，支持 RetrievalFilter 与 mode: vector | keyword)
   ├─ /api/chat/stream                (POST SSE：progress → meta → token* → done|error，+title)
   ├─ /api/eval/run                   (POST 跑 curated 题集 + 双跑对比，支持 RetrievalFilter)
   ├─ /api/eval/runs、runs/[id]       (GET 历史 run 列表 / 详情)

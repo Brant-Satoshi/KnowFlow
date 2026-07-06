@@ -481,7 +481,7 @@ index('chunks_embedding_hnsw').using(
 POST /api/rag/search
 ```
 
-用途：调试 query embedding 和 vector search。
+用途：调试 query embedding、vector search 和 pg_trgm 关键词检索。
 
 请求字段：
 
@@ -490,9 +490,10 @@ POST /api/rag/search
 | `query` | 必填，检索文本 |
 | `knowledgeBaseId` | 与 `fileId` 二选一必填，在整个 KB 内检索 |
 | `fileId` | 与 `knowledgeBaseId` 二选一必填，只检索单个文件 |
+| `mode` | 可选，`vector`（默认）或 `keyword`；`keyword` 走 pg_trgm `word_similarity` 对 `embedding_text` 做三元组匹配，不调用 embedding，得分写入 `meta._keywordSim` |
 | `topK` | 默认 `5`，范围 `1..20` |
-| `maxDistance` | 默认 `0.4`，范围 `0..1`（聊天链路用的是 `0.6`） |
-| `filter` | 可选 `RetrievalFilter`：`{ fileIds?, fileTypes?, titleQuery? }`，维度间 AND、维度内 OR |
+| `maxDistance` | 默认 `0.6`，范围 `0..1`，仅 `vector` 模式校验和使用 |
+| `filter` | 可选 `RetrievalFilter`：`{ fileIds?, fileTypes?, titleQuery? }`，维度间 AND、维度内 OR，两种 mode 都生效 |
 
 注意：接口要求登录，且经 `lib/authz/access.ts` 校验 KB / 文件归属；`fileId` 与 `filter.fileIds` 同时给出时取交集（可能为空，不算错误）。
 

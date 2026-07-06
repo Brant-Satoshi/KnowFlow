@@ -64,6 +64,12 @@ reranking. Dimensions are ANDed; values within a dimension are ORed. The same
 filter shape is accepted by `/api/chat/stream`, `/api/rag/search`, and
 `/api/eval/run`.
 
+A separate keyword retrieval leg (`keywordSearchChunks`, same file) matches the
+query against `embedding_text` via pg_trgm `word_similarity` (GIN trigram
+index, score in `meta._keywordSim`). It is exposed only through
+`/api/rag/search` with `mode: "keyword"` for now — the chat pipeline stays
+vector-only until RRF fusion lands.
+
 The `<=>` operator is accelerated by an HNSW index on `chunks.embedding`.
 Distance is stored in `chunk.meta._distance` and later converted to a
 similarity score (`1 - distance`) for display.
