@@ -40,8 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local
-.claude
+# local (shared skills in .claude/skills/ are tracked)
+.claude/*
+!.claude/skills
 CLAUDE.local.md
 
 # playwright
