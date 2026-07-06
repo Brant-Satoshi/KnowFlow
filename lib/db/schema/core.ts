@@ -69,6 +69,10 @@ export const chunks = pgTable(
       'hnsw',
       table.embedding.op('vector_cosine_ops'),
     ),
+    index('chunks_embedding_text_trgm').using(
+      'gin',
+      table.embeddingText.op('gin_trgm_ops'),
+    ),
   ],
 );
 

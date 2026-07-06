@@ -103,6 +103,7 @@ export interface ChunkMeta {
   // Derived at retrieval time, not persisted to DB.
   _distance?: number;
   _rerankScore?: number;
+  _keywordSim?: number;
 }
 
 export interface Chunk {
