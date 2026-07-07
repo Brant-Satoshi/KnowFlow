@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import type { Components } from "react-markdown"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { AlertCircle, Loader2 } from "lucide-react"
+import { AlertCircle } from "lucide-react"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import type { AssistantProgress } from "@/lib/hooks/use-chat-stream"
 import type { RetrievedChunk } from "@/lib/types"
@@ -60,7 +60,6 @@ interface AssistantMessageCardProps {
   messageId: string
   text: string
   isStreaming: boolean
-  isLoading: boolean
   citations: RetrievedChunk[]
   retrievedChunks: RetrievedChunk[]
   progress?: AssistantProgress
@@ -72,7 +71,6 @@ export function AssistantMessageCard({
   messageId,
   text,
   isStreaming,
-  isLoading,
   citations,
   retrievedChunks,
   progress,
@@ -82,7 +80,6 @@ export function AssistantMessageCard({
   const { t } = useLanguage()
 
   const hasBody = text.length > 0
-  const showLoadingDots = isLoading && !hasBody && !progress
   const isFinal =
     progress?.currentStage === "done" ||
     progress?.currentStage === "error" ||
@@ -91,6 +88,9 @@ export function AssistantMessageCard({
   // the user still needs a way to retry it.
   const isStoppedOrError =
     progress?.currentStage === "stopped" || progress?.currentStage === "error"
+  // The LLM can finish normally without emitting a single token; show a
+  // placeholder instead of silently swallowing the turn.
+  const isEmptyDone = !hasBody && progress?.currentStage === "done"
 
   const citationLookup = useMemo(
     () => new Map(retrievedChunks.map((c) => [c.index, c])),
@@ -103,41 +103,25 @@ export function AssistantMessageCard({
         {progress && <ProcessTimeline progress={progress} sourceCount={citations.length} t={t} />}
 
         <div className="text-foreground" data-testid="assistant-message">
-          {showLoadingDots ? (
-            <div
-              className="flex h-7 items-center gap-1.5"
-              role="status"
-              aria-label={t.process.generatingAriaLabel}
-            >
-              {Array.from({ length: 3 }).map((_, i) => (
-                <span
-                  key={i}
-                  className="loading-dot-breathe h-2 w-2 rounded-full bg-primary/60"
-                  style={{ animationDelay: `${i * 140}ms` }}
-                />
-              ))}
-            </div>
-          ) : (
-            <CitationContext.Provider value={citationLookup}>
-              <StreamingContext.Provider value={isStreaming}>
-                <div className="text-base text-current">
-                  {isStreaming ? (
-                    <div className="streaming-active wrap-break-word leading-7">
-                      <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
-                        {text}
-                      </ReactMarkdown>
-                    </div>
-                  ) : hasBody ? (
+          <CitationContext.Provider value={citationLookup}>
+            <StreamingContext.Provider value={isStreaming}>
+              <div className="text-base text-current">
+                {isStreaming ? (
+                  <div className="streaming-active wrap-break-word leading-7">
                     <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
                       {text}
                     </ReactMarkdown>
-                  ) : isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  ) : null}
-                </div>
-              </StreamingContext.Provider>
-            </CitationContext.Provider>
-          )}
+                  </div>
+                ) : hasBody ? (
+                  <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                    {text}
+                  </ReactMarkdown>
+                ) : isEmptyDone ? (
+                  <p className="italic text-muted-foreground">{t.process.emptyAnswer}</p>
+                ) : null}
+              </div>
+            </StreamingContext.Provider>
+          </CitationContext.Provider>
         </div>
 
         {progress?.currentStage === "error" && progress.errorMessage && (
@@ -146,7 +130,7 @@ export function AssistantMessageCard({
 
         <SourcesList citations={citations} messageId={messageId} t={t} />
 
-        {(hasBody || isStoppedOrError) && (isFinal || !progress) && !isStreaming && (
+        {(hasBody || isStoppedOrError || isEmptyDone) && (isFinal || !progress) && !isStreaming && (
           <MessageActions
             text={text}
             onRegenerate={onRegenerate ? () => onRegenerate(messageId) : undefined}

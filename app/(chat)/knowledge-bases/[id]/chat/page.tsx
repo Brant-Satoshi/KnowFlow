@@ -1,15 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import dynamic from "next/dynamic"
 import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ArrowDown, ArrowLeft, Database, FlaskConical, Loader2 } from "lucide-react"
 import { BrandLogo } from "@/components/brand-logo"
 import { ChatInput } from "@/components/chat/chat-input"
-import { ChatMessages } from "@/components/chat/chat-messages"
 import { ConversationSidebar } from "@/components/chat/conversation-sidebar"
 import { EmptyState } from "@/components/empty-state"
-import { FilePreviewSheet } from "@/components/chat/file-preview-sheet"
 import { KnowledgePanel } from "@/components/chat/knowledge-panel"
 import { SettingsMenu } from "@/components/settings-menu"
 import { Button } from "@/components/ui/button"
@@ -28,6 +27,25 @@ import { cn } from "@/lib/utils"
 
 const chatSurfaceClass =
   "border border-border bg-card shadow-[0_1px_8px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.28)]"
+
+// Loaded on demand: both pull in the markdown rendering chain (react-markdown +
+// remark/rehype), which an empty conversation never needs — keeping them out of
+// the initial bundle cuts the mobile LCP on this fully client-rendered page.
+const ChatMessages = dynamic(
+  () => import("@/components/chat/chat-messages").then((m) => m.ChatMessages),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    ),
+  }
+)
+const FilePreviewSheet = dynamic(
+  () => import("@/components/chat/file-preview-sheet").then((m) => m.FilePreviewSheet),
+  { ssr: false }
+)
 
 
 export default function ChatPage() {
@@ -59,6 +77,7 @@ export default function ChatPage() {
   const pendingChatIdRef = useRef<string | null>(searchParams.get("chatid"))
 
   const [previewState, setPreviewState] = useState<{ fileId: string; fileName: string; chunkId?: string } | null>(null)
+  const previewEverOpenedRef = useRef(false)
   const openPreview: OpenPreview = useCallback(({ fileId, fileName, chunkId }) => {
     setPreviewState({ fileId, fileName, chunkId })
   }, [])
@@ -503,7 +522,11 @@ export default function ChatPage() {
     initialLoading: isInitialLoading,
   }
 
-  const filePreviewEl = (
+  // Mount the (dynamically imported) sheet only once a preview has been
+  // requested — mounting it eagerly would pull its markdown chunk into the
+  // initial page load. Kept mounted afterwards so the close animation plays.
+  if (previewState !== null) previewEverOpenedRef.current = true
+  const filePreviewEl = previewEverOpenedRef.current ? (
     <FilePreviewSheet
       open={previewState !== null}
       fileId={previewState?.fileId ?? null}
@@ -511,7 +534,7 @@ export default function ChatPage() {
       chunkId={previewState?.chunkId}
       onOpenChange={(next) => { if (!next) setPreviewState(null) }}
     />
-  )
+  ) : null
 
   if (isMobile) {
     return (
