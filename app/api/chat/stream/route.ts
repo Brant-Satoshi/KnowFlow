@@ -24,6 +24,10 @@ import { isNotFoundOrForbiddenError, requireConversationAccess } from '@/lib/aut
 
 const MAX_HISTORY_MESSAGES = 8;
 
+// Keep the connection visibly alive through proxies and let the client's idle
+// watchdog (3× this interval) distinguish a slow stage from a dead connection.
+const KEEPALIVE_INTERVAL_MS = 15_000;
+
 function sseHeaders(): HeadersInit {
   return {
     'Content-Type': 'text/event-stream; charset=utf-8',
@@ -158,6 +162,17 @@ export async function POST(request: NextRequest) {
         controller.enqueue(encoder.encode(formatSse(event, data)));
       };
 
+      // SSE comment lines: ignored by the parser, but they keep bytes flowing
+      // during silent stages (embedding, rerank, LLM time-to-first-token).
+      const keepalive = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(': keepalive\n\n'));
+        } catch {
+          // Client is gone; the in-flight work sees request.signal separately.
+          clearInterval(keepalive);
+        }
+      }, KEEPALIVE_INTERVAL_MS);
+
       let titleTask: Promise<void> | undefined;
       if (conversation.title === DEFAULT_CONVERSATION_TITLE) {
         titleTask = (async () => {
@@ -257,6 +272,7 @@ export async function POST(request: NextRequest) {
         });
       } finally {
         if (titleTask) await titleTask;
+        clearInterval(keepalive);
         controller.close();
       }
     },

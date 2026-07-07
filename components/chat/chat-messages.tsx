@@ -41,7 +41,6 @@ export function ChatMessages({
         const text = getUIMessageText(message)
         const isUser = message.role === "user"
         const isStreamingMessage = isStreaming && !isUser && message.id === latestMessageId
-        const isAssistantLoading = isLoading && !isUser && message.id === latestMessageId && text.length === 0
 
         if (isUser) {
           return (
@@ -68,7 +67,6 @@ export function ChatMessages({
             messageId={message.id}
             text={text}
             isStreaming={isStreamingMessage}
-            isLoading={isAssistantLoading}
             citations={citationsMap.get(message.id) ?? []}
             retrievedChunks={retrievedChunksMap.get(message.id) ?? []}
             progress={progressMap.get(message.id)}

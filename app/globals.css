@@ -42,11 +42,6 @@
 
 @layer base {
   /* —— Animations ——————————————————————————————— */
-  @keyframes loading-dot-breathe {
-    0%, 100% { opacity: 0.35; transform: scale(0.92); }
-    50%       { opacity: 1;    transform: scale(1); }
-  }
-
   @keyframes streaming-cursor-blink {
     0%, 49% { opacity: 1; }
     50%, 100% { opacity: 0; }
@@ -221,7 +216,6 @@
 }
 
 @layer utilities {
-  .loading-dot-breathe   { animation: loading-dot-breathe 1.2s ease-in-out infinite; }
   .font-code             { font-family: var(--font-code); }
   .inline-code-token {
     display: inline;
