@@ -23,7 +23,8 @@ import {
   baselineLabel,
   GOLD,
 } from './_components/shared';
-import { EvalSidebar, type EvalTab } from './_components/eval-sidebar';
+import { EvalSidebar, EvalSidebarNav, type EvalTab } from './_components/eval-sidebar';
+import { MobileNav } from '@/components/mobile-nav';
 import { OverviewTab } from './_components/overview-tab';
 import { CompareTab } from './_components/compare-tab';
 import { InspectorTab } from './_components/inspector-tab';
@@ -216,6 +217,21 @@ function EvalPageContent() {
     <>
       <style>{EVAL_STYLES}</style>
       <div className="min-h-screen md:grid md:grid-cols-[212px_1fr] bg-background text-foreground">
+        {/* ── Mobile top bar (< md) ── */}
+        <MobileNav appName={home.title} menuLabel={evalT.openMenu} navTitle={evalT.navSectionEvaluate}>
+          {(close) => (
+            <EvalSidebarNav
+              activeTab={activeTab}
+              onSelect={(tab) => {
+                selectTab(tab);
+                close();
+              }}
+              kbLabel={selectedKb ? selectedKb.name : null}
+              evalT={evalT}
+            />
+          )}
+        </MobileNav>
+
         <EvalSidebar
           activeTab={activeTab}
           onSelect={selectTab}
@@ -226,9 +242,9 @@ function EvalPageContent() {
 
         <main className="min-w-0 flex flex-col">
           {/* ── Topbar ── */}
-          <div className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur px-5 py-2.5">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-baseline gap-3 mr-auto">
+          <div className="z-20 border-b border-border bg-background/90 backdrop-blur px-4 py-2.5 md:sticky md:top-0 md:px-5">
+            <div className="flex flex-col gap-2.5 md:flex-row md:flex-wrap md:items-center md:gap-3">
+              <div className="flex items-baseline gap-3 md:mr-auto">
                 <span className="text-[15px] font-sans font-semibold">{titles[activeTab]}</span>
                 {kbLabel && <span className="font-mono text-[11px] text-muted-foreground truncate max-w-[40vw]">{kbLabel}</span>}
               </div>
@@ -238,7 +254,7 @@ function EvalPageContent() {
                   value={selectedKbId}
                   onChange={e => setSelectedKbId(e.target.value)}
                   aria-label={evalT.selectKnowledgeBase}
-                  className="eval-select h-9 border border-border bg-card pl-3 pr-9 rounded-lg text-[12.5px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer max-w-[16rem]"
+                  className="eval-select h-9 w-full border border-border bg-card pl-3 pr-9 rounded-lg text-[12.5px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer md:w-auto md:max-w-[16rem]"
                 >
                   <option value="">{evalT.selectPlaceholder}</option>
                   {knowledgeBases.map(kb => (
@@ -252,7 +268,7 @@ function EvalPageContent() {
                 onChange={e => setSelectedDataset(e.target.value)}
                 disabled={isRunning}
                 aria-label={evalT.datasetLabel}
-                className="eval-select h-9 border border-border bg-card pl-3 pr-9 rounded-lg text-[12.5px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer disabled:cursor-not-allowed"
+                className="eval-select h-9 w-full border border-border bg-card pl-3 pr-9 rounded-lg text-[12.5px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer disabled:cursor-not-allowed md:w-auto"
               >
                 {datasetNames.map(name => (
                   <option key={name} value={name}>{name}</option>
@@ -278,10 +294,10 @@ function EvalPageContent() {
                   titlePlaceholder: evalT.filterTitlePlaceholder,
                   clear: evalT.filterClear,
                 }}
-                triggerClassName="h-9 cursor-pointer gap-1.5 rounded-lg border-border bg-card text-[12.5px] font-sans shadow-none"
+                triggerClassName="h-9 w-full cursor-pointer justify-start gap-1.5 rounded-lg border-border bg-card text-[12.5px] font-sans shadow-none md:w-auto md:justify-center"
               />
 
-              <label htmlFor="rerank-toggle" className="h-9 flex items-center gap-2.5 border border-border bg-card px-3 rounded-lg cursor-pointer select-none">
+              <label htmlFor="rerank-toggle" className="h-9 w-full md:w-auto flex items-center justify-between md:justify-start gap-2.5 border border-border bg-card px-3 rounded-lg cursor-pointer select-none">
                 <span className="text-[12.5px] font-sans text-foreground">{evalT.rerankToggleLabel}</span>
                 <Switch id="rerank-toggle" checked={useRerank} onCheckedChange={setUseRerank} disabled={isRunning} />
               </label>
@@ -289,7 +305,7 @@ function EvalPageContent() {
               <button
                 onClick={handleRunEval}
                 disabled={!canRun}
-                className="h-9 cursor-pointer px-4 rounded-lg text-[12.5px] font-sans font-semibold disabled:cursor-not-allowed hover:opacity-90 transition-opacity focus:outline-none flex items-center gap-2"
+                className="h-9 w-full md:w-auto cursor-pointer px-4 rounded-lg text-[12.5px] font-sans font-semibold disabled:cursor-not-allowed hover:opacity-90 transition-opacity focus:outline-none flex items-center justify-center gap-2"
                 style={{
                   background: canRun ? `linear-gradient(135deg, ${GOLD}, color-mix(in srgb, ${GOLD} 80%, black))` : 'hsl(var(--muted))',
                   color: canRun ? '#fff' : 'hsl(var(--muted-foreground))',
@@ -309,7 +325,7 @@ function EvalPageContent() {
 
             {/* Baseline picker — only affects Overview deltas */}
             {activeTab === 'overview' && history.length > 0 && (
-              <div className="mt-2.5 flex items-center gap-2 justify-end">
+              <div className="mt-2.5 flex flex-wrap items-center gap-2 md:justify-end">
                 <label htmlFor="baseline-select" className="text-[12px] font-sans text-muted-foreground cursor-pointer">
                   {evalT.baselineLabel}
                 </label>
@@ -317,7 +333,7 @@ function EvalPageContent() {
                   id="baseline-select"
                   value={baselineId}
                   onChange={e => setBaselineId(e.target.value)}
-                  className="h-8 max-w-[20rem] border border-input bg-card px-2.5 rounded-lg text-[12px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
+                  className="h-8 min-w-0 flex-1 md:flex-none md:max-w-[20rem] border border-input bg-card px-2.5 rounded-lg text-[12px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
                 >
                   <option value="">{evalT.baselineNone}</option>
                   {history.map(r => (

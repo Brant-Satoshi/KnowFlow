@@ -11,7 +11,7 @@ function CheckSquare({ active, dim }: { active?: boolean; dim?: boolean }) {
   return (
     <span
       aria-hidden
-      className="inline-block w-[15px] h-[15px] rounded-[4px] shrink-0"
+      className="inline-block w-3.75 h-3.75 rounded-lg shrink-0"
       style={{
         border: '1.6px solid currentColor',
         opacity: dim ? 0.6 : 0.85,
@@ -61,19 +61,24 @@ function ManageItem({ label }: { label: string }) {
   );
 }
 
-export function EvalSidebar({
-  activeTab,
-  onSelect,
-  appName,
-  kbLabel,
-  evalT,
-}: {
+type EvalSidebarProps = {
   activeTab: EvalTab;
   onSelect: (t: EvalTab) => void;
   appName: string;
   kbLabel: string | null;
   evalT: EvalTranslationKeys;
-}) {
+};
+
+/**
+ * Sidebar body (everything below the brand logo). Shared by the desktop
+ * `<aside>` and the mobile drawer — `flex-1` sinks the footer to the bottom.
+ */
+export function EvalSidebarNav({
+  activeTab,
+  onSelect,
+  kbLabel,
+  evalT,
+}: Omit<EvalSidebarProps, 'appName'>) {
   const items: { tab: EvalTab; label: string }[] = [
     { tab: 'overview', label: evalT.tabOverview },
     { tab: 'compare', label: evalT.tabCompare },
@@ -81,15 +86,7 @@ export function EvalSidebar({
   ];
 
   return (
-    <aside className="md:sticky md:top-0 md:h-screen flex flex-col border-b md:border-b-0 md:border-r border-sidebar-border bg-sidebar px-3 py-4 gap-1">
-      <Link href="/" className="cursor-pointer flex items-center px-2 pb-4">
-        <BrandLogo
-          name={appName}
-          wordmarkAccent
-          textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
-        />
-      </Link>
-
+    <div className="flex flex-1 flex-col gap-1">
       <div className="px-2 pt-2 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground/70">
         {evalT.navSectionEvaluate}
       </div>
@@ -108,7 +105,7 @@ export function EvalSidebar({
       <div className="flex items-center gap-2.5 p-2 border-t border-sidebar-border">
         <span
           aria-hidden
-          className="w-[26px] h-[26px] shrink-0 rounded-full"
+          className="w-6.5 h-6.5 shrink-0 rounded-full"
           style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), color-mix(in srgb, hsl(var(--primary)) 70%, black))' }}
         />
         <div className="flex-1 min-w-0 leading-tight">
@@ -117,6 +114,22 @@ export function EvalSidebar({
         </div>
         <SettingsMenu />
       </div>
+    </div>
+  );
+}
+
+/** Desktop sidebar — hidden below `md`, where {@link MobileNav} takes over. */
+export function EvalSidebar({ appName, ...rest }: EvalSidebarProps) {
+  return (
+    <aside className="hidden flex-col gap-1 border-r border-sidebar-border bg-sidebar px-3 py-4 md:sticky md:top-0 md:flex md:h-screen">
+      <Link href="/" className="cursor-pointer flex items-center px-2 pb-4">
+        <BrandLogo
+          name={appName}
+          wordmarkAccent
+          textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
+        />
+      </Link>
+      <EvalSidebarNav {...rest} />
     </aside>
   );
 }
