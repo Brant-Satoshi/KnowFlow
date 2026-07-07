@@ -86,7 +86,7 @@ export function CompareTab({
   ];
 
   return (
-    <div className="flex flex-col gap-4 max-w-[1100px]">
+    <div className="flex flex-col gap-4 max-w-275">
       {/* run picker */}
       <div className="flex flex-wrap items-center gap-2.5">
         {selected.map((r, i) => (
@@ -95,7 +95,7 @@ export function CompareTab({
             className="flex items-center gap-2.5 px-3 py-1.5 border rounded-lg text-[13px] font-sans"
             style={{ borderColor: `color-mix(in srgb, ${RUN_COLORS[i]} 45%, transparent)`, background: `color-mix(in srgb, ${RUN_COLORS[i]} 9%, transparent)` }}
           >
-            <span className="w-[7px] h-[7px] rounded-full" style={{ background: RUN_COLORS[i] }} />
+            <span className="w-1.75 h-1.75 rounded-full" style={{ background: RUN_COLORS[i] }} />
             <span className="font-semibold" style={{ color: RUN_COLORS[i] }}>{RUN_LETTERS[i]}</span>
             <span className="text-foreground">{r.datasetName ?? '—'}</span>
             <span className="text-[11px] text-muted-foreground">{formatDateTime(r.createdAt, language)}</span>
@@ -135,6 +135,7 @@ export function CompareTab({
           {/* config matrix */}
           <div className="bg-card border border-border rounded-xl overflow-hidden">
             <div className="text-[14.5px] font-sans font-semibold px-4 pt-3.5 pb-3">{evalT.compareConfigTitle}</div>
+            <div className="overflow-x-auto">
             <table className="w-full border-collapse text-[12.5px] font-mono">
               <thead>
                 <tr className="text-left font-mono text-[10.5px] uppercase text-muted-foreground">
@@ -151,7 +152,7 @@ export function CompareTab({
                   <tr key={attr.label}>
                     <td className="py-2.5 px-4 text-muted-foreground border-t border-border font-sans">{attr.label}</td>
                     {selected.map(r => (
-                      <td key={r.id} className="py-2.5 px-2.5 text-foreground border-t border-border whitespace-nowrap">
+                      <td key={r.id} className="p-2.5 text-foreground border-t border-border whitespace-nowrap">
                         {attr.value(r)}
                       </td>
                     ))}
@@ -159,6 +160,7 @@ export function CompareTab({
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* metric bars */}

@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowRight, BookmarkPlus, Edit3, Loader2, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react"
-import { HomeSidebar, type HomeSection } from "./_components/home-sidebar"
+import { HomeSidebar, HomeSidebarNav, type HomeSection } from "./_components/home-sidebar"
 import { PublicKnowledgeBases } from "./_components/home-public-kbs"
+import { MobileNav } from "@/components/mobile-nav"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -128,7 +129,7 @@ function RecentsStrip({
               className="mr-1.5 cursor-pointer rounded-full p-0.5 text-muted-foreground transition-opacity hover:text-foreground md:opacity-0 md:group-hover/chip:opacity-100"
               aria-label={t.removeFromRecents}
             >
-              <X className="h-3 w-3" />
+              <X className="size-3 " />
             </button>
           </div>
         ))}
@@ -172,17 +173,17 @@ function KBCard({
               className="h-7 w-7 rounded-full transition-opacity hover:bg-black/8 md:opacity-0 md:group-hover:opacity-100 dark:hover:bg-white/10"
               aria-label={t.actions}
             >
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className="size-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5">
             <DropdownMenuItem onSelect={() => onEdit(kb)}>
-              <Edit3 className="h-4 w-4" />
+              <Edit3 className="size-4" />
               {t.edit}
             </DropdownMenuItem>
             {!isRecent && (
               <DropdownMenuItem onSelect={() => onAddToRecent(kb)}>
-                <BookmarkPlus className="h-4 w-4" />
+                <BookmarkPlus className="size-4" />
                 {t.addToRecent}
               </DropdownMenuItem>
             )}
@@ -190,7 +191,7 @@ function KBCard({
               onSelect={() => onDelete(kb)}
               className="text-destructive focus:text-destructive"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="size-4" />
               {t.delete}
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -478,7 +479,29 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background md:grid md:grid-cols-[232px_1fr]">
-      {/* ── Sidebar ────────────────────────────────────────────────── */}
+      {/* ── Mobile top bar (< md) ──────────────────────────────────── */}
+      <MobileNav appName={t.title} menuLabel={t.openMenu} navTitle={t.navLabel}>
+        {(close) => (
+          <HomeSidebarNav
+            activeSection={activeSection}
+            onSelectSection={(section) => {
+              handleSelectSection(section)
+              close()
+            }}
+            onCreate={() => {
+              setIsCreating(true)
+              close()
+            }}
+            userEmail={user?.email}
+            workspaceLabel={
+              activeWorkspace ? displayWorkspaceName(activeWorkspace.name, t) : t.allWorkspaces
+            }
+            t={t}
+          />
+        )}
+      </MobileNav>
+
+      {/* ── Sidebar (md+) ──────────────────────────────────────────── */}
       <HomeSidebar
         activeSection={activeSection}
         onSelectSection={handleSelectSection}
@@ -491,7 +514,7 @@ export default function HomePage() {
       />
 
       {/* ── Main ───────────────────────────────────────────────────── */}
-      <main className="min-w-0 max-w-310 px-4 py-10 sm:px-6 lg:px-8">
+      <main className="min-w-0 max-w-310 px-4 py-6 sm:px-6 md:py-10 lg:px-8">
         {/* Inline editorial search */}
         <div className="mb-9">
           <div className="flex items-center gap-3 border-b border-border pb-3">
@@ -528,7 +551,7 @@ export default function HomePage() {
 
         {/* ── My knowledge bases ─────────────────────────────────── */}
         <section id="my-knowledge-bases" className="mb-12 scroll-mt-10">
-          <div className="mb-4 flex items-center justify-between gap-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <div className="flex items-baseline gap-3.5">
               <h2 className="font-sans text-xl font-semibold tracking-[-0.01em] text-foreground">
                 {t.myKnowledgeBases}
@@ -589,7 +612,10 @@ export default function HomePage() {
         </section>
 
         {/* ── Public knowledge bases ─────────────────────────────── */}
-        {!searchQuery.trim() && <PublicKnowledgeBases t={t} language={language} />}
+        {/* Gate on !isLoading so this section paints once in its final spot —
+            otherwise the collapsing loading skeletons above it shove it upward
+            (a large layout shift / CLS hit, worst on a single-column phone). */}
+        {!isLoading && !searchQuery.trim() && <PublicKnowledgeBases t={t} language={language} />}
       </main>
 
       {/* ── Create dialog ───────────────────────────────────────────── */}
@@ -603,7 +629,7 @@ export default function HomePage() {
               <DialogTitle className="text-[22px] font-semibold tracking-tight">
                 {t.createKnowledgeBase}
               </DialogTitle>
-              <DialogDescription className="mt-2 text-sm leading-6">
+              <DialogDescription className="mt-2 text-sm/6 ">
                 {t.dialogDescription}
               </DialogDescription>
             </DialogHeader>
@@ -644,7 +670,7 @@ export default function HomePage() {
                 className="rounded-full px-5"
               >
                 {isSubmitting ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t.creating}</>
+                  <><Loader2 className="mr-2 size-4  animate-spin" />{t.creating}</>
                 ) : t.create}
               </Button>
             </DialogFooter>
@@ -663,7 +689,7 @@ export default function HomePage() {
               <DialogTitle className="text-[22px] font-semibold tracking-tight">
                 {t.editKnowledgeBase}
               </DialogTitle>
-              <DialogDescription className="mt-2 text-sm leading-6">
+              <DialogDescription className="mt-2 text-sm/6 ">
                 {t.editDialogDescription}
               </DialogDescription>
             </DialogHeader>
@@ -704,7 +730,7 @@ export default function HomePage() {
                 className="rounded-full px-5"
               >
                 {isUpdating ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t.saving}</>
+                  <><Loader2 className="mr-2 size-4  animate-spin" />{t.saving}</>
                 ) : t.save}
               </Button>
             </DialogFooter>
@@ -722,7 +748,7 @@ export default function HomePage() {
         confirmLabel={t.confirmDeleteAction}
         busyLabel={t.deleting}
         busy={isDeleting}
-        icon={<Trash2 className="h-4 w-4" />}
+        icon={<Trash2 className="size-4 " />}
         onConfirm={handleDeleteKnowledgeBase}
       />
 
