@@ -19,31 +19,30 @@ function navItemClass(active: boolean) {
   )
 }
 
-export function HomeSidebar({
-  activeSection,
-  onSelectSection,
-  onCreate,
-  userEmail,
-  workspaceLabel,
-  t,
-}: {
+type HomeSidebarProps = {
   activeSection: HomeSection
   onSelectSection: (section: HomeSection) => void
   onCreate: () => void
   userEmail?: string
   workspaceLabel: string
   t: ReturnType<typeof useLanguage>["home"]
-}) {
-  return (
-    <aside className="flex flex-col gap-1 border-b border-sidebar-border bg-sidebar px-3 py-4 md:sticky md:top-0 md:h-screen md:border-b-0 md:border-r">
-      <Link href="/" className="flex cursor-pointer items-center px-2 pb-4">
-        <BrandLogo
-          name={t.title}
-          wordmarkAccent
-          textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
-        />
-      </Link>
+}
 
+/**
+ * Sidebar body (everything below the brand logo). Shared by the desktop
+ * `<aside>` and the mobile drawer — `flex-1` so the user footer sinks to the
+ * bottom of whichever container it fills.
+ */
+export function HomeSidebarNav({
+  activeSection,
+  onSelectSection,
+  onCreate,
+  userEmail,
+  workspaceLabel,
+  t,
+}: HomeSidebarProps) {
+  return (
+    <div className="flex flex-1 flex-col gap-1">
       <Button onClick={onCreate} className="mb-2 w-full cursor-pointer rounded-lg">
         <Plus className="h-3.5 w-3.5" />
         {t.newKnowledgeBase}
@@ -100,6 +99,22 @@ export function HomeSidebar({
           <div className="truncate font-mono text-[10.5px] text-muted-foreground">{workspaceLabel}</div>
         </div>
       </div>
+    </div>
+  )
+}
+
+/** Desktop sidebar — hidden below `md`, where {@link MobileNav} takes over. */
+export function HomeSidebar(props: HomeSidebarProps) {
+  return (
+    <aside className="hidden bg-sidebar px-3 py-4 md:sticky md:top-0 md:flex md:h-screen md:flex-col md:border-r md:border-sidebar-border">
+      <Link href="/" className="flex cursor-pointer items-center px-2 pb-4">
+        <BrandLogo
+          name={props.t.title}
+          wordmarkAccent
+          textClassName="truncate text-lg font-semibold tracking-[-0.04em] text-foreground"
+        />
+      </Link>
+      <HomeSidebarNav {...props} />
     </aside>
   )
 }
