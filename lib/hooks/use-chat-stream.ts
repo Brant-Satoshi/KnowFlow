@@ -228,6 +228,23 @@ export function useChatStream({
       next[assistantIndex] = createTextMessage("assistant", `${getMessageText(current)}${delta}`, assistantId)
       return next
     })
+
+    // Surface citations as soon as their [n] markers appear in the streamed
+    // text, instead of waiting for the stream to finish. The used-index set
+    // only grows during a stream, so a length comparison detects changes.
+    if (retrievedChunksRef.current.length > 0) {
+      const used = parseUsedIndices(fullTextRef.current)
+      const citations = retrievedChunksRef.current.filter((c) => used.has(c.index))
+      if (citations.length > 0) {
+        setCitationsMap((prev) => {
+          const existing = prev.get(assistantId)
+          if (existing && existing.length === citations.length) return prev
+          const next = new Map(prev)
+          next.set(assistantId, citations)
+          return next
+        })
+      }
+    }
     flushRafRef.current = null
 
     if (shouldScroll) {
@@ -358,6 +375,9 @@ export function useChatStream({
       setMessages((prev) => [...prev, userMessage, assistantMessage])
 
       const startedAt = Date.now()
+      // Client-seeded: the server never emits "understanding" — this step
+      // covers everything before the first server progress event (network
+      // round-trip, auth, history load), hence the neutral "Preparing" label.
       setProgressMap((prev) => {
         const next = new Map(prev)
         next.set(assistantId, {
@@ -373,6 +393,11 @@ export function useChatStream({
       })
       setIsLoading(true)
       setIsStreaming(true)
+
+      // Set when the server's `done` event arrives. The connection stays open
+      // past `done` only to drain the async `title` event, so the turn is
+      // finalized right there instead of waiting for the connection to close.
+      let doneSeen = false
 
       try {
         const payload: {
@@ -419,6 +444,7 @@ export function useChatStream({
         let firstTokenSeen = false
         let generatingSeen = false
 
+        // idleTimeoutMs: 3 missed server keepalives (15s apart) = dead connection.
         await readSseStream(response.body as ReadableStream<Uint8Array>, ({ event, data }) => {
           if (event === "meta") {
             if (isObject(data) && Array.isArray(data.retrievedChunks)) {
@@ -483,31 +509,54 @@ export function useChatStream({
             return
           }
 
+          if (event === "done") {
+            doneSeen = true
+            flushAssistantBuffer()
+            updateProgress(assistantId, (prev) => ({
+              ...prev,
+              completedAt: Date.now(),
+              currentStage: "done",
+            }))
+            // Unlock the input and show message actions while the connection
+            // drains the trailing `title` event.
+            setIsLoading(false)
+            setIsStreaming(false)
+            return
+          }
+
           if (event === "error") {
             streamError =
               isObject(data) && typeof data.message === "string" ? data.message : "Stream error"
           }
-        })
+        }, { idleTimeoutMs: 45_000 })
 
         if (streamError) {
           throw new Error(streamError)
         }
 
-        updateProgress(assistantId, (prev) => ({
-          ...prev,
-          completedAt: Date.now(),
-          currentStage: "done",
-        }))
+        // Legacy path for streams that close without a `done` event; when
+        // `done` was seen, completedAt already holds the real finish time.
+        if (!doneSeen) {
+          updateProgress(assistantId, (prev) => ({
+            ...prev,
+            completedAt: Date.now(),
+            currentStage: "done",
+          }))
+        }
       } catch (error) {
-        const isStopped = error instanceof DOMException && error.name === "AbortError"
-        const errorMessage = error instanceof Error ? error.message : "Stream error"
-        updateProgress(assistantId, (prev) => ({
-          ...prev,
-          completedAt: Date.now(),
-          currentStage: isStopped ? "stopped" : "error",
-          failedStage: getLastActiveStage(prev),
-          errorMessage: isStopped ? undefined : errorMessage,
-        }))
+        // An abort while draining the `title` event after `done` must not
+        // re-mark an already completed turn as stopped.
+        if (!doneSeen) {
+          const isStopped = error instanceof DOMException && error.name === "AbortError"
+          const errorMessage = error instanceof Error ? error.message : "Stream error"
+          updateProgress(assistantId, (prev) => ({
+            ...prev,
+            completedAt: Date.now(),
+            currentStage: isStopped ? "stopped" : "error",
+            failedStage: getLastActiveStage(prev),
+            errorMessage: isStopped ? undefined : errorMessage,
+          }))
+        }
       } finally {
         if (abortRef.current === controller) {
           abortRef.current = null

@@ -109,6 +109,7 @@ export async function streamLlmAnswer(
   const decoder = new TextDecoder();
   let buffer = '';
   let streamDone = false;
+  let streamedOk = false;
 
   try {
     while (!streamDone) {
@@ -149,7 +150,7 @@ export async function streamLlmAnswer(
         } catch { }
       }
     }
-    send('done', { requestId });
+    streamedOk = true;
   } finally {
     if (onComplete) {
       try {
@@ -158,6 +159,10 @@ export async function streamLlmAnswer(
         console.error(`[${requestId}] onComplete failed:`, err);
       }
     }
+    // `done` is the client's completion signal: emit it only after onComplete
+    // has persisted the assistant turn, so unlocking the UI on `done` can't
+    // race a regenerate against the pending insert.
+    if (streamedOk) send('done', { requestId });
   }
 }
 

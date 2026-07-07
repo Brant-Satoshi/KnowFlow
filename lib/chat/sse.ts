@@ -28,21 +28,52 @@ export function parseSseEvent(rawEvent: string): ParsedSseEvent | null {
   }
 }
 
+// The server emits a keepalive comment every 15s, so an idle gap of several
+// multiples of that means the connection is dead, not the stage slow.
+async function readWithIdleTimeout(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  idleTimeoutMs: number | undefined
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  if (!idleTimeoutMs) return reader.read()
+
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      reader.read(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          // Reject first: cancel() settles the pending read() with
+          // { done: true }, which would otherwise win the race.
+          reject(new Error("Connection timed out"))
+          reader.cancel().catch(() => {})
+        }, idleTimeoutMs)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function readSseStream(
   stream: ReadableStream<Uint8Array>,
-  onEvent: (event: ParsedSseEvent) => void
+  onEvent: (event: ParsedSseEvent) => void,
+  options?: { idleTimeoutMs?: number }
 ) {
   const reader = stream.getReader()
   const decoder = new TextDecoder()
   let buffer = ""
 
   while (true) {
-    const { done, value } = await reader.read()
+    const { done, value } = await readWithIdleTimeout(reader, options?.idleTimeoutMs)
     if (done) break
     if (!value) continue
 
     buffer += decoder.decode(value, { stream: true })
-    buffer = buffer.replace(/\r\n/g, "\n")
+    // Normalize CRLF and lone CR to LF. A trailing \r may be the first half of
+    // a CRLF pair split across chunks, so hold it back until the next read.
+    const holdback = buffer.endsWith("\r") ? "\r" : ""
+    if (holdback) buffer = buffer.slice(0, -1)
+    buffer = buffer.replace(/\r\n|\r/g, "\n") + holdback
 
     let boundary = buffer.indexOf("\n\n")
     while (boundary !== -1) {
@@ -60,7 +91,7 @@ export async function readSseStream(
     }
   }
 
-  const lastEvent = buffer.trim()
+  const lastEvent = buffer.replace(/\r\n|\r/g, "\n").trim()
   if (lastEvent.length > 0) {
     const parsed = parseSseEvent(lastEvent)
     if (parsed) {
