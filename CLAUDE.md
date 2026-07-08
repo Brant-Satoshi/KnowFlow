@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project Skills
+
+Reusable workflows live in `.claude/skills/` — use them instead of improvising: `add-db-table` (schema changes), `new-api-route`, `feature-slice` (full-stack features), `ui-conventions-audit` (i18n/token/cursor audit before finishing UI work), `rag-eval-loop` (retrieval changes need before/after eval), `sync-docs`, `write-adr`, `ship-check` (pre-commit gate). Prompt templates: `docs/claude/WORKFLOW_TEMPLATES.md`; usage retrospective: `docs/claude/USAGE_GUIDE.md`; system instructions for Opus: `docs/claude/OPUS_SYSTEM_PROMPT.md`.
+
 ## Commands
 
 ```sh

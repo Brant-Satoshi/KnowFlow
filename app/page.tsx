@@ -279,7 +279,7 @@ export default function HomePage() {
   const [isJoinOpen, setIsJoinOpen] = useState(false)
   const [activeSection, setActiveSection] = useState<HomeSection>("workspace")
   const router = useRouter()
-  const { home: t, language } = useLanguage()
+  const { home: t, evalT, language } = useLanguage()
   const { user } = useAuth()
   const showErrorToast = useErrorToast()
 
@@ -497,6 +497,7 @@ export default function HomePage() {
               activeWorkspace ? displayWorkspaceName(activeWorkspace.name, t) : t.allWorkspaces
             }
             t={t}
+            evalT={evalT}
           />
         )}
       </MobileNav>
@@ -511,6 +512,7 @@ export default function HomePage() {
           activeWorkspace ? displayWorkspaceName(activeWorkspace.name, t) : t.allWorkspaces
         }
         t={t}
+        evalT={evalT}
       />
 
       {/* ── Main ───────────────────────────────────────────────────── */}
