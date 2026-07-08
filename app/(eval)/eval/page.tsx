@@ -216,7 +216,7 @@ function EvalPageContent() {
   return (
     <>
       <style>{EVAL_STYLES}</style>
-      <div className="min-h-screen md:grid md:grid-cols-[212px_1fr] bg-background text-foreground">
+      <div className="min-h-screen md:grid md:grid-cols-[232px_1fr] bg-background text-foreground">
         {/* ── Mobile top bar (< md) ── */}
         <MobileNav appName={home.title} menuLabel={evalT.openMenu} navTitle={evalT.navSectionEvaluate}>
           {(close) => (
