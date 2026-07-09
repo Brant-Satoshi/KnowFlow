@@ -50,6 +50,8 @@ CLAUDE.local.md
 /playwright-report
 /.playwright-mcp
 /home-*.png
+# storageState with a live session token — never commit
+/playwright/.auth/
 
 # pnpm local store (project-scoped cache)
 /.pnpm-store
