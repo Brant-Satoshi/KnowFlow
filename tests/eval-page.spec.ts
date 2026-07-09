@@ -7,14 +7,22 @@ function makeEvalRunResult(knowledgeBaseId: string, runId: string) {
   return {
     runId,
     knowledgeBaseId,
+    mode: "curated",
+    datasetHash: "hash-mock",
     totalCases: 2,
     passedCases: 1,
     retrievalHitRate: 0.5,
     citationHitRate: 0.5,
     avgLatencyMs: 320,
+    recallAtK: { 1: 0.5, 3: 0.5, 5: 0.5 },
+    precisionAtK: { 1: 0.5, 3: 0.33, 5: 0.2 },
+    ndcgAtK: { 1: 0.5, 3: 0.55, 5: 0.6 },
+    mrr: 0.75,
+    avgFaithfulness: 0.86,
+    avgAnswerRelevance: 0.91,
     cases: [
       {
-        caseId: "chunk-1",
+        caseId: "case-1",
         question: "What does the knowledge base say about: Introduction?",
         passed: true,
         failureReasons: [],
@@ -35,10 +43,14 @@ function makeEvalRunResult(knowledgeBaseId: string, runId: string) {
           { k: 5, hit: true },
         ],
         answer: "The knowledge base says [1] that this is an introduction.",
+        expectedAnswer: "An introduction of the topic.",
+        gradedHits: [3],
+        faithfulness: 0.95,
+        answerRelevance: 0.92,
       },
       {
-        caseId: "chunk-2",
-        question: "What does the knowledge base say about: Summary?",
+        caseId: "case-2",
+        question: "What does the knowledge base say about: Recap?",
         passed: false,
         failureReasons: ["retrieval_miss"],
         retrievalHit: false,
@@ -51,6 +63,10 @@ function makeEvalRunResult(knowledgeBaseId: string, runId: string) {
           { k: 5, hit: false },
         ],
         answer: "I couldn't find relevant information in the knowledge base.",
+        expectedAnswer: "A recap of the topic.",
+        gradedHits: [],
+        faithfulness: 0.2,
+        answerRelevance: 0.4,
       },
     ],
   }
@@ -90,27 +106,61 @@ function mockEvalRun(
   )
 }
 
+/** The page loads run history and the KB file list on KB selection; keep both hermetic. */
+function mockEvalHistory(page: Page) {
+  return page.route("**/api/eval/runs*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ requestId: "req-mock-runs", ok: true, data: { runs: [] } }),
+    })
+  )
+}
+
+function mockKbFiles(page: Page) {
+  return page.route("**/api/files*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ requestId: "req-mock-files", ok: true, data: { files: [] } }),
+    })
+  )
+}
+
+/** Run a mocked evaluation and wait until the overview dashboard shows metrics. */
+async function runMockedEval(page: Page) {
+  await page.goto("/eval")
+  await page
+    .getByRole("combobox", { name: /select knowledge base/i })
+    .selectOption({ value: MOCK_KB_ID })
+  await page.getByRole("button", { name: /run evaluation/i }).click()
+  await expect(page.getByText("Faithfulness").first()).toBeVisible({ timeout: 5000 })
+}
+
 test.describe("/eval page — layout and initial state", () => {
-  test("renders the page title and description", async ({ page }) => {
+  test("renders the dashboard topbar and sidebar", async ({ page }) => {
     await mockKnowledgeBases(page, [])
     await page.goto("/eval")
 
-    // Title should be visible
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      /evaluation/i
-    )
+    // The page is a tabbed dashboard now (no <h1>): topbar shows the active
+    // tab title and the run button; the sidebar lists the tab switchers.
+    await expect(page.getByRole("button", { name: /run evaluation/i })).toBeVisible()
+    await expect(page.locator("aside").getByRole("button", { name: /inspector/i })).toBeVisible()
+    await expect(page.getByText("Overview").first()).toBeVisible()
   })
 
-  test("shows 'no knowledge bases' message when list is empty", async ({
+  test("hides the knowledge base selector when none exist", async ({
     page,
   }) => {
     await mockKnowledgeBases(page, [])
     await page.goto("/eval")
 
+    // With an empty KB list the selector is not rendered at all and the run
+    // button can never enable — that's the current "no knowledge bases" state.
+    await expect(page.getByRole("button", { name: /run evaluation/i })).toBeDisabled()
     await expect(
-      page.getByText(/no knowledge bases/i)
-    ).toBeVisible()
+      page.getByRole("combobox", { name: /select knowledge base/i })
+    ).toHaveCount(0)
   })
 
   test("run button is disabled when no KB is selected", async ({ page }) => {
@@ -144,10 +194,12 @@ test.describe("/eval page — layout and initial state", () => {
     await mockKnowledgeBases(page, [
       { id: MOCK_KB_ID, name: MOCK_KB_NAME },
     ])
+    await mockEvalHistory(page)
+    await mockKbFiles(page)
     await page.goto("/eval")
 
     await expect(
-      page.getByText(/select a knowledge base and click run evaluation/i)
+      page.getByText(/run an evaluation to populate the dashboard/i)
     ).toBeVisible()
   })
 })
@@ -192,6 +244,8 @@ test.describe("/eval page — running evaluation", () => {
     await mockKnowledgeBases(page, [
       { id: MOCK_KB_ID, name: MOCK_KB_NAME },
     ])
+    await mockEvalHistory(page)
+    await mockKbFiles(page)
     await mockEvalRun(page, {
       status: 200,
       body: {
@@ -201,24 +255,19 @@ test.describe("/eval page — running evaluation", () => {
       },
     })
 
-    await page.goto("/eval")
-    await page
-      .getByRole("combobox", { name: /select knowledge base/i })
-      .selectOption({ value: MOCK_KB_ID })
-    await page.getByRole("button", { name: /run evaluation/i }).click()
+    await runMockedEval(page)
 
-    // Section title reflects the current rerank toggle (default: on)
-    await expect(page.getByText(/with rerank/i).first()).toBeVisible({
-      timeout: 5000,
-    })
-    // Aggregate panels render the values from the mock
-    await expect(page.getByText("1/2")).toBeVisible()
+    // The overview hero cards render the curated metrics from the mock
+    await expect(page.getByText("Answer Relevance").first()).toBeVisible()
+    await expect(page.getByText("Recall@5").first()).toBeVisible()
   })
 
-  test("displays test case pairs after a successful run", async ({ page }) => {
+  test("shows per-case results in the inspector after a run", async ({ page }) => {
     await mockKnowledgeBases(page, [
       { id: MOCK_KB_ID, name: MOCK_KB_NAME },
     ])
+    await mockEvalHistory(page)
+    await mockKbFiles(page)
     await mockEvalRun(page, {
       status: 200,
       body: {
@@ -228,25 +277,28 @@ test.describe("/eval page — running evaluation", () => {
       },
     })
 
-    await page.goto("/eval")
-    await page
-      .getByRole("combobox", { name: /select knowledge base/i })
-      .selectOption({ value: MOCK_KB_ID })
-    await page.getByRole("button", { name: /run evaluation/i }).click()
+    await runMockedEval(page)
 
-    // The case list section title
-    await expect(page.getByText(/test cases/i)).toBeVisible({ timeout: 5000 })
+    // Switch to the Inspector tab via the sidebar (client-side, keeps the
+    // in-memory run result)
+    await page.locator("aside").getByRole("button", { name: /inspector/i }).click()
 
-    // The question from our mock data
+    // The case list renders both mock questions with their index
+    await expect(page.getByText("#001")).toBeVisible()
     await expect(
-      page.getByText(/what does the knowledge base say about: introduction/i)
+      page.getByText(/what does the knowledge base say about: introduction/i).first()
+    ).toBeVisible()
+    await expect(
+      page.getByText(/what does the knowledge base say about: recap/i).first()
     ).toBeVisible()
   })
 
-  test("shows pass/fail badges in case entries", async ({ page }) => {
+  test("filters cases by pass/fail in the inspector", async ({ page }) => {
     await mockKnowledgeBases(page, [
       { id: MOCK_KB_ID, name: MOCK_KB_NAME },
     ])
+    await mockEvalHistory(page)
+    await mockKbFiles(page)
     await mockEvalRun(page, {
       status: 200,
       body: {
@@ -256,17 +308,18 @@ test.describe("/eval page — running evaluation", () => {
       },
     })
 
-    await page.goto("/eval")
-    await page
-      .getByRole("combobox", { name: /select knowledge base/i })
-      .selectOption({ value: MOCK_KB_ID })
-    await page.getByRole("button", { name: /run evaluation/i }).click()
+    await runMockedEval(page)
+    await page.locator("aside").getByRole("button", { name: /inspector/i }).click()
+    await expect(page.getByText("#001")).toBeVisible()
 
-    await expect(page.getByText(/test cases/i)).toBeVisible({ timeout: 5000 })
-
-    // There should be at least one Pass and one Fail badge
-    await expect(page.getByText("Pass").first()).toBeVisible()
-    await expect(page.getByText("Fail").first()).toBeVisible()
+    // "Failed" filter → only the failing case remains in the list
+    await page.getByRole("button", { name: /^failed$/i }).first().click()
+    await expect(
+      page.getByText(/what does the knowledge base say about: recap/i).first()
+    ).toBeVisible()
+    await expect(
+      page.getByText(/what does the knowledge base say about: introduction/i)
+    ).toHaveCount(0)
   })
 })
 
