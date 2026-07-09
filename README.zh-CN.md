@@ -37,6 +37,7 @@ pnpm dev                            # http://localhost:3000
 
 可选：
 - `RERANK_ENABLED=false` —— 关掉 rerank 阶段
+- `HYBRID_SEARCH_ENABLED=true` —— 用 RRF 把 pg_trgm 关键词腿融合进聊天召回（默认关闭；eval 显示当前数据集上无收益，见 ADR-010）
 
 > **Embedding 必须是 1536 维。** `chunks.embedding` 列是 `vector(1536)`，代码每次调用都会校验维度。
 
@@ -45,7 +46,7 @@ pnpm dev                            # http://localhost:3000
 migrations 在 `db/migrations/` 下。`Makefile` 默认走名为 `knowflow-postgres` 的本地 Docker Postgres 容器：
 
 ```bash
-make migrate     # 把 001_init … 012_add_eval_run_filter 跑到容器里
+make migrate     # 把 001_init … 013_add_trgm_keyword_search 跑到容器里
 make seed        # 可选 fixtures
 ```
 

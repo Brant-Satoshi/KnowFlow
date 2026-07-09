@@ -46,7 +46,7 @@
   ├─ /api/conversations              (GET / POST，挂在 KB 下)
   ├─ /api/conversations/[id]         (GET / PATCH / DELETE)
   ├─ /api/conversations/[id]/messages(GET / POST 历史消息)
-  ├─ /api/rag/search                 (POST 纯检索，调试/eval 用，支持 RetrievalFilter 与 mode: vector | keyword)
+  ├─ /api/rag/search                 (POST 纯检索，调试/eval 用，支持 RetrievalFilter 与 mode: vector | keyword | hybrid)
   ├─ /api/chat/stream                (POST SSE：progress → meta → token* → done|error，+title)
   ├─ /api/eval/run                   (POST 跑 curated 题集 + 双跑对比，支持 RetrievalFilter)
   ├─ /api/eval/runs、runs/[id]       (GET 历史 run 列表 / 详情)
@@ -220,7 +220,7 @@ interface RetrievedChunk {
   index: number;        // 1-based，对应 prompt 里的 [1][2]
   chunkId: string; fileId: string; fileName: string;
   page?: number; quote: string;        // text.slice(0, 300)
-  score?: number; scoreType?: 'rerank' | 'vector';
+  score?: number; scoreType?: 'rerank' | 'vector' | 'keyword';
 }
 ```
 
@@ -465,7 +465,9 @@ run 与逐 case 结果持久化到 `eval_runs` / `eval_run_items`（含所用 fi
 
 ### 🔭 后续可做（按价值排序）
 
-1. 引入 BM25 混合检索（pgvector + tsvector），与纯向量 + rerank 做 A/B
+1. ~~引入 BM25 混合检索，与纯向量 + rerank 做 A/B~~ —— 已落地：pg_trgm 关键词腿 +
+   RRF 融合（`lib/rag/fusion.ts`），A/B 显示当前数据集上无收益，故默认关闭
+   （`HYBRID_SEARCH_ENABLED`）；见 ADR-010。等关键词重的数据集出现再重测
 2. 解析+向量化抽到 worker / 队列
 3. 服务端引用校验 + 标注 `citation_invalid`
 4. 句级对齐 / 高亮定位（提升引用精度）

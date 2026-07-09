@@ -17,3 +17,4 @@ Chinese versions are in the parent directory: [../README.md](../README.md).
 | [007](./007.workspace-tenancy-app-guards.md) | Shared-schema tenancy, app-layer guards, 404 anti-enumeration | Explicit auditable guards vs must-remember-per-route (no RLS) |
 | [008](./008.invite-code-collaboration.md) | Multi-use expiring invite codes | Zero email infra + consent-by-action vs out-of-band token handling |
 | [009](./009.hand-rolled-i18n.md) | Hand-rolled typed en/zh dictionary | Compile-time-checked keys, zero deps vs no ICU/plurals |
+| [010](./010.hybrid-search-rrf-gated.md) | Hybrid search (RRF vector + keyword), default off | Toggleable capability landed vs eval shows no gain on current dataset, so not default-on |

@@ -38,7 +38,7 @@ Next.js App Router RAG chat app. PostgreSQL + pgvector for vector storage.
 3. Build prompt → `lib/llm/chat.ts` (`buildPrompt`)
 4. Stream answer via OpenRouter → `lib/llm/chat.ts` (`streamLlmAnswer`), returned as SSE
 
-The same `RetrievalFilter` is accepted by `/api/rag/search` and `/api/eval/run`. `/api/rag/search` also accepts `mode: 'vector' | 'keyword'` — keyword mode runs pg_trgm `word_similarity` against `chunks.embedding_text` (`keywordSearchChunks` in `lib/db/chunks.ts`, GIN trigram index) without calling the embedding API; the chat pipeline itself remains vector-only.
+The same `RetrievalFilter` is accepted by `/api/rag/search` and `/api/eval/run`. `/api/rag/search` also accepts `mode: 'vector' | 'keyword' | 'hybrid'` — keyword mode runs pg_trgm `word_similarity` against `chunks.embedding_text` (`keywordSearchChunks` in `lib/db/chunks.ts`, GIN trigram index) without calling the embedding API; hybrid mode fuses the vector and keyword legs via Reciprocal Rank Fusion (`reciprocalRankFusion` in `lib/rag/fusion.ts`). Chat recall goes hybrid only when `HYBRID_SEARCH_ENABLED=true` (`isHybridSearchEnabled` in `lib/models.ts`); it **defaults off** because the eval found fusion neutral-to-negative on the current dataset — see ADR-010. So the chat pipeline is vector-only by default. Do not enable hybrid by default without re-running the vector-vs-hybrid eval comparison (`RunCuratedEvalOpts.retrievalMode` in `lib/eval/runner.ts`) on the target dataset.
 
 **SSE event types**: `progress` (stages: searching → searched → reranking → reranked → generating) interleaved with `meta` → `token`+ → `done` | `error`; plus `title` when a conversation title is auto-generated. All carry `requestId`.
 

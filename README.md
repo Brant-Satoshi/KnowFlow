@@ -37,6 +37,7 @@ pnpm dev                            # http://localhost:3000
 
 Optional:
 - `RERANK_ENABLED=false` — disable the rerank step
+- `HYBRID_SEARCH_ENABLED=true` — fuse a pg_trgm keyword leg into chat recall via RRF (default off; the eval found no gain on the current dataset — see ADR-010)
 
 > **Embeddings must be 1536-dimensional.** The `chunks.embedding` column is `vector(1536)` and the code validates dimension on every call.
 
@@ -45,7 +46,7 @@ Optional:
 Migrations live in `db/migrations/`. The `Makefile` targets assume a local Docker Postgres container named `knowflow-postgres`:
 
 ```bash
-make migrate     # runs 001_init … 012_add_eval_run_filter against the container
+make migrate     # runs 001_init … 013_add_trgm_keyword_search against the container
 make seed        # optional fixtures
 ```
 
