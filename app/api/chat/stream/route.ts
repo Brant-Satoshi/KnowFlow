@@ -28,6 +28,24 @@ const MAX_HISTORY_MESSAGES = 8;
 // watchdog (3× this interval) distinguish a slow stage from a dead connection.
 const KEEPALIVE_INTERVAL_MS = 15_000;
 
+// How long the stream waits after the answer finishes for the async title task
+// to flush its `title` event before closing. Title generation starts at
+// request-begin and is almost always done by the time the answer streams, so
+// this cap only matters if title-gen outlasts the whole answer; past it we
+// close anyway (the title task's own `streamOpen` guard drops the late event).
+const TITLE_DRAIN_TIMEOUT_MS = 5_000;
+
+/** Resolve when `p` settles or `ms` elapses, whichever comes first; no leaked timer. */
+function settleOrTimeout(p: Promise<unknown>, ms: number): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    p.finally(() => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+}
+
 function sseHeaders(): HeadersInit {
   return {
     'Content-Type': 'text/event-stream; charset=utf-8',
@@ -158,7 +176,9 @@ export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     start: async (controller) => {
+      let streamOpen = true;
       const send: SseSend = (event, data) => {
+        if (!streamOpen) return;
         controller.enqueue(encoder.encode(formatSse(event, data)));
       };
 
@@ -173,6 +193,9 @@ export async function POST(request: NextRequest) {
         }
       }, KEEPALIVE_INTERVAL_MS);
 
+      // First turn only: generate the title concurrently with retrieval + the
+      // answer stream. Held in `titleTask` (not fire-and-forget) so the finally
+      // block can drain its `title` event before closing the stream.
       let titleTask: Promise<void> | undefined;
       if (conversation.title === DEFAULT_CONVERSATION_TITLE) {
         titleTask = (async () => {
@@ -180,7 +203,7 @@ export async function POST(request: NextRequest) {
             const title = await generateConversationTitle(message, request.signal);
             if (!title) return;
             const updated = await updateConversationTitle(conversationId, title);
-            if (updated) {
+            if (updated && streamOpen) {
               send('title', { requestId, conversationId, title: updated.title });
             }
           } catch (err) {
@@ -271,7 +294,16 @@ export async function POST(request: NextRequest) {
           message: e instanceof Error ? e.message : 'Chat failed',
         });
       } finally {
-        if (titleTask) await titleTask;
+        // Drain the async title task so its `title` event flushes while the
+        // stream is still open. Without this, on a conversation's first turn the
+        // title is generated and persisted but its SSE event is dropped (stream
+        // already closed), leaving the sidebar on the default title until reload.
+        // The client keeps reading past `done` precisely to receive it. Bounded
+        // so a hung title-gen can never hold the stream open indefinitely.
+        if (titleTask) {
+          await settleOrTimeout(titleTask, TITLE_DRAIN_TIMEOUT_MS);
+        }
+        streamOpen = false;
         clearInterval(keepalive);
         controller.close();
       }
