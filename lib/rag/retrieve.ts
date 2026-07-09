@@ -1,6 +1,8 @@
-import { searchChunks } from '@/lib/db/chunks';
+import { searchChunks, keywordSearchChunks } from '@/lib/db/chunks';
 import { embedText } from '@/lib/rag/embeddings';
 import { rerankChunks } from '@/lib/rag/rerank';
+import { reciprocalRankFusion } from '@/lib/rag/fusion';
+import { isHybridSearchEnabled } from '@/lib/models';
 import type { Chunk, RetrievalFilter } from '@/lib/types';
 
 // Single source of truth for retrieval parameters, shared by chat, eval,
@@ -14,24 +16,73 @@ export const RETRIEVAL = {
   // pg_trgm word_similarity floor for the keyword leg. The extension default
   // (0.6) is unreachable for CJK queries against continuous prose.
   keywordSimThreshold: 0.05,
+  // Hybrid (RRF) fusion. The keyword leg recalls the same width as the vector
+  // leg so neither dominates fusion by candidate count alone; rrfK damps how
+  // steeply top ranks dominate (60 is the RRF paper's value).
+  keywordRecallTopK: 20,
+  rrfK: 60,
 } as const;
+
+/**
+ * Recall strategy:
+ * - 'vector': pgvector cosine search only (the original single leg)
+ * - 'hybrid': fuse the vector leg with the pg_trgm keyword leg via RRF
+ */
+export type RecallMode = 'vector' | 'hybrid';
 
 export interface RecallOptions {
   knowledgeBaseId: string;
   filter?: RetrievalFilter;
   signal?: AbortSignal;
+  /** Overrides the env-flag default (`HYBRID_SEARCH_ENABLED`). Eval passes it explicitly. */
+  mode?: RecallMode;
 }
 
-/** Recall stage: embed the question and vector-search the knowledge base. */
+/**
+ * Recall stage: embed the question and search the knowledge base.
+ *
+ * In hybrid mode the keyword leg (a DB query) is kicked off concurrently with
+ * the embedding network call, so fusion adds no latency on the critical path.
+ * Both legs share the same KB scope and `RetrievalFilter`, so fusion can never
+ * mix tenants or bypass a filter. A keyword-leg failure degrades to
+ * vector-only recall rather than sinking the request.
+ */
 export async function recallChunks(question: string, opts: RecallOptions): Promise<Chunk[]> {
+  const mode = opts.mode ?? (isHybridSearchEnabled() ? 'hybrid' : 'vector');
+
+  const keywordPromise =
+    mode === 'hybrid'
+      ? keywordSearchChunks(
+          question,
+          RETRIEVAL.keywordRecallTopK,
+          RETRIEVAL.keywordSimThreshold,
+          undefined,
+          opts.knowledgeBaseId,
+          opts.filter,
+        ).catch((err) => {
+          console.error('[retrieve] keyword leg failed; using vector-only recall:', err);
+          return [] as Chunk[];
+        })
+      : null;
+
   const embedding = await embedText(question, { signal: opts.signal });
-  return searchChunks(
+  const vectorHits = await searchChunks(
     embedding,
     RETRIEVAL.recallTopK,
     RETRIEVAL.maxDistance,
     undefined,
     opts.knowledgeBaseId,
     opts.filter,
+  );
+
+  if (!keywordPromise) {
+    return vectorHits;
+  }
+
+  const keywordHits = await keywordPromise;
+  return reciprocalRankFusion([vectorHits, keywordHits], RETRIEVAL.rrfK).slice(
+    0,
+    RETRIEVAL.recallTopK,
   );
 }
 

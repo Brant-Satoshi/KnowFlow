@@ -104,6 +104,7 @@ export interface ChunkMeta {
   _distance?: number;
   _rerankScore?: number;
   _keywordSim?: number;
+  _rrfScore?: number;
 }
 
 export interface Chunk {
@@ -136,7 +137,7 @@ export interface RetrievalFilter {
   titleQuery?: string;
 }
 
-export type RetrievedChunkScoreType = 'rerank' | 'vector';
+export type RetrievedChunkScoreType = 'rerank' | 'vector' | 'keyword';
 
 export interface RetrievedChunk {
   index: number;

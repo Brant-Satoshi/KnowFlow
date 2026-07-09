@@ -8,7 +8,7 @@ import type {
   EvalTopKHit,
   RetrievalFilter,
 } from '@/lib/types';
-import { recallChunks, selectFinalChunks } from '@/lib/rag/retrieve';
+import { recallChunks, selectFinalChunks, type RecallMode } from '@/lib/rag/retrieve';
 import { buildPrompt, generateAnswer } from '@/lib/llm/chat';
 import { isOutOfScope } from './dataset';
 import { gradeRecalled } from './relevance';
@@ -32,6 +32,12 @@ export interface RunCuratedEvalOpts {
   useRerank?: boolean;
   /** Per-run retrieval filter; both rerank branches share the filtered recall set. */
   filter?: RetrievalFilter;
+  /**
+   * Recall strategy for both rerank branches. Omitted → `recallChunks` uses its
+   * env-flag default (`HYBRID_SEARCH_ENABLED`). Set explicitly to pin a mode for
+   * a vector-vs-hybrid comparison regardless of the env flag.
+   */
+  retrievalMode?: RecallMode;
 }
 
 interface JudgeScores {
@@ -102,6 +108,7 @@ async function runCase(c: EvalCase, opts: RunCuratedEvalOpts): Promise<PerCaseRe
       knowledgeBaseId: opts.knowledgeBaseId,
       filter: opts.filter,
       signal: opts.signal,
+      mode: opts.retrievalMode,
     });
   } catch (e) {
     recallError = true;

@@ -312,6 +312,7 @@ export const translations = {
       sourceScore: {
         rerank: "rerank",
         vector: "vector",
+        keyword: "keyword",
       },
       filePreview: {
         title: "File preview",
@@ -793,6 +794,7 @@ export const translations = {
       sourceScore: {
         rerank: "重排分",
         vector: "向量分",
+        keyword: "关键词分",
       },
       filePreview: {
         title: "文件预览",

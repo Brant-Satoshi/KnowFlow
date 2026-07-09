@@ -90,3 +90,14 @@ export function resolveRerankProvider(): RerankProviderConfig {
 export function isRerankEnabled(): boolean {
   return (readEnv('RERANK_ENABLED') ?? 'true').toLowerCase() === 'true';
 }
+
+/**
+ * Whether chat recall fuses the keyword (pg_trgm) leg with vector search (RRF).
+ * Defaults OFF: the eval (ADR-003) found fusion neutral-to-negative on the
+ * current dataset — it hurts raw recall ordering and rerank erases any gain —
+ * so vector-only stays the production default. Set `HYBRID_SEARCH_ENABLED=true`
+ * to opt in (or preview via `/api/rag/search` with `mode: "hybrid"`).
+ */
+export function isHybridSearchEnabled(): boolean {
+  return (readEnv('HYBRID_SEARCH_ENABLED') ?? 'false').toLowerCase() === 'true';
+}

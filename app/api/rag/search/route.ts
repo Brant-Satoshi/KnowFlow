@@ -3,6 +3,7 @@ import { withAuth } from '@/lib/api/route';
 import { isValidUuid, parseRetrievalFilter } from '@/lib/validation';
 import { embedChunk } from '@/lib/rag/embeddings';
 import { RETRIEVAL } from '@/lib/rag/retrieve';
+import { reciprocalRankFusion } from '@/lib/rag/fusion';
 import { searchChunks, keywordSearchChunks } from '@/lib/db/chunks';
 import {
   isNotFoundOrForbiddenError,
@@ -27,8 +28,8 @@ export const POST = withAuth('Search failed', async (req, user) => {
     if (!query || typeof query !== 'string' || !query.trim()) {
       return Response.json(error('Missing query'), { status: 400 });
     }
-    if (mode !== 'vector' && mode !== 'keyword') {
-      return Response.json(error('mode must be vector or keyword'), { status: 400 });
+    if (mode !== 'vector' && mode !== 'keyword' && mode !== 'hybrid') {
+      return Response.json(error('mode must be vector, keyword, or hybrid'), { status: 400 });
     }
     if (rawFileId !== undefined && rawFileId !== null && typeof rawFileId !== 'string') {
       return Response.json(error('fileId must be a string'), { status: 400 });
@@ -44,9 +45,12 @@ export const POST = withAuth('Search failed', async (req, user) => {
     if (typeof topK !== 'number' || topK < 1 || topK > 20) {
       return Response.json(error('topK must be between 1 and 20'), { status: 400 });
     }
-    // maxDistance only applies to vector search; keyword requests may omit it
-    // or carry any value without being rejected.
-    if (mode === 'vector' && (typeof maxDistance !== 'number' || maxDistance < 0 || maxDistance > 1)) {
+    // maxDistance bounds the vector leg, so it applies to vector and hybrid;
+    // pure keyword requests may omit it or carry any value without rejection.
+    if (
+      (mode === 'vector' || mode === 'hybrid') &&
+      (typeof maxDistance !== 'number' || maxDistance < 0 || maxDistance > 1)
+    ) {
       return Response.json(error('maxDistance must be between 0 and 1'), { status: 400 });
     }
 
@@ -104,14 +108,34 @@ export const POST = withAuth('Search failed', async (req, user) => {
         return Response.json(error('Failed to embed query'), { status: 500 });
       }
 
-      chunks = await searchChunks(
+      // To preview the chat pipeline's hybrid recall faithfully, each leg
+      // recalls at its full production width (RETRIEVAL.recallTopK /
+      // keywordRecallTopK) before fusion; only the fused result is trimmed to
+      // the caller's topK. Recalling each leg at the narrower topK would hide
+      // chunks RRF can still surface — a chunk mid-ranked in both legs can
+      // outrank a single-leg top hit.
+      const vectorChunks = await searchChunks(
         queryEmbedding,
-        topK,
+        mode === 'hybrid' ? RETRIEVAL.recallTopK : topK,
         maxDistance,
         scopeFileId,
         scopeKnowledgeBaseId,
         filter,
       );
+
+      if (mode === 'hybrid') {
+        const keywordChunks = await keywordSearchChunks(
+          query,
+          RETRIEVAL.keywordRecallTopK,
+          RETRIEVAL.keywordSimThreshold,
+          scopeFileId,
+          scopeKnowledgeBaseId,
+          filter,
+        );
+        chunks = reciprocalRankFusion([vectorChunks, keywordChunks], RETRIEVAL.rrfK).slice(0, topK);
+      } else {
+        chunks = vectorChunks;
+      }
     }
 
     return Response.json(success({ chunks }));

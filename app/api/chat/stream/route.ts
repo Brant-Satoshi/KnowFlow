@@ -246,6 +246,7 @@ export async function POST(request: NextRequest) {
           const meta = c.meta ?? {};
           const rerankScore = meta._rerankScore;
           const distance = meta._distance;
+          const keywordSim = meta._keywordSim;
           let score: number | undefined;
           let scoreType: RetrievedChunk['scoreType'];
           if (typeof rerankScore === 'number') {
@@ -254,6 +255,11 @@ export async function POST(request: NextRequest) {
           } else if (typeof distance === 'number') {
             score = Math.max(0, 1 - distance);
             scoreType = 'vector';
+          } else if (typeof keywordSim === 'number') {
+            // Keyword-only chunk (no rerank, missed by the vector leg) — surfaced
+            // by the hybrid keyword leg, so show its trigram similarity.
+            score = keywordSim;
+            scoreType = 'keyword';
           }
           return {
             index: i + 1,

@@ -30,6 +30,8 @@ export function CitationHoverCardBody({ chunk, t }: { chunk: RetrievedChunk; t: 
       ? t.sourceScore.rerank
       : chunk.scoreType === "vector"
       ? t.sourceScore.vector
+      : chunk.scoreType === "keyword"
+      ? t.sourceScore.keyword
       : null
   return (
     <HoverCardContent
