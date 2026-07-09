@@ -3,7 +3,8 @@ import { withAuth } from '@/lib/api/route';
 import { isValidUuid, parseRetrievalFilter } from '@/lib/validation';
 import { embedChunk } from '@/lib/rag/embeddings';
 import { RETRIEVAL } from '@/lib/rag/retrieve';
-import { searchChunks } from '@/lib/db/chunks';
+import { reciprocalRankFusion } from '@/lib/rag/fusion';
+import { searchChunks, keywordSearchChunks } from '@/lib/db/chunks';
 import {
   isNotFoundOrForbiddenError,
   requireFileAccess,
@@ -17,6 +18,7 @@ export const POST = withAuth('Search failed', async (req, user) => {
       query,
       fileId: rawFileId,
       knowledgeBaseId: rawKnowledgeBaseId,
+      mode = 'vector',
       topK = RETRIEVAL.finalTopK,
       maxDistance = RETRIEVAL.maxDistance,
     } = body;
@@ -25,6 +27,9 @@ export const POST = withAuth('Search failed', async (req, user) => {
 
     if (!query || typeof query !== 'string' || !query.trim()) {
       return Response.json(error('Missing query'), { status: 400 });
+    }
+    if (mode !== 'vector' && mode !== 'keyword' && mode !== 'hybrid') {
+      return Response.json(error('mode must be vector, keyword, or hybrid'), { status: 400 });
     }
     if (rawFileId !== undefined && rawFileId !== null && typeof rawFileId !== 'string') {
       return Response.json(error('fileId must be a string'), { status: 400 });
@@ -40,7 +45,12 @@ export const POST = withAuth('Search failed', async (req, user) => {
     if (typeof topK !== 'number' || topK < 1 || topK > 20) {
       return Response.json(error('topK must be between 1 and 20'), { status: 400 });
     }
-    if (typeof maxDistance !== 'number' || maxDistance < 0 || maxDistance > 1) {
+    // maxDistance bounds the vector leg, so it applies to vector and hybrid;
+    // pure keyword requests may omit it or carry any value without rejection.
+    if (
+      (mode === 'vector' || mode === 'hybrid') &&
+      (typeof maxDistance !== 'number' || maxDistance < 0 || maxDistance > 1)
+    ) {
       return Response.json(error('maxDistance must be between 0 and 1'), { status: 400 });
     }
 
@@ -60,17 +70,10 @@ export const POST = withAuth('Search failed', async (req, user) => {
       return Response.json(error('knowledgeBaseId or fileId is required'), { status: 400 });
     }
 
-    const queryChunks = await embedChunk(
-      [{ id: 'query', fileId: '', idx: 0, text: query, meta: {} }],
-      { signal: req.signal }
-    );
-    const queryEmbedding = queryChunks[0].embedding;
-
-    if (!queryEmbedding) {
-      return Response.json(error('Failed to embed query'), { status: 500 });
-    }
-
-    let chunks;
+    // Authorize before doing any retrieval work, so unauthorized requests
+    // never trigger an embedding call.
+    let scopeFileId: string | undefined;
+    let scopeKnowledgeBaseId: string | undefined;
     if (fileId) {
       const file = await requireFileAccess(user.id, fileId);
       if (knowledgeBaseId && file.knowledgeBaseId !== knowledgeBaseId) {
@@ -78,10 +81,61 @@ export const POST = withAuth('Search failed', async (req, user) => {
       }
       // fileId keeps its access-scope role; filter.fileIds intersects with it
       // (possibly yielding an empty result, which is not an error).
-      chunks = await searchChunks(queryEmbedding, topK, maxDistance, file.id, undefined, filter);
+      scopeFileId = file.id;
     } else if (knowledgeBaseId) {
       await requireKnowledgeBaseAccess(user.id, knowledgeBaseId);
-      chunks = await searchChunks(queryEmbedding, topK, maxDistance, undefined, knowledgeBaseId, filter);
+      scopeKnowledgeBaseId = knowledgeBaseId;
+    }
+
+    let chunks;
+    if (mode === 'keyword') {
+      chunks = await keywordSearchChunks(
+        query,
+        topK,
+        RETRIEVAL.keywordSimThreshold,
+        scopeFileId,
+        scopeKnowledgeBaseId,
+        filter,
+      );
+    } else {
+      const queryChunks = await embedChunk(
+        [{ id: 'query', fileId: '', idx: 0, text: query, meta: {} }],
+        { signal: req.signal }
+      );
+      const queryEmbedding = queryChunks[0].embedding;
+
+      if (!queryEmbedding) {
+        return Response.json(error('Failed to embed query'), { status: 500 });
+      }
+
+      // To preview the chat pipeline's hybrid recall faithfully, each leg
+      // recalls at its full production width (RETRIEVAL.recallTopK /
+      // keywordRecallTopK) before fusion; only the fused result is trimmed to
+      // the caller's topK. Recalling each leg at the narrower topK would hide
+      // chunks RRF can still surface — a chunk mid-ranked in both legs can
+      // outrank a single-leg top hit.
+      const vectorChunks = await searchChunks(
+        queryEmbedding,
+        mode === 'hybrid' ? RETRIEVAL.recallTopK : topK,
+        maxDistance,
+        scopeFileId,
+        scopeKnowledgeBaseId,
+        filter,
+      );
+
+      if (mode === 'hybrid') {
+        const keywordChunks = await keywordSearchChunks(
+          query,
+          RETRIEVAL.keywordRecallTopK,
+          RETRIEVAL.keywordSimThreshold,
+          scopeFileId,
+          scopeKnowledgeBaseId,
+          filter,
+        );
+        chunks = reciprocalRankFusion([vectorChunks, keywordChunks], RETRIEVAL.rrfK).slice(0, topK);
+      } else {
+        chunks = vectorChunks;
+      }
     }
 
     return Response.json(success({ chunks }));

@@ -27,4 +27,4 @@ Retrieval changes are easy to make and hard to judge by eye. This repo has a bui
 
 - Rerank can be disabled via `RERANK_ENABLED=false` — verify graceful degradation to pure vector ordering still works after your change.
 - Vectors are fixed at 1536 dims (DB column type). Changing embedding model/dimensions is a schema-level decision — stop and ask.
-- Don't add hybrid/BM25 or new retrieval dependencies unilaterally; ADR-003 defers that until eval data proves the gap matters.
+- Hybrid retrieval (pg_trgm keyword leg + RRF fusion) is landed but gated off by `HYBRID_SEARCH_ENABLED` — the eval found it neutral-to-negative on the current dataset (ADR-010). Don't flip the default on without re-running the vector-vs-hybrid comparison (`RunCuratedEvalOpts.retrievalMode`) on the target dataset. Don't add new retrieval dependencies unilaterally.

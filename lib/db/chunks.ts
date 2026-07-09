@@ -92,22 +92,18 @@ function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, (m) => '\\' + m);
 }
 
-export async function searchChunks(
-  queryEmbedding: number[],
-  topK: number,
-  maxDistance: number,
+/**
+ * Append scope (knowledge base / file) and RetrievalFilter clauses to a query
+ * under construction. Shared by the vector and keyword retrieval legs so
+ * their filter semantics cannot drift.
+ */
+function pushScopeAndFilterClauses(
+  params: unknown[],
+  where: string[],
   fileId?: string,
   knowledgeBaseId?: string,
   filter?: RetrievalFilter,
-): Promise<Chunk[]> {
-  const vectorStr = `[${queryEmbedding.join(',')}]`;
-  const hasFilter = Boolean(
-    filter?.fileIds?.length || filter?.fileTypes?.length || filter?.titleQuery,
-  );
-
-  const params: unknown[] = [vectorStr, maxDistance];
-  const where = ['c.embedding IS NOT NULL', 'c.embedding <=> $1::vector < $2'];
-
+): void {
   if (knowledgeBaseId) {
     params.push(knowledgeBaseId);
     where.push(`f.knowledge_base_id = $${params.length}::uuid`);
@@ -131,6 +127,24 @@ export async function searchChunks(
       `(c.document_title ILIKE $${params.length} OR c.section_title ILIKE $${params.length})`
     );
   }
+}
+
+export async function searchChunks(
+  queryEmbedding: number[],
+  topK: number,
+  maxDistance: number,
+  fileId?: string,
+  knowledgeBaseId?: string,
+  filter?: RetrievalFilter,
+): Promise<Chunk[]> {
+  const vectorStr = `[${queryEmbedding.join(',')}]`;
+  const hasFilter = Boolean(
+    filter?.fileIds?.length || filter?.fileTypes?.length || filter?.titleQuery,
+  );
+
+  const params: unknown[] = [vectorStr, maxDistance];
+  const where = ['c.embedding IS NOT NULL', 'c.embedding <=> $1::vector < $2'];
+  pushScopeAndFilterClauses(params, where, fileId, knowledgeBaseId, filter);
   params.push(topK);
 
   const sql = `
@@ -162,6 +176,69 @@ export async function searchChunks(
     const result = await client.query<ChunkWithDistance>(sql, params);
     await client.query('COMMIT');
     return attachDistance(result.rows);
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+type ChunkWithSimilarity = Chunk & { sim: number };
+
+function attachSimilarity(rows: ChunkWithSimilarity[]): Chunk[] {
+  return rows.map(({ sim, ...chunk }) => ({
+    ...chunk,
+    meta: { ...(chunk.meta ?? {}), _keywordSim: sim },
+  }));
+}
+
+/**
+ * Keyword retrieval leg: trigram match of the query against embedding_text.
+ * word_similarity() scores the query against the best matching extent of the
+ * chunk, so short queries work against long chunks; the `<%` prefilter lets
+ * the GIN trigram index cut candidates and acts as a relevance floor.
+ * No `embedding IS NOT NULL` clause — chunks without embeddings are still
+ * reachable by keyword.
+ */
+export async function keywordSearchChunks(
+  queryText: string,
+  topK: number,
+  threshold: number,
+  fileId?: string,
+  knowledgeBaseId?: string,
+  filter?: RetrievalFilter,
+): Promise<Chunk[]> {
+  const params: unknown[] = [queryText];
+  const where = ['$1 <% c.embedding_text'];
+  pushScopeAndFilterClauses(params, where, fileId, knowledgeBaseId, filter);
+  params.push(topK);
+
+  const sql = `
+    SELECT c.id::text, c.file_id AS "fileId", c.idx, c.text,
+           c.embedding_text AS "embeddingText", c.document_title AS "documentTitle",
+           c.section_title AS "sectionTitle", c.meta, f.name AS "fileName",
+           word_similarity($1, c.embedding_text) AS sim
+    FROM chunks c
+    JOIN files f ON c.file_id = f.id::uuid
+    WHERE ${where.join('\n    AND ')}
+    ORDER BY sim DESC, c.id
+    LIMIT $${params.length}
+    `;
+
+  // The default word_similarity_threshold (0.6) is far too strict for CJK
+  // text (space-padded boundary trigrams never match continuous prose), so
+  // set it per-transaction before the `<%` prefilter runs.
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      "SELECT set_config('pg_trgm.word_similarity_threshold', $1, true)",
+      [String(threshold)],
+    );
+    const result = await client.query<ChunkWithSimilarity>(sql, params);
+    await client.query('COMMIT');
+    return attachSimilarity(result.rows);
   } catch (e) {
     await client.query('ROLLBACK');
     throw e;

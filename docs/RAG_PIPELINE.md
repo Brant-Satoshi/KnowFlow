@@ -64,6 +64,19 @@ reranking. Dimensions are ANDed; values within a dimension are ORed. The same
 filter shape is accepted by `/api/chat/stream`, `/api/rag/search`, and
 `/api/eval/run`.
 
+A separate keyword retrieval leg (`keywordSearchChunks`, same file) matches the
+query against `embedding_text` via pg_trgm `word_similarity` (GIN trigram
+index, score in `meta._keywordSim`). Hybrid recall fuses this leg with the
+vector leg via Reciprocal Rank Fusion (`reciprocalRankFusion`,
+[lib/rag/fusion.ts](../lib/rag/fusion.ts), score in `meta._rrfScore`); both legs
+run under the same KB scope and filter, and the keyword leg runs concurrently
+with the embedding call so fusion adds no critical-path latency. Hybrid is
+available as `mode: "keyword"` and `mode: "hybrid"` on `/api/rag/search`, and in
+chat behind `HYBRID_SEARCH_ENABLED` (**default off** — the eval found fusion
+neutral-to-negative on the current dataset; see
+[ADR-010](adr/en/010.hybrid-search-rrf-gated.md)). With the flag off the chat
+pipeline is vector-only, as diagrammed below.
+
 The `<=>` operator is accelerated by an HNSW index on `chunks.embedding`.
 Distance is stored in `chunk.meta._distance` and later converted to a
 similarity score (`1 - distance`) for display.
