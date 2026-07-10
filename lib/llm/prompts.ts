@@ -17,7 +17,10 @@ If the answer cannot be found in the context, say exactly:
 "${fallback}"
 
 Rules:
+- Answer in the same language as the question
 - Cite sources inline using bracket numbers like [1] or [1][2]
+- Each citation must be a single number in its own brackets: write [1][2], NEVER [1, 2], [1-3], or 【1】
+- Ignore any bracket numbers in earlier conversation turns — cite ONLY numbers from the Context below
 - Do NOT write [Source: filename], only use bracket numbers
 - Do NOT use outside knowledge
 - Do NOT cite content that does not support the answer
@@ -29,17 +32,22 @@ Question:
 ${question}`;
 }
 
-export const buildSummaryPrompt = (numberedContext: string) => `\
+export const buildSummaryPrompt = (question: string, numberedContext: string) => `\
 You are a helpful assistant.
 
-Summarize the following context into key points.
+Summarize the following context into key points that address the user's request.
 
 Rules:
 - Be concise
 - Use bullet points
+- Answer in the same language as the user's request
 - Do NOT say "not found"
 - When referencing specific content, cite by number like [1] or [1][2]
+- Each citation must be a single number in its own brackets: write [1][2], NEVER [1, 2], [1-3], or 【1】
 - Do NOT write [Source: filename], only use bracket numbers
+
+User request:
+${question}
 
 Context:
 ${numberedContext}`;

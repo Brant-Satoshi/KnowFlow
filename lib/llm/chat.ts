@@ -50,7 +50,7 @@ export function buildPrompt(question: string, chunks: Chunk[]) {
       return buildConversationSummaryPrompt();
     }
 
-    return buildSummaryPrompt(numberedContext);
+    return buildSummaryPrompt(question, numberedContext);
   }
 
   return buildQaPrompt(question, numberedContext);
