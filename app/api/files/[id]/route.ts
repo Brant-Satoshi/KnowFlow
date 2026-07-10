@@ -12,8 +12,15 @@ export const DELETE = withAuth(
 
     const file = await requireFileAccess(user.id, id);
 
-    await deleteStorageFile(id, file.name);
+    // DB rows are the source of truth: delete them first, then clean up the
+    // blob best-effort. An orphaned blob is harmless; a row whose blob is
+    // gone is not (the file could never be re-parsed).
     await deleteFile(id);
+
+    const removed = await deleteStorageFile(id, file.name);
+    if (!removed) {
+      console.error(`[api/files] Orphaned storage object left behind for file ${id} (${file.name})`);
+    }
 
     return Response.json(success({ deleted: true }));
   },

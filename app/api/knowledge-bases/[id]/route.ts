@@ -88,24 +88,20 @@ export const DELETE = withAuth(
         );
       }
 
+      // Snapshot storage keys before the cascade delete removes the rows.
+      // DB rows are the source of truth: delete them first, then clean up
+      // blobs best-effort — leftover blobs are harmless and only logged.
       const files = await listKnowledgeBaseDeleteFiles(id, user.id);
-      const { failedKeys } = await deleteFiles(files);
-
-      if (failedKeys.length > 0) {
-        console.error('Knowledge base storage cleanup failed:', { knowledgeBaseId: id, failedKeys });
-        return Response.json(
-          error('Failed to delete one or more storage objects.', {
-            code: 'KB_STORAGE_CLEANUP_FAILED',
-            failedKeys,
-          }),
-          { status: 500 }
-        );
-      }
 
       const deleted = await deleteKnowledgeBase(id, user.id);
 
       if (!deleted) {
         return Response.json(error('Knowledge base not found', { code: 'KB_NOT_FOUND' }), { status: 404 });
+      }
+
+      const { failedKeys } = await deleteFiles(files);
+      if (failedKeys.length > 0) {
+        console.error('Knowledge base storage cleanup failed:', { knowledgeBaseId: id, failedKeys });
       }
 
       return Response.json(success({ deleted: true }));

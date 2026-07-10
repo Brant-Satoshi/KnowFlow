@@ -31,21 +31,22 @@ export type DeleteFilesResult = {
 };
 
 export async function deleteFiles(targets: StorageDeleteTarget[]): Promise<DeleteFilesResult> {
-  const deletedKeys: string[] = [];
-  const failedKeys: string[] = [];
-
-  for (const target of targets) {
-    const key = getStorageKey(target.id, target.name);
-    const ok = await deleteFile(target.id, target.name);
-
-    if (ok) {
-      deletedKeys.push(key);
-    } else {
-      failedKeys.push(key);
-    }
+  if (targets.length === 0) {
+    return { deletedKeys: [], failedKeys: [] };
   }
 
-  return { deletedKeys, failedKeys };
+  const keys = targets.map((target) => getStorageKey(target.id, target.name));
+
+  const { error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .remove(keys);
+
+  if (error) {
+    console.error('Supabase batch delete error:', error);
+    return { deletedKeys: [], failedKeys: keys };
+  }
+
+  return { deletedKeys: keys, failedKeys: [] };
 }
 
 export async function readFileFromStorage(filePath: string) {

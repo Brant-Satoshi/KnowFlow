@@ -24,6 +24,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { PreviewContext, type OpenPreview } from "@/lib/preview-context"
 import type { ConversationSummary, KnowledgeBase, RetrievalFilter } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { MAX_UPLOAD_FILE_MB } from "@/lib/validation"
 
 const chatSurfaceClass =
   "border border-border bg-card shadow-[0_1px_8px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.28)]"
@@ -99,6 +100,7 @@ export default function ChatPage() {
     showErrorToast,
     noKnowledgeBaseSelectedMessage: t.noKnowledgeBaseSelected,
     uploadFailedMessage: t.uploadFailed,
+    fileTooLargeMessage: t.fileTooLarge.replace("{maxMb}", String(MAX_UPLOAD_FILE_MB)),
     parseFailedMessage: t.parseFailed,
     deleteFailedTitle: t.deleteFailedTitle,
     deleteFailedDesc: t.deleteFailedDesc,
