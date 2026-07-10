@@ -2,8 +2,15 @@ import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { FileDoc } from "../types";
+
+/**
+ * Parse failures whose message is meant for the end user (actionable, free of
+ * storage/provider internals). Everything else is reported generically.
+ */
+export class ParseUserError extends Error {}
 
 type PDFParserCtor = typeof import("pdf2json")["default"];
 type MammothModule = typeof import("mammoth");
@@ -39,10 +46,29 @@ export async function parseFile(file: FileDoc, buffer: Buffer) {
   }
 
   if (isPlainText) {
-    return buffer.toString("utf-8");
+    return decodeTextBuffer(buffer);
   }
 
-  throw new Error(`Unsupported file type: ${file.name}`);
+  throw new ParseUserError(`Unsupported file type: ${file.name}`);
+}
+
+/**
+ * Text files are usually UTF-8, but Chinese corpora frequently arrive as
+ * GBK/GB18030. Strict-decode UTF-8 first (`fatal` rejects invalid bytes
+ * instead of silently emitting U+FFFD), then fall back to gb18030, a superset
+ * of GBK. UTF-16 BOMs are honored before either.
+ */
+function decodeTextBuffer(buffer: Buffer): string {
+  if (buffer.length >= 2) {
+    if (buffer[0] === 0xff && buffer[1] === 0xfe) return new TextDecoder("utf-16le").decode(buffer);
+    if (buffer[0] === 0xfe && buffer[1] === 0xff) return new TextDecoder("utf-16be").decode(buffer);
+  }
+
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+  } catch {
+    return new TextDecoder("gb18030").decode(buffer);
+  }
 }
 
 async function parsePdfText(buffer: Buffer): Promise<string> {
@@ -99,12 +125,15 @@ async function parseDocText(buffer: Buffer): Promise<string> {
   const workdir = await mkdtemp(join(tmpdir(), "doc-parse-"));
   const inputPath = join(workdir, "source.doc");
   const outputDir = join(workdir, "converted");
+  // Per-run profile: concurrent soffice processes sharing the default user
+  // profile interfere with each other. Lives under workdir → cleaned up below.
+  const profileDir = join(workdir, "profile");
 
   await mkdir(outputDir);
   await writeFile(inputPath, buffer);
 
   try {
-    await convertDocToDocx(inputPath, outputDir);
+    await convertDocToDocx(inputPath, outputDir, profileDir);
 
     const docxPath = await findConvertedDocxPath(outputDir);
     const docxBuffer = await readFile(docxPath);
@@ -121,7 +150,7 @@ function getMammothModule(): Promise<MammothModule> {
   return mammothModulePromise;
 }
 
-async function convertDocToDocx(inputPath: string, outputDir: string): Promise<void> {
+async function convertDocToDocx(inputPath: string, outputDir: string, profileDir: string): Promise<void> {
   let sawMissingBinary = false;
 
   for (const binary of getLibreOfficeBinaryCandidates()) {
@@ -134,6 +163,7 @@ async function convertDocToDocx(inputPath: string, outputDir: string): Promise<v
           "--nodefault",
           "--nofirststartwizard",
           "--nolockcheck",
+          `-env:UserInstallation=${pathToFileURL(profileDir).href}`,
           "--convert-to",
           "docx",
           "--outdir",
@@ -157,7 +187,7 @@ async function convertDocToDocx(inputPath: string, outputDir: string): Promise<v
   }
 
   if (sawMissingBinary) {
-    throw new Error(
+    throw new ParseUserError(
       "LibreOffice is required to parse .doc files. Install LibreOffice and expose `soffice`, or set `LIBREOFFICE_BIN` to the full executable path."
     );
   }

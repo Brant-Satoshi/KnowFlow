@@ -90,6 +90,6 @@ export async function embedChunk(
 
   return chunks.map((chunk, i) => ({
     ...chunk,
-    embedding: vectors[i] || [],
+    embedding: vectors[i],
   }));
 }
