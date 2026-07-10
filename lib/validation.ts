@@ -6,6 +6,9 @@ export function isValidUuid(id: string): boolean {
   return UUID_REGEX.test(id);
 }
 
+export const MAX_UPLOAD_FILE_MB = 25;
+export const MAX_UPLOAD_FILE_BYTES = MAX_UPLOAD_FILE_MB * 1024 * 1024;
+
 export const RETRIEVAL_FILE_TYPES: readonly RetrievalFileType[] = ['pdf', 'markdown', 'word', 'text'];
 export const MAX_FILTER_FILE_IDS = 50;
 export const MAX_TITLE_QUERY_LENGTH = 200;

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { httpClient } from "@/lib/http/client"
 import { FileDoc, FileListItem } from "@/lib/types"
+import { MAX_UPLOAD_FILE_BYTES } from "@/lib/validation"
 
 type ErrorToast = (
   message?: string,
@@ -17,6 +18,7 @@ interface UseFileStateParams {
   showErrorToast: ErrorToast
   noKnowledgeBaseSelectedMessage: string
   uploadFailedMessage: string
+  fileTooLargeMessage: string
   parseFailedMessage: string
   deleteFailedTitle: string
   deleteFailedDesc: string
@@ -27,6 +29,7 @@ export function useFileState({
   showErrorToast,
   noKnowledgeBaseSelectedMessage,
   uploadFailedMessage,
+  fileTooLargeMessage,
   parseFailedMessage,
   deleteFailedTitle,
   deleteFailedDesc,
@@ -97,6 +100,11 @@ export function useFileState({
         return
       }
 
+      if (file.size > MAX_UPLOAD_FILE_BYTES) {
+        showErrorToast(fileTooLargeMessage)
+        return
+      }
+
       setUploading(true)
       const optimisticId = `uploading-${crypto.randomUUID()}`
       const optimisticFile: FileListItem = {
@@ -133,6 +141,7 @@ export function useFileState({
       }
     },
     [
+      fileTooLargeMessage,
       handleParse,
       knowledgeBaseId,
       noKnowledgeBaseSelectedMessage,
