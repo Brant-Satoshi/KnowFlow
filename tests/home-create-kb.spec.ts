@@ -13,14 +13,14 @@ test.describe("Home page — create knowledge base", () => {
     createdKbId = null
   })
 
-  test("opens create dialog via header button and creates a KB", async ({ page }) => {
+  test("opens create dialog via sidebar button and creates a KB", async ({ page }) => {
     await page.goto("/")
 
-    // Wait for the page to finish loading (skeleton gone)
-    await expect(page.locator("main h1")).toBeVisible()
+    // Wait for the page shell to render (section heading is always present)
+    await expect(page.getByRole("heading", { name: /my knowledge bases/i })).toBeVisible()
 
-    // Click the "New Collection" button in the header
-    await page.locator("header").getByRole("button", { name: /new collection/i }).click()
+    // Click the "New knowledge base" button in the desktop sidebar
+    await page.locator("aside").getByRole("button", { name: /new knowledge base/i }).click()
 
     // Dialog should appear with a title
     const dialog = page.getByRole("dialog")
@@ -53,9 +53,9 @@ test.describe("Home page — create knowledge base", () => {
 
   test("shows validation error when name is empty", async ({ page }) => {
     await page.goto("/")
-    await expect(page.locator("main h1")).toBeVisible()
+    await expect(page.getByRole("heading", { name: /my knowledge bases/i })).toBeVisible()
 
-    await page.locator("header").getByRole("button", { name: /new collection/i }).click()
+    await page.locator("aside").getByRole("button", { name: /new knowledge base/i }).click()
 
     const dialog = page.getByRole("dialog")
     await expect(dialog).toBeVisible()
@@ -67,9 +67,9 @@ test.describe("Home page — create knowledge base", () => {
 
   test("can cancel the create dialog", async ({ page }) => {
     await page.goto("/")
-    await expect(page.locator("main h1")).toBeVisible()
+    await expect(page.getByRole("heading", { name: /my knowledge bases/i })).toBeVisible()
 
-    await page.locator("header").getByRole("button", { name: /new collection/i }).click()
+    await page.locator("aside").getByRole("button", { name: /new knowledge base/i }).click()
 
     const dialog = page.getByRole("dialog")
     await expect(dialog).toBeVisible()

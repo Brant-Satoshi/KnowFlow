@@ -16,6 +16,10 @@ if (existsSync(envPath)) {
   }
 }
 
+// Session cookie captured by tests/auth.setup.ts; browser contexts and
+// APIRequestContexts of the chromium project both start from it.
+export const STORAGE_STATE = resolve(__dirname, "playwright/.auth/user.json")
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: false,
@@ -30,8 +34,13 @@ export default defineConfig({
   },
   projects: [
     {
+      name: "setup",
+      testMatch: /auth\.setup\.ts/,
+    },
+    {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], storageState: STORAGE_STATE },
+      dependencies: ["setup"],
     },
   ],
   webServer: {

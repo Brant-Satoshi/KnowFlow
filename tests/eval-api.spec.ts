@@ -96,7 +96,24 @@ test.describe("POST /api/eval/run — request validation", () => {
 })
 
 test.describe("POST /api/eval/run — curated mode validation", () => {
-  const validKbId = "550e8400-e29b-41d4-a716-446655440000"
+  // Must be a real KB the signed-in e2e user can access: the route runs
+  // requireKnowledgeBaseAccess before mode/dataset validation and returns 404
+  // for unknown ids, so a hardcoded UUID would never reach the branches
+  // asserted below.
+  let validKbId: string
+
+  test.beforeAll(async ({ request }) => {
+    const res = await request.post("/api/knowledge-bases", {
+      data: { name: `Eval API Spec KB ${Date.now()}` },
+    })
+    const json = await res.json()
+    expect(json.ok).toBe(true)
+    validKbId = json.data.knowledgeBase.id
+  })
+
+  test.afterAll(async ({ request }) => {
+    if (validKbId) await request.delete(`/api/knowledge-bases/${validKbId}`)
+  })
 
   test("curated mode with missing datasetName returns 400", async ({ request }) => {
     const res = await request.post("/api/eval/run", {
