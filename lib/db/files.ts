@@ -1,5 +1,5 @@
 import { FileDoc } from '@/lib/types';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, ne } from 'drizzle-orm';
 import { db } from './pg';
 import { chunks, files } from './schema/core';
 
@@ -53,6 +53,27 @@ export async function deleteFile(id: string): Promise<boolean> {
   });
 
   return rows.length > 0;
+}
+
+/**
+ * Atomically claim a file for parsing: flips status to 'parsing' only when no
+ * other parse holds it, so concurrent requests can't replace the same file's
+ * chunks twice. `force` skips the status check — the escape hatch for a file
+ * stuck in 'parsing' after a crashed process (there is no timestamp column to
+ * age it out with). Returns undefined when the file is missing or already
+ * being parsed.
+ */
+export async function claimFileForParsing(
+  id: string,
+  opts: { force?: boolean } = {},
+): Promise<FileDoc | undefined> {
+  const rows = await db
+    .update(files)
+    .set({ status: 'parsing' })
+    .where(opts.force ? eq(files.id, id) : and(eq(files.id, id), ne(files.status, 'parsing')))
+    .returning();
+
+  return rows[0] ? toFileDoc(rows[0]) : undefined;
 }
 
 export async function updateFileStatus(
