@@ -46,13 +46,13 @@ Optional:
 Migrations live in `db/migrations/`. Migration targets assume a local Docker Postgres container named `knowflow-postgres`; the demo seed uses `DATABASE_URL`, so the same command works against local or remote Postgres:
 
 ```bash
-make migrate     # runs 001_init … 013_add_trgm_keyword_search against the container
-make seed        # deterministic demo account + bilingual Olympus KB
+make migrate     # runs 001_init … 014_managed_eval_datasets against the container
+make seed        # deterministic demo account + bilingual Olympus KB + built-in eval datasets
 ```
 
 If you're pointing at Supabase / a remote Postgres, run `make migrate-supabase` (applies the same files via `psql` against `DATABASE_URL`; migrations are idempotent).
 
-`make seed` embeds the tracked `sample.txt` / `sample-zh.txt` fixtures and replaces only `demo@knowflow.local`; it never clears other accounts. It prints the login and fixed KB id when complete. Override the demo credentials with `DEMO_SEED_EMAIL` and `DEMO_SEED_PASSWORD`. Use `pnpm seed:demo -- --dry-run` to verify fixture/chunk counts without network or database writes.
+`make seed` embeds the tracked `sample.txt` / `sample-zh.txt` fixtures and replaces only `demo@knowflow.local`; it never clears other accounts. It also creates the built-in `olympus` / `olympus-zh` eval datasets, but only when a dataset of that name is absent — an edited dataset is never restored to the template. It prints the login and fixed KB id when complete. Override the demo credentials with `DEMO_SEED_EMAIL` and `DEMO_SEED_PASSWORD`. Use `pnpm seed:demo -- --dry-run` to verify fixture/chunk counts without network or database writes.
 
 ---
 
@@ -66,8 +66,8 @@ If you're pointing at Supabase / a remote Postgres, run `make migrate-supabase` 
 | `pnpm lint` | ESLint |
 | `pnpm test:unit` | Node built-in unit tests (`lib/**/*.test.ts`) |
 | `pnpm test:e2e` | Playwright end-to-end tests (`tests/`) |
-| `pnpm seed:demo` | Idempotently create the demo login and indexed bilingual KB |
-| `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>` | Compare vector vs hybrid retrieval quality and latency |
+| `pnpm seed:demo` | Idempotently create the demo login, indexed bilingual KB, and built-in eval datasets |
+| `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset-id=<uuid>` | Compare vector vs hybrid retrieval quality and latency |
 
 ---
 
@@ -77,10 +77,10 @@ Five user-facing pages — do not add more:
 
 - `/` — Knowledge Base list (CRUD) with workspace switcher / members / join dialogs
 - `/knowledge-bases/[id]/chat` — RAG chat scoped to a single KB
-- `/eval` — offline evaluation dashboard
+- `/eval` — offline evaluation dashboard with managed golden sets (create/edit/import datasets, validate against a KB, compare runs by content hash)
 - `/login`, `/register` — authentication
 
-API surface lives under `app/api/` (auth, workspaces, knowledge bases, files, conversations, RAG search, chat stream, eval run). See `Architecture.md` for the full inventory.
+API surface lives under `app/api/` (auth, workspaces, knowledge bases, files, conversations, RAG search, chat stream, eval datasets and runs). See `Architecture.md` for the full inventory.
 
 ---
 

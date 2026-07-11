@@ -14,8 +14,8 @@ pnpm build        # production build + type-check
 pnpm lint         # ESLint
 pnpm test:e2e     # Playwright end-to-end tests
 pnpm test:unit    # node:test via tsx (lib/**/*.test.ts)
-pnpm seed:demo    # idempotent demo login + indexed bilingual KB
-pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>  # vector vs hybrid A/B
+pnpm seed:demo    # idempotent demo login + indexed bilingual KB + built-in eval datasets
+pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset-id=<uuid>  # vector vs hybrid A/B
 ```
 
 Unit tests run on Node's built-in runner (no extra dependency); `pnpm build` still catches type errors project-wide.
@@ -41,7 +41,9 @@ Next.js App Router RAG chat app. PostgreSQL + pgvector for vector storage.
 3. Build prompt → `lib/llm/chat.ts` (`buildPrompt`)
 4. Stream answer via OpenRouter → `lib/llm/chat.ts` (`streamLlmAnswer`), returned as SSE
 
-The same `RetrievalFilter` is accepted by `/api/rag/search` and `/api/eval/run`. `/api/rag/search` also accepts `mode: 'vector' | 'keyword' | 'hybrid'` — keyword mode runs pg_trgm `word_similarity` against `chunks.embedding_text` (`keywordSearchChunks` in `lib/db/chunks.ts`, GIN trigram index) without calling the embedding API; hybrid mode fuses the vector and keyword legs via Reciprocal Rank Fusion (`reciprocalRankFusion` in `lib/rag/fusion.ts`). Chat recall goes hybrid only when `HYBRID_SEARCH_ENABLED=true` (`isHybridSearchEnabled` in `lib/models.ts`); it **defaults off** because the eval found fusion neutral-to-negative on the current dataset — see ADR-010. So the chat pipeline is vector-only by default. Do not enable hybrid by default without re-running `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>` on the target corpus; `RunCuratedEvalOpts.retrievalMode` in `lib/eval/runner.ts` remains the full answer/citation comparison entry point.
+The same `RetrievalFilter` is accepted by `/api/rag/search` and `/api/eval/run`. `/api/rag/search` also accepts `mode: 'vector' | 'keyword' | 'hybrid'` — keyword mode runs pg_trgm `word_similarity` against `chunks.embedding_text` (`keywordSearchChunks` in `lib/db/chunks.ts`, GIN trigram index) without calling the embedding API; hybrid mode fuses the vector and keyword legs via Reciprocal Rank Fusion (`reciprocalRankFusion` in `lib/rag/fusion.ts`). Chat recall goes hybrid only when `HYBRID_SEARCH_ENABLED=true` (`isHybridSearchEnabled` in `lib/models.ts`); it **defaults off** because the eval found fusion neutral-to-negative on the current dataset — see ADR-010. So the chat pipeline is vector-only by default. Do not enable hybrid by default without re-running `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset-id=<uuid>` on the target corpus; `RunCuratedEvalOpts.retrievalMode` in `lib/eval/runner.ts` remains the full answer/citation comparison entry point.
+
+**Managed eval datasets** — goldsets live in the database (global, no workspace/KB tenancy: any signed-in user may manage them; running one still requires `requireKnowledgeBaseAccess`). CRUD: `GET|POST /api/eval/datasets`, `GET|PATCH|DELETE /api/eval/datasets/[id]`, `POST .../cases` (object = single add, array = atomic batch import), `PATCH|DELETE .../cases/[caseId]` — `[caseId]` is the row UUID; the business key is `caseKey` (`EvalCase.id` in JSON import/export). Every write except creation carries `expectedDatasetHash` (stale → 409 `dataset_changed`); writes recompute `dataset_hash`/`case_count` under a `FOR UPDATE` row lock (`lib/db/eval-datasets.ts`). The `MAX_GOLDSET_CASES = 50` cap (`lib/validation.ts`) is enforced at create, single add, and import. `POST /api/eval/validate` `{datasetId, knowledgeBaseId, filter?}` returns the two-layer report (structural lint + filter-aware KB preflight, `lib/eval/validate.ts`); `POST /api/eval/run` takes `datasetId`, reads one snapshot for gate + run + persistence, returns 422 `dataset_incompatible` on any error and 500 if persisting fails. Deleting a dataset cascades its cases and orphans runs (`dataset_id = NULL`, snapshot name/hash kept); runs are comparable iff their `dataset_hash` matches (`canCompare`, `lib/eval/goldset.ts`). `pnpm seed:demo` creates the olympus/olympus-zh built-ins only when the name is absent (seed templates in `lib/eval/dataset.ts`). See ADR-011.
 
 **SSE event types**: `progress` (stages: searching → searched → reranking → reranked → generating) interleaved with `meta` → `token`+ → `done` | `error`; plus `title` when a conversation title is auto-generated. All carry `requestId`.
 
@@ -62,9 +64,9 @@ Core (`schema/core.ts`):
 - `messages` — id, conversation_id (FK), role, content, retrieved_chunks jsonb
 
 Eval (`schema/eval.ts`):
-- `eval_datasets` — id, name (unique), dataset_hash, case_count
-- `eval_cases` — id, dataset_id (FK), case_key, question, expected_keywords, category, difficulty, target_file_names, target_chunk_substrings
-- `eval_runs` — id, knowledge_base_id (FK), dataset_id (FK), mode, use_rerank, retrieval/citation hit rates, recall/precision/ndcg/mrr, LLM-judge metrics (avg_faithfulness, avg_answer_relevance), filter jsonb
+- `eval_datasets` — id, name (unique), description, dataset_hash, case_count
+- `eval_cases` — id, dataset_id (FK), case_key, question, expected_keywords, category, difficulty, target_file_names, target_chunk_substrings, expected_answer, notes, idx; unique (dataset_id, case_key)
+- `eval_runs` — id, knowledge_base_id (FK), dataset_id (FK, SET NULL on dataset delete), dataset_name, dataset_hash, mode, use_rerank, retrieval/citation hit rates, recall/precision/ndcg/mrr, LLM-judge metrics (avg_faithfulness, avg_answer_relevance), filter jsonb
 - `eval_run_items` — id, run_id (FK), case_key, passed, retrieval_hit, citation_hit, retrieved_chunks, faithfulness, answer_relevance
 
 HNSW index on `chunks.embedding` for fast cosine search.

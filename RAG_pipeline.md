@@ -524,10 +524,10 @@ Eval 和聊天链路复用 `recallChunks()`、`selectFinalChunks()`、`buildProm
 检索级 vector / hybrid A/B 使用：
 
 ```bash
-pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset=olympus-zh --rerank=on --repetitions=3
+pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset-id=<uuid> --rerank=on --repetitions=3
 ```
 
-命令输出 retrieval hit rate、Recall/Precision@n、nDCG、MRR，以及从 query embedding 到最终 chunk 的平均/p50/p95 延迟；vector 与 hybrid 按 case 交错执行以减少网络时序偏差。当前可复现实测见 `docs/evals/hybrid-ab-2026-07-10.md`。
+命令输出 retrieval hit rate、Recall/Precision@n、nDCG、MRR，以及从 query embedding 到最终 chunk 的平均/p50/p95 延迟；vector 与 hybrid 按 case 交错执行以减少网络时序偏差。评测集存在数据库中（`--dataset-id` 用 `/eval` 页面或 `pnpm seed:demo` 创建的内置集），脚本跑前会执行与 `/api/eval/run` 相同的 structural + KB preflight 校验，不兼容直接报错退出。当前可复现实测见 `docs/evals/hybrid-ab-2026-07-10.md`。
 
 ---
 
