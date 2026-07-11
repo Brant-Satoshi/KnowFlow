@@ -27,7 +27,9 @@ export async function POST(req: NextRequest) {
         status: 409,
       });
     }
-    const message = e instanceof Error ? e.message : 'Failed to register';
-    return Response.json(error(message), { status: 500 });
+    // Keep database/provider details in server logs. Never expose constraint
+    // names, SQL text, or connection details in the public envelope.
+    console.error('[api/auth/register] Failed to register:', e);
+    return Response.json(error('Failed to register'), { status: 500 });
   }
 }
