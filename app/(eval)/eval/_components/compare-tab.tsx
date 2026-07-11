@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import type { EvalRunSummary } from '@/lib/types';
+import type { EvalDatasetSummary, EvalRunSummary } from '@/lib/types';
 import type { EvalTranslationKeys, Language } from '@/lib/i18n/translations';
+import { canCompare } from '@/lib/eval/goldset';
 import {
   METRIC_SPECS,
   metricsFromSummary,
+  datasetRunStatus,
   GOOD,
   GOLD,
   type RunMetrics,
@@ -47,12 +49,33 @@ function lead(spec: MetricSpec, rows: RunMetrics[]): { idx: number; text: string
   return { idx: sorted[0].i, text: `+${fmt}` };
 }
 
+/** "dataset deleted" / "dataset changed" lineage tag for a run. */
+function LineageBadge({
+  run,
+  datasets,
+  evalT,
+}: {
+  run: EvalRunSummary;
+  datasets: EvalDatasetSummary[];
+  evalT: EvalTranslationKeys;
+}) {
+  const status = datasetRunStatus(run, datasets);
+  if (!status) return null;
+  return (
+    <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded-md border border-border text-muted-foreground shrink-0">
+      {status === 'deleted' ? evalT.datasetDeletedBadge : evalT.datasetChangedBadge}
+    </span>
+  );
+}
+
 export function CompareTab({
   history,
+  datasets,
   evalT,
   language,
 }: {
   history: EvalRunSummary[];
+  datasets: EvalDatasetSummary[];
   evalT: EvalTranslationKeys;
   language: Language;
 }) {
@@ -66,7 +89,25 @@ export function CompareTab({
     );
   }
 
-  const compareIds = (picked ?? history.slice(0, 2).map(r => r.id)).filter(id => history.some(r => r.id === id));
+  // Default pick: the newest run plus the next run sharing its dataset hash.
+  const defaultIds = (): string[] => {
+    const [first] = history;
+    const partner = history.slice(1).find(r => canCompare(first, r));
+    return partner ? [first.id, partner.id] : [first.id];
+  };
+
+  // Keep only runs that still exist AND stay hash-compatible with the first
+  // pick — after a history refresh an incompatible baseline drops out instead
+  // of comparing across datasets.
+  const present = (picked ?? defaultIds()).filter(id => history.some(r => r.id === id));
+  const anchor = present.length > 0 ? history.find(r => r.id === present[0]) ?? null : null;
+  const compareIds = anchor
+    ? present.filter(id => {
+        if (id === anchor.id) return true;
+        const run = history.find(r => r.id === id);
+        return run ? canCompare(anchor, run) : false;
+      })
+    : present;
   const selected = compareIds.map(id => history.find(r => r.id === id)).filter((r): r is EvalRunSummary => !!r);
   const metrics = selected.map(metricsFromSummary);
   const available = history.filter(r => !compareIds.includes(r.id));
@@ -74,6 +115,8 @@ export function CompareTab({
   const remove = (id: string) => setPicked(compareIds.filter(x => x !== id));
   const add = (id: string) => {
     if (compareIds.length >= MAX_RUNS || compareIds.includes(id)) return;
+    const run = history.find(r => r.id === id);
+    if (!run || (anchor && !canCompare(anchor, run))) return;
     setPicked([...compareIds, id]);
   };
 
@@ -98,6 +141,7 @@ export function CompareTab({
             <span className="w-1.75 h-1.75 rounded-full" style={{ background: RUN_COLORS[i] }} />
             <span className="font-semibold" style={{ color: RUN_COLORS[i] }}>{RUN_LETTERS[i]}</span>
             <span className="text-foreground">{r.datasetName ?? '—'}</span>
+            <LineageBadge run={r} datasets={datasets} evalT={evalT} />
             <span className="text-[11px] text-muted-foreground">{formatDateTime(r.createdAt, language)}</span>
             <button
               type="button"
@@ -117,11 +161,15 @@ export function CompareTab({
             className="h-9 border border-dashed border-input bg-card px-3 rounded-lg text-[13px] font-sans text-muted-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">+ {evalT.compareAddRun}</option>
-            {available.map(r => (
-              <option key={r.id} value={r.id}>
-                {r.datasetName ?? '—'} · {formatDateTime(r.createdAt, language)} · {r.useRerank ? evalT.rerankOn : evalT.rerankOff}
-              </option>
-            ))}
+            {available.map(r => {
+              const incompatible = Boolean(anchor && !canCompare(anchor, r));
+              return (
+                <option key={r.id} value={r.id} disabled={incompatible}>
+                  {r.datasetName ?? '—'} · {formatDateTime(r.createdAt, language)} · {r.useRerank ? evalT.rerankOn : evalT.rerankOff}
+                  {incompatible ? ` · ${evalT.compareIncompatible}` : ''}
+                </option>
+              );
+            })}
           </select>
         )}
       </div>

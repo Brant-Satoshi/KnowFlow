@@ -60,7 +60,11 @@ export function evalCaseFromColumns(row: EvalCaseColumns): EvalCase {
  * Two runs are comparable iff both carry a dataset hash and the hashes match.
  * datasetId equality is deliberately NOT required: runs orphaned by a dataset
  * deletion keep their snapshot hash and stay comparable with each other.
+ * Structurally typed so `EvalRunSummary` and a live `EvalRunResult` both fit.
  */
-export function canCompare(a: EvalRunSummary, b: EvalRunSummary): boolean {
+export function canCompare(
+  a: Pick<EvalRunSummary, 'datasetHash'> | { datasetHash?: string | null },
+  b: Pick<EvalRunSummary, 'datasetHash'> | { datasetHash?: string | null },
+): boolean {
   return Boolean(a.datasetHash && b.datasetHash && a.datasetHash === b.datasetHash);
 }

@@ -8,19 +8,21 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type {
   FileListItem,
   KnowledgeBase,
+  EvalDatasetSummary,
   EvalRunResult,
   EvalRunSummary,
   EvalRunDetail,
+  GoldsetIssue,
   RetrievalFilter,
 } from '@/lib/types';
-import { listDatasetNames } from '@/lib/eval/dataset';
-import type { DatasetValidationResult } from '@/lib/eval/validate';
+import { canCompare } from '@/lib/eval/goldset';
 import { httpClient, HttpError } from '@/lib/http/client';
 import {
   EVAL_STYLES,
   ScanSkeleton,
   detailToResult,
   baselineLabel,
+  GoldsetIssuesPanel,
   GOLD,
 } from './_components/shared';
 import { EvalSidebar, EvalSidebarNav, type EvalTab } from './_components/eval-sidebar';
@@ -36,6 +38,8 @@ function parseTab(value: string | null): EvalTab {
   return EVAL_TABS.includes(value as EvalTab) ? (value as EvalTab) : 'overview';
 }
 
+type RunBlockedIssues = { structural: GoldsetIssue[]; compatibility: GoldsetIssue[] };
+
 export default function EvalPage() {
   return (
     <Suspense fallback={null}>
@@ -48,18 +52,20 @@ function EvalPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { evalT, home, language } = useLanguage();
-  const datasetNames = listDatasetNames();
 
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [loadingKbs, setLoadingKbs] = useState(true);
   const [selectedKbId, setSelectedKbId] = useState('');
-  const [selectedDataset, setSelectedDataset] = useState(() => datasetNames[0] ?? '');
+  const [datasets, setDatasets] = useState<EvalDatasetSummary[]>([]);
+  const [loadingDatasets, setLoadingDatasets] = useState(true);
+  const [selectedDatasetId, setSelectedDatasetId] = useState('');
   const [useRerank, setUseRerank] = useState(true);
   const [evalFilter, setEvalFilter] = useState<RetrievalFilter>({});
   const [kbFiles, setKbFiles] = useState<FileListItem[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<EvalRunResult | null>(null);
   const [runError, setRunError] = useState('');
+  const [runIssues, setRunIssues] = useState<RunBlockedIssues | null>(null);
 
   const [history, setHistory] = useState<EvalRunSummary[]>([]);
   const [viewingHistorical, setViewingHistorical] = useState(false);
@@ -76,10 +82,6 @@ function EvalPageContent() {
     [router, searchParams],
   );
 
-  const [datasetReport, setDatasetReport] = useState<DatasetValidationResult | null>(null);
-  const [datasetLoading, setDatasetLoading] = useState(false);
-  const [datasetError, setDatasetError] = useState('');
-
   useEffect(() => {
     httpClient
       .get<{ knowledgeBases: KnowledgeBase[] }>('/api/knowledge-bases')
@@ -88,28 +90,33 @@ function EvalPageContent() {
       .finally(() => setLoadingKbs(false));
   }, []);
 
-  // Lint the golden set lazily — only when the Dataset tab is active, refetch on dataset change.
+  // Managed datasets are the single source of truth — the Datasets tab
+  // refreshes this list after every write via onDatasetsChanged.
+  const loadDatasets = useCallback(async () => {
+    try {
+      const data = await httpClient.get<{ datasets: EvalDatasetSummary[] }>('/api/eval/datasets');
+      setDatasets(data.datasets);
+    } catch {
+      setDatasets([]);
+    } finally {
+      setLoadingDatasets(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (activeTab !== 'dataset' || !selectedDataset) return;
-    let cancelled = false;
-    setDatasetLoading(true);
-    setDatasetError('');
-    setDatasetReport(null);
-    httpClient
-      .get<DatasetValidationResult>(`/api/eval/validate?dataset=${encodeURIComponent(selectedDataset)}`)
-      .then(data => {
-        if (!cancelled) setDatasetReport(data);
-      })
-      .catch(() => {
-        if (!cancelled) setDatasetError(evalT.datasetErrorLoading);
-      })
-      .finally(() => {
-        if (!cancelled) setDatasetLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab, selectedDataset, evalT]);
+    loadDatasets();
+  }, [loadDatasets]);
+
+  // Keep a valid selection: auto-pick the first dataset, drop vanished ones.
+  useEffect(() => {
+    if (datasets.length === 0) {
+      if (selectedDatasetId) setSelectedDatasetId('');
+      return;
+    }
+    if (!datasets.some(d => d.id === selectedDatasetId)) {
+      setSelectedDatasetId(datasets[0].id);
+    }
+  }, [datasets, selectedDatasetId]);
 
   const loadHistory = useCallback(async (kbId: string) => {
     if (!kbId) {
@@ -130,6 +137,7 @@ function EvalPageContent() {
     setViewingHistorical(false);
     setBaselineId('');
     setRunError('');
+    setRunIssues(null);
     loadHistory(selectedKbId);
   }, [selectedKbId, loadHistory]);
 
@@ -154,10 +162,21 @@ function EvalPageContent() {
     };
   }, [selectedKbId]);
 
+  // A baseline is only meaningful against the displayed run's dataset hash —
+  // auto-clear it when the list refreshes or the current run changes away.
+  useEffect(() => {
+    if (!baselineId) return;
+    const baselineRun = history.find(r => r.id === baselineId);
+    if (!baselineRun || (result && !canCompare(result, baselineRun))) {
+      setBaselineId('');
+    }
+  }, [history, result, baselineId]);
+
   const loadDetail = useCallback(
     async (runId: string) => {
       setLoadingDetail(true);
       setRunError('');
+      setRunIssues(null);
       try {
         const data = await httpClient.get<{ run: EvalRunDetail }>(`/api/eval/runs/${runId}`);
         setResult(detailToResult(data.run));
@@ -171,20 +190,25 @@ function EvalPageContent() {
     [evalT],
   );
 
+  const hasActiveFilter = Boolean(
+    evalFilter.fileIds?.length || evalFilter.fileTypes?.length || evalFilter.titleQuery,
+  );
+
   async function handleRunEval(): Promise<void> {
-    if (!selectedKbId || !selectedDataset || isRunning) return;
+    if (!selectedKbId || !selectedDatasetId || isRunning) return;
     setIsRunning(true);
     setRunError('');
+    setRunIssues(null);
     setResult(null);
     setViewingHistorical(false);
     try {
       const body: Record<string, unknown> = {
         knowledgeBaseId: selectedKbId,
         mode: 'curated',
-        datasetName: selectedDataset,
+        datasetId: selectedDatasetId,
         useRerank,
       };
-      if (evalFilter.fileIds?.length || evalFilter.fileTypes?.length || evalFilter.titleQuery) {
+      if (hasActiveFilter) {
         body.filter = evalFilter;
       }
       const data = await httpClient.post<EvalRunResult>('/api/eval/run', body);
@@ -192,14 +216,24 @@ function EvalPageContent() {
       selectTab('overview');
       loadHistory(selectedKbId);
     } catch (err) {
-      const code = err instanceof HttpError ? err.message : undefined;
-      setRunError(code === 'eval_no_chunks' ? evalT.errorNoChunks : evalT.errorRunning);
+      const issues =
+        err instanceof HttpError && err.status === 422
+          ? (err.data as { issues?: RunBlockedIssues } | undefined)?.issues
+          : undefined;
+      if (issues) {
+        // Preflight gate: surface the two-layer issues instead of a bare error.
+        setRunIssues(issues);
+        setRunError(evalT.runBlockedTitle);
+      } else {
+        const code = err instanceof HttpError ? err.message : undefined;
+        setRunError(code === 'eval_no_chunks' ? evalT.errorNoChunks : evalT.errorRunning);
+      }
     } finally {
       setIsRunning(false);
     }
   }
 
-  const canRun = Boolean(selectedKbId && selectedDataset) && !isRunning;
+  const canRun = Boolean(selectedKbId && selectedDatasetId) && !isRunning;
   const baseline = baselineId ? history.find(r => r.id === baselineId) ?? null : null;
   const formatKnowledgeBaseOption = (kb: KnowledgeBase) =>
     `${kb.name} · ${evalT.chunkCountLabel.replace('{count}', String(kb.chunkCount ?? 0))}`;
@@ -263,17 +297,20 @@ function EvalPageContent() {
                 </select>
               )}
 
-              <select
-                value={selectedDataset}
-                onChange={e => setSelectedDataset(e.target.value)}
-                disabled={isRunning}
-                aria-label={evalT.datasetLabel}
-                className="eval-select h-9 w-full border border-border bg-card pl-3 pr-9 rounded-lg text-[12.5px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer disabled:cursor-not-allowed md:w-auto"
-              >
-                {datasetNames.map(name => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
+              {!loadingDatasets && datasets.length > 0 && (
+                <select
+                  value={selectedDatasetId}
+                  onChange={e => setSelectedDatasetId(e.target.value)}
+                  disabled={isRunning}
+                  aria-label={evalT.datasetLabel}
+                  className="eval-select h-9 w-full border border-border bg-card pl-3 pr-9 rounded-lg text-[12.5px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer disabled:cursor-not-allowed md:w-auto"
+                >
+                  <option value="">{evalT.datasetLabel}</option>
+                  {datasets.map(d => (
+                    <option key={d.id} value={d.id}>{d.name} · {d.caseCount}</option>
+                  ))}
+                </select>
+              )}
 
               <RetrievalFilterControl
                 files={kbFiles.filter(f => f.status === 'indexed')}
@@ -323,7 +360,9 @@ function EvalPageContent() {
               </button>
             </div>
 
-            {/* Baseline picker — only affects Overview deltas */}
+            {/* Baseline picker — only affects Overview deltas; runs with a
+                different dataset hash than the displayed run are not comparable
+                and stay disabled. */}
             {activeTab === 'overview' && history.length > 0 && (
               <div className="mt-2.5 flex flex-wrap items-center gap-2 md:justify-end">
                 <label htmlFor="baseline-select" className="text-[12px] font-sans text-muted-foreground cursor-pointer">
@@ -336,9 +375,15 @@ function EvalPageContent() {
                   className="h-8 min-w-0 flex-1 md:flex-none md:max-w-[20rem] border border-input bg-card px-2.5 rounded-lg text-[12px] font-sans focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
                 >
                   <option value="">{evalT.baselineNone}</option>
-                  {history.map(r => (
-                    <option key={r.id} value={r.id}>{baselineLabel(r, language, evalT)}</option>
-                  ))}
+                  {history.map(r => {
+                    const incompatible = Boolean(result && !canCompare(result, r));
+                    return (
+                      <option key={r.id} value={r.id} disabled={incompatible}>
+                        {baselineLabel(r, language, evalT)}
+                        {incompatible ? ` · ${evalT.compareIncompatible}` : ''}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             )}
@@ -347,6 +392,13 @@ function EvalPageContent() {
           {/* ── Content ── */}
           <div className="p-5 space-y-4">
             {runError && <p className="text-[14px] font-sans" style={{ color: 'var(--card-accent-2)' }}>{runError}</p>}
+            {runIssues && (
+              <GoldsetIssuesPanel
+                structural={runIssues.structural}
+                compatibility={runIssues.compatibility}
+                evalT={evalT}
+              />
+            )}
 
             {viewingHistorical && result && (
               <p className="text-[12px] font-sans text-muted-foreground flex items-center gap-2">
@@ -367,12 +419,16 @@ function EvalPageContent() {
                 onSelectRun={loadDetail}
               />
             ) : activeTab === 'compare' ? (
-              <CompareTab history={history} evalT={evalT} language={language} />
+              <CompareTab history={history} datasets={datasets} evalT={evalT} language={language} />
             ) : activeTab === 'dataset' ? (
               <DatasetTab
-                report={datasetReport}
-                loading={datasetLoading}
-                error={datasetError}
+                datasets={datasets}
+                loadingDatasets={loadingDatasets}
+                selectedDatasetId={selectedDatasetId}
+                onSelectDataset={setSelectedDatasetId}
+                onDatasetsChanged={loadDatasets}
+                knowledgeBaseId={selectedKbId}
+                filter={hasActiveFilter ? evalFilter : undefined}
                 evalT={evalT}
               />
             ) : (
