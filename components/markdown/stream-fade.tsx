@@ -15,6 +15,21 @@ function splitSegments(text: string): string[] {
 }
 
 /**
+ * Offset where the still-growing trailing segment of `text` begins; equals
+ * `text.length` when the text ends on a boundary (trailing whitespace).
+ * useChatStream holds everything past this offset back from the committed
+ * message so each word mounts complete: the fade animation plays on mount
+ * only, and in-place growth of an already-mounted tail span would pop in
+ * without animating.
+ */
+export function trailingSegmentStart(text: string): number {
+  if (text.length === 0) return 0
+  if (/\s$/.test(text)) return text.length
+  const segments = splitSegments(text)
+  return text.length - segments[segments.length - 1].length
+}
+
+/**
  * Wraps the string parts of already-rendered prose in per-word spans carrying
  * the `stream-fade` entry animation (see globals.css). While a message streams
  * it re-renders each frame with longer text: React reuses earlier spans

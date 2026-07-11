@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { UIMessage } from "ai"
 import { readSseStream } from "@/lib/chat/sse"
+import { trailingSegmentStart } from "@/components/markdown/stream-fade"
 import { httpClient } from "@/lib/http/client"
 import type { RetrievalFilter, RetrievedChunk, StoredMessage } from "@/lib/types"
 
@@ -214,19 +215,37 @@ export function useChatStream({
     [updateProgress]
   )
 
-  const flushAssistantBuffer = useCallback(() => {
+  const flushAssistantBuffer = useCallback((opts?: { final?: boolean }) => {
     const assistantId = streamingAssistantIdRef.current
-    const delta = streamBufferRef.current
+    let delta = streamBufferRef.current
 
     if (!assistantId || !delta) {
       flushRafRef.current = null
       return
     }
 
+    // Hold the trailing partial word back so committed text always ends on a
+    // word boundary: the stream-fade animation plays on mount only, so a word
+    // must arrive complete to fade in — growing an already-mounted tail span
+    // in place would pop the appended characters in without animating. The
+    // held word commits with the flush after its boundary arrives (one delta
+    // gap, ~12ms typ.); final flushes (done/abort) commit everything.
+    if (opts?.final) {
+      streamBufferRef.current = ""
+    } else {
+      const boundary = trailingSegmentStart(delta)
+      if (boundary === 0) {
+        // The whole buffer is one still-growing word; wait for its boundary.
+        flushRafRef.current = null
+        return
+      }
+      streamBufferRef.current = delta.slice(boundary)
+      delta = delta.slice(0, boundary)
+    }
+
     const element = scrollRef.current
     const shouldScroll = element ? isNearBottom(element) : true
 
-    streamBufferRef.current = ""
     setMessages((prev) => {
       const next = [...prev]
       const assistantIndex = next.findIndex((message) => message.id === assistantId)
@@ -519,7 +538,7 @@ export function useChatStream({
 
           if (event === "done") {
             doneSeen = true
-            flushAssistantBuffer()
+            flushAssistantBuffer({ final: true })
             updateProgress(assistantId, (prev) => ({
               ...prev,
               completedAt: Date.now(),
@@ -574,7 +593,7 @@ export function useChatStream({
       }
 
       if (streamBufferRef.current) {
-        flushAssistantBuffer()
+        flushAssistantBuffer({ final: true })
       }
 
       const usedIndices = parseUsedIndices(fullTextRef.current)
