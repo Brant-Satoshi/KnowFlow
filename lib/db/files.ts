@@ -17,6 +17,15 @@ function toFileDoc(row: FileRow): FileDoc {
   };
 }
 
+/** Names of files in the KB with status='indexed' — the file-level half of the eval preflight corpus. */
+export async function listIndexedFileNames(knowledgeBaseId: string): Promise<string[]> {
+  const rows = await db
+    .select({ name: files.name })
+    .from(files)
+    .where(and(eq(files.knowledgeBaseId, knowledgeBaseId), eq(files.status, 'indexed')));
+  return rows.map((r) => r.name);
+}
+
 export async function getFiles(knowledgeBaseId?: string): Promise<FileDoc[]> {
   const rows = knowledgeBaseId
     ? await db

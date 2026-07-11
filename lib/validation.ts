@@ -1,4 +1,9 @@
-import type { RetrievalFileType, RetrievalFilter } from '@/lib/types';
+import type {
+  EvalCaseCategory,
+  EvalCaseDifficulty,
+  RetrievalFileType,
+  RetrievalFilter,
+} from '@/lib/types';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -12,6 +17,20 @@ export const MAX_UPLOAD_FILE_BYTES = MAX_UPLOAD_FILE_MB * 1024 * 1024;
 export const RETRIEVAL_FILE_TYPES: readonly RetrievalFileType[] = ['pdf', 'markdown', 'word', 'text'];
 export const MAX_FILTER_FILE_IDS = 50;
 export const MAX_TITLE_QUERY_LENGTH = 200;
+
+/** Hard cap on cases per managed goldset — enforced on create, single add, and batch import. */
+export const MAX_GOLDSET_CASES = 50;
+
+export const EVAL_CASE_CATEGORIES: readonly EvalCaseCategory[] = [
+  'single_fact',
+  'numeric_fact',
+  'list_extraction',
+  'synthesis',
+  'disambiguation',
+  'out_of_scope',
+];
+
+export const EVAL_CASE_DIFFICULTIES: readonly EvalCaseDifficulty[] = ['easy', 'medium', 'hard'];
 
 /**
  * Validate and normalize the optional `filter` field of a retrieval request

@@ -142,15 +142,77 @@ export async function getRunById(
   return { ...run, items };
 }
 
+type ErrorWithCause = { code?: unknown; constraint?: unknown; cause?: unknown };
+
+/**
+ * FK violation (23503) attributable to eval_runs.dataset_id. Some driver
+ * wrappers drop `constraint`; that shape is accepted because the retry is
+ * bounded to one attempt — if the real violation was the KB FK, the retry
+ * fails identically and the error propagates.
+ */
+function isDatasetFkViolation(error: unknown): boolean {
+  const seen = new Set<object>();
+  let current = error;
+  for (let depth = 0; depth < 6 && current && typeof current === "object"; depth += 1) {
+    if (seen.has(current)) return false;
+    seen.add(current);
+    const candidate = current as ErrorWithCause;
+    if (
+      candidate.code === "23503" &&
+      (candidate.constraint === undefined ||
+        (typeof candidate.constraint === "string" &&
+          candidate.constraint.includes("dataset_id")))
+    ) {
+      return true;
+    }
+    current = candidate.cause;
+  }
+  return false;
+}
+
+/**
+ * Persist a run. `dataset_name`/`dataset_hash` always come from the caller's
+ * execution snapshot; if the dataset was deleted while the run executed, the
+ * run is still saved with `dataset_id = NULL` (an orphan that stays hash-
+ * comparable). Persistence failures propagate — callers must surface them,
+ * never report success.
+ */
 export async function saveRun(
   result: EvalRunResult,
   opts: SaveRunOptions,
 ): Promise<void> {
+  try {
+    await insertRun(result, opts, opts.datasetId ?? null);
+  } catch (e) {
+    // Dataset deleted between the in-transaction existence check and commit.
+    if (opts.datasetId && isDatasetFkViolation(e)) {
+      await insertRun(result, opts, null);
+      return;
+    }
+    throw e;
+  }
+}
+
+async function insertRun(
+  result: EvalRunResult,
+  opts: SaveRunOptions,
+  datasetIdInput: string | null,
+): Promise<void> {
   await db.transaction(async (tx) => {
+    let datasetId = datasetIdInput;
+    if (datasetId) {
+      const [ds] = await tx
+        .select({ id: evalDatasets.id })
+        .from(evalDatasets)
+        .where(eq(evalDatasets.id, datasetId))
+        .limit(1);
+      if (!ds) datasetId = null;
+    }
+
     await tx.insert(evalRuns).values({
       id: result.runId,
       knowledgeBaseId: result.knowledgeBaseId,
-      datasetId: opts.datasetId ?? null,
+      datasetId,
       datasetName: opts.datasetName ?? null,
       datasetHash: result.datasetHash ?? null,
       mode: result.mode ?? "curated",

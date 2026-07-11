@@ -129,6 +129,32 @@ function pushScopeAndFilterClauses(
   }
 }
 
+/**
+ * The chunk-level eval-preflight corpus: chunks of indexed files that vector
+ * recall could actually return (embedding present), optionally narrowed by a
+ * RetrievalFilter. Reuses `pushScopeAndFilterClauses` so preflight and
+ * retrieval can never disagree about what a filter excludes. Loads full chunk
+ * text into memory — fine at this app's per-KB corpus sizes.
+ */
+export async function listCorpusChunks(
+  knowledgeBaseId: string,
+  filter?: RetrievalFilter,
+): Promise<{ fileName: string; text: string }[]> {
+  const params: unknown[] = [];
+  const where = ["f.status = 'indexed'", 'c.embedding IS NOT NULL'];
+  pushScopeAndFilterClauses(params, where, undefined, knowledgeBaseId, filter);
+
+  return query<{ fileName: string; text: string }>(
+    `
+    SELECT f.name AS "fileName", c.text
+    FROM chunks c
+    JOIN files f ON c.file_id = f.id::uuid
+    WHERE ${where.join('\n    AND ')}
+    `,
+    params,
+  );
+}
+
 export async function searchChunks(
   queryEmbedding: number[],
   topK: number,
