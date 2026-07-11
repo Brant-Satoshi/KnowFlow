@@ -57,6 +57,7 @@ export const evalCases = pgTable(
   },
   (table) => [
     index("eval_cases_dataset_idx").on(table.datasetId, table.idx),
+    uniqueIndex("eval_cases_dataset_case_key_unique").on(table.datasetId, table.caseKey),
   ],
 );
 
