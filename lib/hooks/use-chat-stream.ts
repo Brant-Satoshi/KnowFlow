@@ -170,6 +170,10 @@ export function useChatStream({
   const [progressMap, setProgressMap] = useState<Map<string, AssistantProgress>>(new Map())
 
   const abortRef = useRef<AbortController | null>(null)
+  // Mirror of `messages` so regenerateFrom can read the latest list without
+  // depending on `messages` state — that dep would change its identity on
+  // every streaming flush and defeat AssistantMessageCard's memo.
+  const messagesRef = useRef<UIMessage[]>([])
   const streamBufferRef = useRef("")
   const fullTextRef = useRef("")
   const flushRafRef = useRef<number | null>(null)
@@ -179,6 +183,10 @@ export function useChatStream({
   const lastUserTextRef = useRef<string | null>(null)
   const isRegeneratingRef = useRef(false)
   const skipNextHydrationRef = useRef(false)
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   const updateProgress = useCallback(
     (assistantId: string, mutator: (prev: AssistantProgress) => AssistantProgress) => {
@@ -592,26 +600,27 @@ export function useChatStream({
     async (assistantId: string) => {
       if (isLoading || !conversationId || isRegeneratingRef.current) return
 
-      const assistantIndex = messages.findIndex(
+      const currentMessages = messagesRef.current
+      const assistantIndex = currentMessages.findIndex(
         (m) => m.id === assistantId && m.role === "assistant"
       )
       if (assistantIndex === -1) return
 
       let userIndex = -1
       for (let i = assistantIndex - 1; i >= 0; i--) {
-        if (messages[i].role === "user") {
+        if (currentMessages[i].role === "user") {
           userIndex = i
           break
         }
       }
       if (userIndex === -1) return
 
-      const userText = getMessageText(messages[userIndex])
+      const userText = getMessageText(currentMessages[userIndex])
       if (!userText) return
 
-      const idsToDelete = messages.slice(userIndex).map((m) => m.id)
+      const idsToDelete = currentMessages.slice(userIndex).map((m) => m.id)
       const idsToDeleteSet = new Set(idsToDelete)
-      const assistantIdsToClear = messages
+      const assistantIdsToClear = currentMessages
         .slice(assistantIndex)
         .filter((m) => m.role === "assistant")
         .map((m) => m.id)
@@ -645,7 +654,7 @@ export function useChatStream({
         isRegeneratingRef.current = false
       }
     },
-    [conversationId, isLoading, messages, sendMessage]
+    [conversationId, isLoading, sendMessage]
   )
 
   return {

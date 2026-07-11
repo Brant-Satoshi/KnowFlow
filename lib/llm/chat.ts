@@ -26,10 +26,6 @@ export function formatSse(event: SseEventName, data: unknown): string {
 
 export type SseSend = (event: SseEventName, data: unknown) => void;
 
-function splitText(text: string) {
-  return text.split(/(\s+)/);
-}
-
 export type ChatHistoryMessage = {
   role: 'user' | 'assistant';
   content: string;
@@ -140,12 +136,9 @@ export async function streamLlmAnswer(
 
           if (content) {
             accumulated.push(content);
-            const chunks = splitText(content);
-
-            for (const chunk of chunks) {
-              send('token', { delta: chunk });
-              await new Promise((r) => setTimeout(r, 10));
-            }
+            // Forward upstream deltas as-is: pacing mirrors the real LLM stream
+            // (the client batches renders per animation frame).
+            send('token', { delta: content });
           }
         } catch { }
       }

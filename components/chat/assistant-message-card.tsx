@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { memo, useContext, useMemo, type ReactNode } from "react"
 import type { Components } from "react-markdown"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -11,34 +11,43 @@ import type { RetrievedChunk } from "@/lib/types"
 import { CitationContext, renderWithCitations } from "@/components/chat/inline-citation"
 import { baseMarkdownComponents } from "@/components/markdown/base-components"
 import { CodeBlock, StreamingContext } from "@/components/markdown/code-block"
+import { fadeStreamingText } from "@/components/markdown/stream-fade"
 import { MessageActions } from "@/components/chat/message-actions"
 import { ProcessTimeline } from "@/components/chat/process-timeline"
 import { SourcesList } from "@/components/chat/sources-list"
+
+// Citation-processed prose that additionally fades in newly streamed words
+// while the answer is streaming; renders plain once the stream completes.
+function StreamedProse({ part, children }: { part: string; children?: ReactNode }) {
+  const isStreaming = useContext(StreamingContext)
+  const content = renderWithCitations(children, part)
+  return <>{isStreaming ? fadeStreamingText(content, part) : content}</>
+}
 
 // Text-bearing nodes are overridden to inject inline citations; `a` stays on
 // the base renderer on purpose (buttons inside links are invalid HTML).
 const markdownComponents: Components = {
   ...baseMarkdownComponents,
   p: ({ children }) => (
-    <p className="whitespace-pre-wrap leading-7 not-first:mt-4">{renderWithCitations(children, "p")}</p>
+    <p className="whitespace-pre-wrap leading-7 not-first:mt-4"><StreamedProse part="p">{children}</StreamedProse></p>
   ),
-  li: ({ children }) => <li className="leading-7">{renderWithCitations(children, "li")}</li>,
+  li: ({ children }) => <li className="leading-7"><StreamedProse part="li">{children}</StreamedProse></li>,
   strong: ({ children }) => (
-    <strong className="font-semibold text-current">{renderWithCitations(children, "strong")}</strong>
+    <strong className="font-semibold text-current"><StreamedProse part="strong">{children}</StreamedProse></strong>
   ),
   blockquote: ({ children }) => (
     <blockquote className="mt-4 border-l-2 border-primary/30 pl-4 italic text-foreground/80">
-      {renderWithCitations(children, "bq")}
+      <StreamedProse part="bq">{children}</StreamedProse>
     </blockquote>
   ),
   th: ({ children }) => (
     <th className="border-r border-border px-3 py-2 font-semibold text-foreground last:border-r-0">
-      {renderWithCitations(children, "th")}
+      <StreamedProse part="th">{children}</StreamedProse>
     </th>
   ),
   td: ({ children }) => (
     <td className="border-r border-border px-3 py-2 align-top leading-6 last:border-r-0">
-      {renderWithCitations(children, "td")}
+      <StreamedProse part="td">{children}</StreamedProse>
     </td>
   ),
   pre: CodeBlock,
@@ -67,7 +76,10 @@ interface AssistantMessageCardProps {
   regenerateDisabled?: boolean
 }
 
-export function AssistantMessageCard({
+// Memoized so per-frame streaming flushes re-render only the streaming card,
+// not every markdown-parsed message in the conversation. Callers must keep
+// props referentially stable (see ChatMessages / useChatStream).
+export const AssistantMessageCard = memo(function AssistantMessageCard({
   messageId,
   text,
   isStreaming,
@@ -107,7 +119,7 @@ export function AssistantMessageCard({
             <StreamingContext.Provider value={isStreaming}>
               <div className="text-base text-current">
                 {isStreaming ? (
-                  <div className="streaming-active wrap-break-word leading-7">
+                  <div className="wrap-break-word leading-7">
                     <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
                       {text}
                     </ReactMarkdown>
@@ -141,4 +153,4 @@ export function AssistantMessageCard({
       </div>
     </div>
   )
-}
+})
