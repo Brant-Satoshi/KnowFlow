@@ -1,15 +1,15 @@
 import type { EvalCase } from '@/lib/types';
 
 /**
- * Curated eval datasets registered by name.
+ * Seed data for the built-in eval datasets. The database is the single source
+ * of truth for goldsets — these arrays exist only so `pnpm seed:demo` can
+ * create the two built-ins when they don't exist yet (a user-edited dataset
+ * of the same name is never touched). Runtime code reads datasets through
+ * lib/db/eval-datasets.ts.
  *
- * Each dataset is bound to a logical document set, not a specific knowledge_base_id.
- * Callers pass `knowledgeBaseId` separately; the KB must contain files whose names
- * match the cases' `targetFileNames` for grade-1/2 signals to fire.
- *
- * The `olympus` dataset is built against `tests/fixtures/sample.txt`
- * ("The Olympus Initiative — Project Brief"). To use it, upload that file to a KB
- * and pass that KB's id with `datasetName: 'olympus'`.
+ * `olympus` is authored against `tests/fixtures/sample.txt` ("The Olympus
+ * Initiative — Project Brief"); `olympus-zh` against `sample-zh.txt`. The
+ * demo KB seeded by `pnpm seed:demo` contains both files.
  */
 const olympus: EvalCase[] = [
   {
@@ -223,10 +223,23 @@ const olympusZh: EvalCase[] = [
 ];
 
 
-const datasets: Record<string, EvalCase[]> = {
-  olympus,
-  'olympus-zh': olympusZh,
-};
+/** Templates `pnpm seed:demo` creates when (and only when) the name is absent. */
+export const SEED_EVAL_DATASETS: readonly {
+  name: string;
+  description: string;
+  cases: EvalCase[];
+}[] = [
+  {
+    name: 'olympus',
+    description: 'Built-in golden set for the demo corpus (sample.txt).',
+    cases: olympus,
+  },
+  {
+    name: 'olympus-zh',
+    description: '内置评测集，针对演示语料 sample-zh.txt 编写。',
+    cases: olympusZh,
+  },
+];
 
 /**
  * Canonical out-of-scope predicate. The runner inverts retrieval/citation hit
@@ -235,16 +248,4 @@ const datasets: Record<string, EvalCase[]> = {
  */
 export function isOutOfScope(c: EvalCase): boolean {
   return c.category === 'out_of_scope';
-}
-
-export function loadDataset(name: string): EvalCase[] {
-  const cases = datasets[name];
-  if (!cases) {
-    throw new Error(`unknown_dataset:${name}`);
-  }
-  return cases;
-}
-
-export function listDatasetNames(): string[] {
-  return Object.keys(datasets);
 }

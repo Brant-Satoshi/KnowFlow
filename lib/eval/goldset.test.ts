@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { canCompare, evalCaseFromColumns, evalCaseToColumns } from './goldset';
 import { hashDataset } from './hash';
-import { loadDataset } from './dataset';
+import { SEED_EVAL_DATASETS } from './dataset';
 import type { EvalCase, EvalRunSummary } from './../types';
 
 const fullCase: EvalCase = {
@@ -48,11 +48,10 @@ test('column normalization is a fixed point: a second round trip changes nothing
 
 // The seed datasets fully specify every field, so their stored legacy hashes
 // (written by the old code→DB upsert) must survive the DB round trip bit-for-bit.
-for (const name of ['olympus', 'olympus-zh']) {
-  test(`seed dataset "${name}" hash survives the column round trip`, () => {
-    const cases = loadDataset(name);
-    const roundTripped = cases.map((c) => evalCaseFromColumns(evalCaseToColumns(c)));
-    assert.equal(hashDataset(roundTripped), hashDataset(cases));
+for (const seed of SEED_EVAL_DATASETS) {
+  test(`seed dataset "${seed.name}" hash survives the column round trip`, () => {
+    const roundTripped = seed.cases.map((c) => evalCaseFromColumns(evalCaseToColumns(c)));
+    assert.equal(hashDataset(roundTripped), hashDataset(seed.cases));
   });
 }
 
