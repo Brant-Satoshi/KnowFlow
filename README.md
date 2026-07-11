@@ -43,14 +43,16 @@ Optional:
 
 ### Database setup
 
-Migrations live in `db/migrations/`. The `Makefile` targets assume a local Docker Postgres container named `knowflow-postgres`:
+Migrations live in `db/migrations/`. Migration targets assume a local Docker Postgres container named `knowflow-postgres`; the demo seed uses `DATABASE_URL`, so the same command works against local or remote Postgres:
 
 ```bash
 make migrate     # runs 001_init … 013_add_trgm_keyword_search against the container
-make seed        # optional fixtures
+make seed        # deterministic demo account + bilingual Olympus KB
 ```
 
 If you're pointing at Supabase / a remote Postgres, run `make migrate-supabase` (applies the same files via `psql` against `DATABASE_URL`; migrations are idempotent).
+
+`make seed` embeds the tracked `sample.txt` / `sample-zh.txt` fixtures and replaces only `demo@knowflow.local`; it never clears other accounts. It prints the login and fixed KB id when complete. Override the demo credentials with `DEMO_SEED_EMAIL` and `DEMO_SEED_PASSWORD`. Use `pnpm seed:demo -- --dry-run` to verify fixture/chunk counts without network or database writes.
 
 ---
 
@@ -62,7 +64,10 @@ If you're pointing at Supabase / a remote Postgres, run `make migrate-supabase` 
 | `pnpm build` | Production build (also serves as type-check) |
 | `pnpm start` | Run the built app |
 | `pnpm lint` | ESLint |
+| `pnpm test:unit` | Node built-in unit tests (`lib/**/*.test.ts`) |
 | `pnpm test:e2e` | Playwright end-to-end tests (`tests/`) |
+| `pnpm seed:demo` | Idempotently create the demo login and indexed bilingual KB |
+| `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>` | Compare vector vs hybrid retrieval quality and latency |
 
 ---
 
@@ -84,12 +89,14 @@ API surface lives under `app/api/` (auth, workspaces, knowledge bases, files, co
 `POST /api/chat/stream` (SSE):
 
 1. Embed the user query (`lib/rag/embeddings.ts`)
-2. Vector-search top-20 chunks scoped to the KB, cosine distance < 0.6, optionally narrowed by a retrieval filter (file / type / title) (`lib/db/chunks.ts`)
+2. Recall top-20 chunks through `lib/rag/retrieve.ts`: vector by default, or vector + pg_trgm keyword fused with RRF when the experimental `HYBRID_SEARCH_ENABLED=true`; both modes share KB scope and filters
 3. Rerank via Cohere/OpenRouter, keep top-8 (`lib/rag/rerank.ts`)
 4. Slice to top-5 as the evidence pack
 5. Build a citation-aware prompt and stream tokens back (`lib/llm/chat.ts`)
 
 SSE event order: `progress*` → `meta` → `progress` → `token*` → `done` (or `error`), plus a `title` event when a conversation title is auto-generated. Every event carries the `requestId`.
+
+Hybrid remains experimental and defaults off: the reproducible `olympus-zh` A/B found no hit-rate or Recall@5 gain. Raw ranking signals were mixed; production rerank made quality effectively flat while this run measured +11.7% average and +18.7% p50 latency. See the [recorded A/B report](./docs/evals/hybrid-ab-2026-07-10.md) and [ADR-010](./docs/adr/en/010.hybrid-search-rrf-gated.md).
 
 ### Retrieval metadata filter
 

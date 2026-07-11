@@ -110,7 +110,7 @@ app/api/
 │       ├── route.ts            # GET / PATCH (rename) / DELETE
 │       └── messages/route.ts   # GET 历史 / POST 追加
 ├── rag/
-│   └── search/route.ts         # POST 纯向量检索（调试 / eval）
+│   └── search/route.ts         # POST vector / keyword / hybrid 检索（调试 / eval）
 ├── chat/
 │   └── stream/route.ts         # POST SSE 流式问答（核心）
 └── eval/
@@ -142,6 +142,7 @@ lib/
 ├── llm/                        # chat.ts（buildPrompt / streamLlmAnswer / generateAnswer）、catalog.ts（模型列表）、prompts.ts
 ├── rag/
 │   ├── parse.ts                # PDF (pdf2json) / DOCX (mammoth) / MD / TXT 解析
+│   ├── text.ts                 # 无副作用文本清洗（真实索引与 demo seed 共用）
 │   ├── chunks.ts               # chunkSize + overlap 分块
 │   ├── embeddings.ts           # OpenRouter（OpenAI 兼容 /embeddings，强校验 1536 维）
 │   ├── reindex.ts              # 重建索引
@@ -461,13 +462,14 @@ run 与逐 case 结果持久化到 `eval_runs` / `eval_run_items`（含所用 fi
 * 解析-索引同步执行，没队列没重试
 * `citation_invalid` 服务端事后校验未做
 * token 用量 / 成本指标未采集
-* 检索/分块参数硬编码在 route 里
+* hybrid 在当前数据集上没有质量收益，仍作为默认关闭的实验能力
 
 ### 🔭 后续可做（按价值排序）
 
 1. ~~引入 BM25 混合检索，与纯向量 + rerank 做 A/B~~ —— 已落地：pg_trgm 关键词腿 +
    RRF 融合（`lib/rag/fusion.ts`），A/B 显示当前数据集上无收益，故默认关闭
-   （`HYBRID_SEARCH_ENABLED`）；见 ADR-010。等关键词重的数据集出现再重测
+   （`HYBRID_SEARCH_ENABLED`）；见 ADR-010 与 `docs/evals/hybrid-ab-2026-07-10.md`。
+   可用 `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>` 在关键词重的数据集上重测
 2. 解析+向量化抽到 worker / 队列
 3. 服务端引用校验 + 标注 `citation_invalid`
 4. 句级对齐 / 高亮定位（提升引用精度）

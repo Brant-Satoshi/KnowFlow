@@ -19,6 +19,40 @@ export class EmailTakenError extends Error {
   }
 }
 
+type ErrorWithCause = {
+  code?: unknown;
+  constraint?: unknown;
+  cause?: unknown;
+};
+
+/**
+ * Drizzle may wrap the underlying node-postgres error in `cause`. Some driver
+ * wrappers retain code=23505 but omit `constraint`; accept that shape here
+ * deliberately because this transaction's other unique keys all contain
+ * freshly generated user/workspace ids. Revisit the fallback if another
+ * uniqueness-constrained insert is added to this transaction.
+ */
+function isEmailUniqueViolation(error: unknown): boolean {
+  const seen = new Set<object>();
+  let current = error;
+
+  for (let depth = 0; depth < 6 && current && typeof current === 'object'; depth += 1) {
+    if (seen.has(current)) return false;
+    seen.add(current);
+
+    const candidate = current as ErrorWithCause;
+    if (
+      candidate.code === '23505' &&
+      (candidate.constraint === undefined || candidate.constraint === 'users_email_unique')
+    ) {
+      return true;
+    }
+    current = candidate.cause;
+  }
+
+  return false;
+}
+
 export async function getUserByEmail(email: string): Promise<UserWithHash | undefined> {
   const rows = await db
     .select({
@@ -84,7 +118,7 @@ export async function createUser(email: string, passwordHash: string): Promise<A
     });
   } catch (e) {
     // 23505 = unique_violation on the lower(email) index.
-    if (e && typeof e === 'object' && 'code' in e && (e as { code?: string }).code === '23505') {
+    if (isEmailUniqueViolation(e)) {
       throw new EmailTakenError();
     }
     throw e;
