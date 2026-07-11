@@ -77,6 +77,11 @@ neutral-to-negative on the current dataset; see
 [ADR-010](adr/en/010.hybrid-search-rrf-gated.md)). With the flag off the chat
 pipeline is vector-only, as diagrammed below.
 
+Reproduce the vector/hybrid quality and latency comparison with
+`pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset=olympus-zh --rerank=on`.
+The fixed demo-seed run is recorded in
+[`docs/evals/hybrid-ab-2026-07-10.md`](evals/hybrid-ab-2026-07-10.md).
+
 The `<=>` operator is accelerated by an HNSW index on `chunks.embedding`.
 Distance is stored in `chunk.meta._distance` and later converted to a
 similarity score (`1 - distance`) for display.

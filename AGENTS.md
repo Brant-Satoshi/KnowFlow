@@ -10,9 +10,12 @@ pnpm dev          # start the development server
 pnpm build        # production build and type-check
 pnpm lint         # run ESLint
 pnpm test:e2e     # Playwright end-to-end tests
+pnpm test:unit    # node:test via tsx (lib/**/*.test.ts)
+pnpm seed:demo    # idempotent demo login + indexed bilingual KB
+pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>  # vector vs hybrid A/B
 ```
 
-No unit test runner is configured. Use `pnpm build` to catch type errors.
+Unit tests run on Node's built-in runner (no extra dependency); `pnpm build` still catches type errors project-wide.
 
 ## Routes
 - `/` - Knowledge Base list
@@ -30,6 +33,8 @@ No unit test runner is configured. Use `pnpm build` to catch type errors.
 - `lib/api/` - API response helpers
 - `lib/i18n/` - Translations
 - `lib/telemetry/` - Telemetry
+
+Chat and eval share retrieval through `lib/rag/retrieve.ts`. Vector recall is the production default; hybrid vector + pg_trgm recall is experimental and only enabled by `HYBRID_SEARCH_ENABLED=true`. Do not enable it by default without a same-corpus `pnpm eval:hybrid-ab` comparison; see ADR-010.
 
 ## Shared Types (lib/types.ts)
 - `Message`, `Conversation` - chat-related types (`Conversation` includes `model: string | null`)

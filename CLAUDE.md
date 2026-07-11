@@ -13,9 +13,12 @@ pnpm dev          # start dev server (localhost:3000)
 pnpm build        # production build + type-check
 pnpm lint         # ESLint
 pnpm test:e2e     # Playwright end-to-end tests
+pnpm test:unit    # node:test via tsx (lib/**/*.test.ts)
+pnpm seed:demo    # idempotent demo login + indexed bilingual KB
+pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>  # vector vs hybrid A/B
 ```
 
-No unit test runner is configured. Use `pnpm build` to catch type errors.
+Unit tests run on Node's built-in runner (no extra dependency); `pnpm build` still catches type errors project-wide.
 
 ## Architecture
 
@@ -38,7 +41,7 @@ Next.js App Router RAG chat app. PostgreSQL + pgvector for vector storage.
 3. Build prompt → `lib/llm/chat.ts` (`buildPrompt`)
 4. Stream answer via OpenRouter → `lib/llm/chat.ts` (`streamLlmAnswer`), returned as SSE
 
-The same `RetrievalFilter` is accepted by `/api/rag/search` and `/api/eval/run`. `/api/rag/search` also accepts `mode: 'vector' | 'keyword' | 'hybrid'` — keyword mode runs pg_trgm `word_similarity` against `chunks.embedding_text` (`keywordSearchChunks` in `lib/db/chunks.ts`, GIN trigram index) without calling the embedding API; hybrid mode fuses the vector and keyword legs via Reciprocal Rank Fusion (`reciprocalRankFusion` in `lib/rag/fusion.ts`). Chat recall goes hybrid only when `HYBRID_SEARCH_ENABLED=true` (`isHybridSearchEnabled` in `lib/models.ts`); it **defaults off** because the eval found fusion neutral-to-negative on the current dataset — see ADR-010. So the chat pipeline is vector-only by default. Do not enable hybrid by default without re-running the vector-vs-hybrid eval comparison (`RunCuratedEvalOpts.retrievalMode` in `lib/eval/runner.ts`) on the target dataset.
+The same `RetrievalFilter` is accepted by `/api/rag/search` and `/api/eval/run`. `/api/rag/search` also accepts `mode: 'vector' | 'keyword' | 'hybrid'` — keyword mode runs pg_trgm `word_similarity` against `chunks.embedding_text` (`keywordSearchChunks` in `lib/db/chunks.ts`, GIN trigram index) without calling the embedding API; hybrid mode fuses the vector and keyword legs via Reciprocal Rank Fusion (`reciprocalRankFusion` in `lib/rag/fusion.ts`). Chat recall goes hybrid only when `HYBRID_SEARCH_ENABLED=true` (`isHybridSearchEnabled` in `lib/models.ts`); it **defaults off** because the eval found fusion neutral-to-negative on the current dataset — see ADR-010. So the chat pipeline is vector-only by default. Do not enable hybrid by default without re-running `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>` on the target corpus; `RunCuratedEvalOpts.retrievalMode` in `lib/eval/runner.ts` remains the full answer/citation comparison entry point.
 
 **SSE event types**: `progress` (stages: searching → searched → reranking → reranked → generating) interleaved with `meta` → `token`+ → `done` | `error`; plus `title` when a conversation title is auto-generated. All carry `requestId`.
 

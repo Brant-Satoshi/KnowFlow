@@ -9,6 +9,8 @@
     "lint": "eslint",
     "test:e2e": "playwright test",
     "test:unit": "node --import tsx --test \"lib/**/*.test.ts\"",
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "eval:hybrid-ab": "tsx scripts/eval-hybrid-ab.ts",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "reembed": "tsx scripts/reembed.ts"

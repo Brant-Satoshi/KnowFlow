@@ -76,9 +76,7 @@ migrate-supabase:
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/013_add_trgm_keyword_search.sql
 
 seed:
-	docker exec -i $(CONTAINER) \
-		psql -U $(USER) -d $(DB) \
-		< db/seeds/seed.sql
+	pnpm seed:demo
 
 logs:
 	docker logs -f $(CONTAINER)

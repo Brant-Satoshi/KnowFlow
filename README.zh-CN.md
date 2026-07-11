@@ -43,14 +43,16 @@ pnpm dev                            # http://localhost:3000
 
 ### 初始化数据库
 
-migrations 在 `db/migrations/` 下。`Makefile` 默认走名为 `knowflow-postgres` 的本地 Docker Postgres 容器：
+migrations 在 `db/migrations/` 下。迁移目标默认走名为 `knowflow-postgres` 的本地 Docker Postgres 容器；demo seed 直接使用 `DATABASE_URL`，所以本地或远程 Postgres 都可以使用同一命令：
 
 ```bash
 make migrate     # 把 001_init … 013_add_trgm_keyword_search 跑到容器里
-make seed        # 可选 fixtures
+make seed        # 固定 demo 账号 + 奥林匹斯双语知识库
 ```
 
 如果指向 Supabase / 远程 Postgres，跑 `make migrate-supabase`（用 `psql` 对 `DATABASE_URL` 应用同一批文件；migrations 幂等，可重复执行）。
+
+`make seed` 会向量化仓库内的 `sample.txt` / `sample-zh.txt`，并且只替换 `demo@knowflow.local`，不会清空其他账号。完成后会打印登录信息和固定 KB id；可用 `DEMO_SEED_EMAIL`、`DEMO_SEED_PASSWORD` 覆盖 demo 凭据。`pnpm seed:demo -- --dry-run` 只校验 fixture/chunk 数，不访问网络也不写数据库。
 
 ---
 
@@ -62,7 +64,10 @@ make seed        # 可选 fixtures
 | `pnpm build` | 生产构建（也充当类型检查） |
 | `pnpm start` | 跑构建产物 |
 | `pnpm lint` | ESLint |
+| `pnpm test:unit` | Node 内置单元测试（`lib/**/*.test.ts`） |
 | `pnpm test:e2e` | Playwright 端到端测试（`tests/`） |
+| `pnpm seed:demo` | 幂等创建 demo 登录和已索引的双语 KB |
+| `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>` | 对比 vector / hybrid 的质量与延迟 |
 
 ---
 
@@ -84,12 +89,14 @@ API 接口在 `app/api/` 下（auth、workspaces、knowledge bases、files、con
 `POST /api/chat/stream`（SSE）：
 
 1. embedding 用户 query（`lib/rag/embeddings.ts`）
-2. 在该 KB 内做向量检索，取 top-20、cosine distance < 0.6，可叠加检索过滤器（按文件 / 类型 / 标题）（`lib/db/chunks.ts`）
+2. 通过 `lib/rag/retrieve.ts` 召回 top-20：默认纯向量；实验开关 `HYBRID_SEARCH_ENABLED=true` 时用 RRF 融合向量腿与 pg_trgm 关键词腿；两种模式共用 KB scope 和过滤器
 3. 走 Cohere/OpenRouter rerank，保留 top-8（`lib/rag/rerank.ts`）
 4. 再切前 5 作为证据包
 5. 构造带引用约束的 prompt，流式返回 token（`lib/llm/chat.ts`）
 
 SSE 事件顺序：`progress*` → `meta` → `progress` → `token*` → `done`（或 `error`）；会话标题自动生成时额外推送 `title` 事件。每个事件都带 `requestId`。
+
+hybrid 仍是默认关闭的实验功能：可复现的 `olympus-zh` A/B 显示命中率与 Recall@5 都没有提升；原始排序指标有升有降，生产 rerank 后质量基本持平，而本轮平均延迟增加 11.7%、p50 增加 18.7%。详见[实测 A/B 报告](./docs/evals/hybrid-ab-2026-07-10.md)与 [ADR-010](./docs/adr/010.hybrid-search-rrf-gated.md)。
 
 ### 检索 metadata 过滤器
 
