@@ -70,13 +70,32 @@ function scanStructure(
   return { documentTitle, sections };
 }
 
-function sectionTitleAt(sections: SectionMark[], pos: number): string | null {
+interface Segment {
+  start: number;
+  end: number;
+  title: string | null;
+}
+
+// Section headings are hard chunk boundaries: no chunk may straddle one, so
+// every chunk's sectionTitle is exactly the section its text belongs to.
+// Text before the first heading forms a title-less preamble segment.
+function buildSegments(sections: SectionMark[], totalLength: number): Segment[] {
+  const segments: Segment[] = [];
+  let cursor = 0;
   let title: string | null = null;
-  for (const s of sections) {
-    if (s.offset <= pos) title = s.title;
-    else break;
+
+  for (const section of sections) {
+    if (section.offset > cursor) {
+      segments.push({ start: cursor, end: section.offset, title });
+    }
+    cursor = section.offset;
+    title = section.title;
   }
-  return title;
+  if (cursor < totalLength) {
+    segments.push({ start: cursor, end: totalLength, title });
+  }
+
+  return segments;
 }
 
 // Language-neutral labels keep embedding/rerank text stable across locales.
@@ -146,44 +165,49 @@ export function chunkText(
   const { documentTitle, sections } = scanStructure(text, options.fileName);
 
   let idx = 0;
-  let start = 0;
-  const totalLength = text.length;
 
-  while (start < totalLength) {
-    const targetEnd = Math.min(start + chunkSize, totalLength);
-    const end = findChunkEnd(text, start, targetEnd);
-    const rawChunk = text.slice(start, end);
-    const leadingWs = countLeadingWhitespace(rawChunk);
-    const trailingWs = countTrailingWhitespace(rawChunk);
+  for (const segment of buildSegments(sections, text.length)) {
+    let start = segment.start;
 
-    const trimmedStart = start + leadingWs;
-    const trimmedEnd = end - trailingWs;
+    while (start < segment.end) {
+      const targetEnd = Math.min(start + chunkSize, segment.end);
+      // Boundary snapping stays inside the segment: the window never reaches
+      // past segment.end, so the back-scan cannot cross a section heading.
+      const end = targetEnd >= segment.end ? segment.end : findChunkEnd(text, start, targetEnd);
+      const rawChunk = text.slice(start, end);
+      const leadingWs = countLeadingWhitespace(rawChunk);
+      const trailingWs = countTrailingWhitespace(rawChunk);
 
-    if (trimmedEnd > trimmedStart) {
-      const chunkBody = text.slice(trimmedStart, trimmedEnd);
-      const sectionTitle = sectionTitleAt(sections, trimmedStart);
-      chunks.push({
-        id: `${fileId}-${idx}`,
-        fileId,
-        idx,
-        text: chunkBody,
-        embeddingText: buildEmbeddingText(documentTitle, sectionTitle, chunkBody),
-        documentTitle,
-        sectionTitle,
-        meta: { start: trimmedStart, end: trimmedEnd },
-      });
-      idx += 1;
+      const trimmedStart = start + leadingWs;
+      const trimmedEnd = end - trailingWs;
+
+      if (trimmedEnd > trimmedStart) {
+        const chunkBody = text.slice(trimmedStart, trimmedEnd);
+        chunks.push({
+          id: `${fileId}-${idx}`,
+          fileId,
+          idx,
+          text: chunkBody,
+          embeddingText: buildEmbeddingText(documentTitle, segment.title, chunkBody),
+          documentTitle,
+          sectionTitle: segment.title,
+          meta: { start: trimmedStart, end: trimmedEnd },
+        });
+        idx += 1;
+      }
+
+      if (end >= segment.end) {
+        break;
+      }
+
+      // The <= start clamp also keeps the overlap from reaching back across
+      // the segment start (start never precedes it).
+      let nextStart = end - overlap;
+      if (nextStart <= start) {
+        nextStart = start + 1;
+      }
+      start = nextStart;
     }
-
-    if (end >= totalLength) {
-      break;
-    }
-
-    let nextStart = end - overlap;
-    if (nextStart <= start) {
-      nextStart = start + 1;
-    }
-    start = nextStart;
   }
 
   return chunks;

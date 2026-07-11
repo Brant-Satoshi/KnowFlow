@@ -78,9 +78,11 @@ test.describe("Chat — ask question (real services)", () => {
     // Hard assertion: assistant text rendered to DOM (tokens were consumed).
     // Scoped to the assistant message body — KnowledgePanel and empty-state
     // paragraphs are out of scope so they can't satisfy this on their own.
-    await expect(
-      page.locator('[data-testid="assistant-message"]').filter({ hasText: /\S{10,}/ }).first()
-    ).toBeVisible({ timeout: 60_000 })
+    const assistantMessage = page.locator('[data-testid="assistant-message"]').first()
+    await expect.poll(
+      async () => ((await assistantMessage.textContent()) ?? "").replace(/\s/g, "").length,
+      { timeout: 60_000 },
+    ).toBeGreaterThanOrEqual(10)
 
     // Soft signal: log whether retrieval surfaced a citation. Don't fail —
     // recall quality belongs to /eval, not this smoke test.

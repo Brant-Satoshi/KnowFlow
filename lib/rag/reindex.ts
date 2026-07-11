@@ -5,20 +5,13 @@ import { replaceFileChunks } from '@/lib/db/chunks';
 import { chunkText } from './chunks';
 import { parseFile } from './parse';
 import { embedChunk } from './embeddings';
+import { cleanText } from './text';
+
+// Preserve the existing import surface while the dependency-free leaf module
+// lets seed scripts and tests avoid pulling in storage/env dependencies.
+export { cleanText } from './text';
 
 type ReindexOptions = { signal?: AbortSignal };
-
-export function cleanText(text: string): string {
-  return text
-    // pdf2json emits CRLF around its markers; normalize before the line rules.
-    .replace(/\r\n?/g, '\n')
-    // pdf2json page-break marker lines ("----------------Page (N) Break----…").
-    // Match them exactly — a bare /Page \d+/ also destroys legitimate content.
-    .replace(/^-+Page \(\d+\) Break-+$/gm, '')
-    .replace(/\n{2,}/g, '\n')
-    .replace(/[ \t]+/g, ' ')
-    .trim();
-}
 
 // buffer → parse → clean → chunk → embed → replace. Shared by the parse route
 // and the reembed backfill script. Returns the number of chunks written.
