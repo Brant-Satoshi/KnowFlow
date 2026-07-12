@@ -184,10 +184,10 @@ test.describe("POST /api/eval/run — curated mode validation", () => {
 })
 
 test.describe("eval datasets API — CRUD, atomic import, optimistic concurrency", () => {
-  test("lifecycle: create, add, conflict, stale-hash 409, edit, delete", async ({ request }) => {
+  test("lifecycle: create, add, conflict, stale-revision 409, edit, delete", async ({ request }) => {
     const name = `Goldset Spec ${Date.now()}`
 
-    // create (no expectedDatasetHash on creation)
+    // create (no expectedRevision on creation)
     let res = await request.post("/api/eval/datasets", {
       data: { name, description: "spec dataset" },
     })
@@ -196,6 +196,7 @@ test.describe("eval datasets API — CRUD, atomic import, optimistic concurrency
     expect(json.ok).toBe(true)
     const datasetId: string = json.data.dataset.id
     const emptyHash: string = json.data.dataset.datasetHash
+    const revisionAtCreate: number = json.data.dataset.revision
     expect(json.data.dataset.caseCount).toBe(0)
 
     try {
@@ -205,31 +206,34 @@ test.describe("eval datasets API — CRUD, atomic import, optimistic concurrency
       json = await res.json()
       expect(json.error).toBe("dataset_name_conflict")
 
-      // single add (object form) — response carries the new hash
+      // single add (object form) — response carries the new revision and hash
       res = await request.post(`/api/eval/datasets/${datasetId}/cases`, {
-        data: { expectedDatasetHash: emptyHash, cases: makeCase("case-a") },
+        data: { expectedRevision: revisionAtCreate, cases: makeCase("case-a") },
       })
       expect(res.status()).toBe(200)
       json = await res.json()
       expect(json.data.dataset.caseCount).toBe(1)
       const hashAfterA: string = json.data.dataset.datasetHash
+      const revisionAfterA: number = json.data.dataset.revision
       expect(hashAfterA).not.toBe(emptyHash)
+      expect(revisionAfterA).toBeGreaterThan(revisionAtCreate)
       const caseAUuid: string = json.data.cases[0].id
       expect(json.data.cases[0].caseKey).toBe("case-a")
 
-      // concurrent editor with the stale (pre-add) hash → 409 dataset_changed
+      // concurrent editor with the stale (pre-add) revision → 409 dataset_changed
       res = await request.post(`/api/eval/datasets/${datasetId}/cases`, {
-        data: { expectedDatasetHash: emptyHash, cases: makeCase("case-b") },
+        data: { expectedRevision: revisionAtCreate, cases: makeCase("case-b") },
       })
       expect(res.status()).toBe(409)
       json = await res.json()
       expect(json.error).toBe("dataset_changed")
+      expect(json.data.currentRevision).toBe(revisionAfterA)
       expect(json.data.currentHash).toBe(hashAfterA)
 
       // batch with an in-batch duplicate id → whole batch rejected, nothing written
       res = await request.post(`/api/eval/datasets/${datasetId}/cases`, {
         data: {
-          expectedDatasetHash: hashAfterA,
+          expectedRevision: revisionAfterA,
           cases: [makeCase("case-dup"), makeCase("case-dup")],
         },
       })
@@ -241,7 +245,7 @@ test.describe("eval datasets API — CRUD, atomic import, optimistic concurrency
       // batch conflicting with a stored case_key → whole batch rejected
       res = await request.post(`/api/eval/datasets/${datasetId}/cases`, {
         data: {
-          expectedDatasetHash: hashAfterA,
+          expectedRevision: revisionAfterA,
           cases: [makeCase("case-a"), makeCase("case-c")],
         },
       })
@@ -255,34 +259,35 @@ test.describe("eval datasets API — CRUD, atomic import, optimistic concurrency
       json = await res.json()
       expect(json.data.dataset.caseCount).toBe(1)
       expect(json.data.dataset.datasetHash).toBe(hashAfterA)
+      expect(json.data.dataset.revision).toBe(revisionAfterA)
 
       // edit the case (full replacement, business key rename)
       res = await request.patch(`/api/eval/datasets/${datasetId}/cases/${caseAUuid}`, {
         data: {
-          expectedDatasetHash: hashAfterA,
+          expectedRevision: revisionAfterA,
           case: makeCase("case-a-renamed", { question: "Renamed question?" }),
         },
       })
       expect(res.status()).toBe(200)
       json = await res.json()
-      const hashAfterEdit: string = json.data.dataset.datasetHash
-      expect(hashAfterEdit).not.toBe(hashAfterA)
+      const revisionAfterEdit: number = json.data.dataset.revision
+      expect(json.data.dataset.datasetHash).not.toBe(hashAfterA)
       expect(json.data.cases[0].caseKey).toBe("case-a-renamed")
 
       // delete the case; idx compaction leaves an empty set
       res = await request.fetch(`/api/eval/datasets/${datasetId}/cases/${caseAUuid}`, {
         method: "DELETE",
-        data: { expectedDatasetHash: hashAfterEdit },
+        data: { expectedRevision: revisionAfterEdit },
       })
       expect(res.status()).toBe(200)
       json = await res.json()
       expect(json.data.dataset.caseCount).toBe(0)
 
-      // delete the dataset with its current hash
-      const finalHash: string = json.data.dataset.datasetHash
+      // delete the dataset with its current revision
+      const finalRevision: number = json.data.dataset.revision
       res = await request.fetch(`/api/eval/datasets/${datasetId}`, {
         method: "DELETE",
-        data: { expectedDatasetHash: finalHash },
+        data: { expectedRevision: finalRevision },
       })
       expect(res.status()).toBe(200)
 
@@ -295,7 +300,63 @@ test.describe("eval datasets API — CRUD, atomic import, optimistic concurrency
         const body = await detail.json()
         await request.fetch(`/api/eval/datasets/${datasetId}`, {
           method: "DELETE",
-          data: { expectedDatasetHash: body.data.dataset.datasetHash },
+          data: { expectedRevision: body.data.dataset.revision },
+        })
+      }
+    }
+  })
+
+  test("metadata writes are concurrency-protected: stale rename/delete → 409", async ({ request }) => {
+    // Renames don't change dataset_hash, so the revision token must catch
+    // conflicting metadata writes and stale deletes (review fix, PR #45).
+    const name = `Goldset Meta Spec ${Date.now()}`
+    let res = await request.post("/api/eval/datasets", { data: { name } })
+    expect(res.status()).toBe(200)
+    let json = await res.json()
+    const datasetId: string = json.data.dataset.id
+    const revision0: number = json.data.dataset.revision
+    const hash0: string = json.data.dataset.datasetHash
+
+    try {
+      // client A renames — hash stays identical, revision bumps
+      res = await request.patch(`/api/eval/datasets/${datasetId}`, {
+        data: { expectedRevision: revision0, name: `${name} renamed-by-A` },
+      })
+      expect(res.status()).toBe(200)
+      json = await res.json()
+      const revision1: number = json.data.dataset.revision
+      expect(json.data.dataset.datasetHash).toBe(hash0)
+      expect(revision1).toBeGreaterThan(revision0)
+
+      // client B holds the stale revision: its rename must NOT silently win
+      res = await request.patch(`/api/eval/datasets/${datasetId}`, {
+        data: { expectedRevision: revision0, name: `${name} renamed-by-B` },
+      })
+      expect(res.status()).toBe(409)
+      json = await res.json()
+      expect(json.error).toBe("dataset_changed")
+      expect(json.data.currentRevision).toBe(revision1)
+
+      // stale delete is rejected too
+      res = await request.fetch(`/api/eval/datasets/${datasetId}`, {
+        method: "DELETE",
+        data: { expectedRevision: revision0 },
+      })
+      expect(res.status()).toBe(409)
+
+      // fresh delete succeeds
+      res = await request.fetch(`/api/eval/datasets/${datasetId}`, {
+        method: "DELETE",
+        data: { expectedRevision: revision1 },
+      })
+      expect(res.status()).toBe(200)
+    } finally {
+      const detail = await request.get(`/api/eval/datasets/${datasetId}`)
+      if (detail.ok()) {
+        const body = await detail.json()
+        await request.fetch(`/api/eval/datasets/${datasetId}`, {
+          method: "DELETE",
+          data: { expectedRevision: body.data.dataset.revision },
         })
       }
     }
@@ -311,22 +372,22 @@ test.describe("eval datasets API — CRUD, atomic import, optimistic concurrency
     expect(res.status()).toBe(200)
     let json = await res.json()
     const datasetId: string = json.data.dataset.id
-    let hash: string = json.data.dataset.datasetHash
+    let revision: number = json.data.dataset.revision
     expect(json.data.dataset.caseCount).toBe(49)
 
     try {
       // 50th case: allowed
       res = await request.post(`/api/eval/datasets/${datasetId}/cases`, {
-        data: { expectedDatasetHash: hash, cases: makeCase("case-49") },
+        data: { expectedRevision: revision, cases: makeCase("case-49") },
       })
       expect(res.status()).toBe(200)
       json = await res.json()
       expect(json.data.dataset.caseCount).toBe(50)
-      hash = json.data.dataset.datasetHash
+      revision = json.data.dataset.revision
 
       // 51st case: single add rejected with the structured cap payload
       res = await request.post(`/api/eval/datasets/${datasetId}/cases`, {
-        data: { expectedDatasetHash: hash, cases: makeCase("case-50") },
+        data: { expectedRevision: revision, cases: makeCase("case-50") },
       })
       expect(res.status()).toBe(409)
       json = await res.json()
@@ -338,7 +399,7 @@ test.describe("eval datasets API — CRUD, atomic import, optimistic concurrency
         const body = await detail.json()
         await request.fetch(`/api/eval/datasets/${datasetId}`, {
           method: "DELETE",
-          data: { expectedDatasetHash: body.data.dataset.datasetHash },
+          data: { expectedRevision: body.data.dataset.revision },
         })
       }
     }

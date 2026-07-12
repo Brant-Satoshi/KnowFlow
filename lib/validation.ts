@@ -95,9 +95,11 @@ export function isSummaryQuery(q: string) {
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Managed eval dataset body parsers. All dataset/case write bodies except
- * dataset creation carry `expectedDatasetHash` for optimistic concurrency.
- * `EvalCase.id` here is the business case_key — row UUIDs never appear in
- * these bodies (they live in the URL, validated by parseUuidParam).
+ * dataset creation carry `expectedRevision` for optimistic concurrency (the
+ * revision bumps on every write, metadata included; `dataset_hash` stays a
+ * pure case-content identity). `EvalCase.id` here is the business case_key —
+ * row UUIDs never appear in these bodies (they live in the URL, validated by
+ * parseUuidParam).
  * ──────────────────────────────────────────────────────────────────────────── */
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -195,9 +197,9 @@ function parseCaseList(raw: unknown, field: string): Parsed<EvalCase[]> {
   return { ok: true, value: [single.value] };
 }
 
-function parseRequiredHash(raw: unknown): Parsed<string> {
-  if (typeof raw !== 'string' || raw.trim().length === 0) {
-    return { ok: false, error: 'expectedDatasetHash is required' };
+function parseRequiredRevision(raw: unknown): Parsed<number> {
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0) {
+    return { ok: false, error: 'expectedRevision must be a non-negative integer' };
   }
   return { ok: true, value: raw };
 }
@@ -225,14 +227,14 @@ export function parseCreateEvalDatasetBody(raw: unknown): Parsed<{
 export function parseUpdateEvalDatasetBody(raw: unknown): Parsed<{
   name?: string;
   description?: string | null;
-  expectedDatasetHash: string;
+  expectedRevision: number;
 }> {
   if (!isRecord(raw)) return { ok: false, error: 'body must be an object' };
-  const hash = parseRequiredHash(raw.expectedDatasetHash);
-  if (!hash.ok) return hash;
+  const revision = parseRequiredRevision(raw.expectedRevision);
+  if (!revision.ok) return revision;
 
-  const value: { name?: string; description?: string | null; expectedDatasetHash: string } = {
-    expectedDatasetHash: hash.value,
+  const value: { name?: string; description?: string | null; expectedRevision: number } = {
+    expectedRevision: revision.value,
   };
   if (raw.name !== undefined) {
     const name = typeof raw.name === 'string' ? raw.name.trim() : '';
@@ -253,34 +255,34 @@ export function parseUpdateEvalDatasetBody(raw: unknown): Parsed<{
 /** POST /api/eval/datasets/[id]/cases — `cases` object = single add, array = batch import. */
 export function parseAddEvalCasesBody(raw: unknown): Parsed<{
   cases: EvalCase[];
-  expectedDatasetHash: string;
+  expectedRevision: number;
 }> {
   if (!isRecord(raw)) return { ok: false, error: 'body must be an object' };
-  const hash = parseRequiredHash(raw.expectedDatasetHash);
-  if (!hash.ok) return hash;
+  const revision = parseRequiredRevision(raw.expectedRevision);
+  if (!revision.ok) return revision;
   const cases = parseCaseList(raw.cases, 'cases');
   if (!cases.ok) return cases;
-  return { ok: true, value: { cases: cases.value, expectedDatasetHash: hash.value } };
+  return { ok: true, value: { cases: cases.value, expectedRevision: revision.value } };
 }
 
 export function parseUpdateEvalCaseBody(raw: unknown): Parsed<{
   case: EvalCase;
-  expectedDatasetHash: string;
+  expectedRevision: number;
 }> {
   if (!isRecord(raw)) return { ok: false, error: 'body must be an object' };
-  const hash = parseRequiredHash(raw.expectedDatasetHash);
-  if (!hash.ok) return hash;
+  const revision = parseRequiredRevision(raw.expectedRevision);
+  if (!revision.ok) return revision;
   const parsed = parseEvalCaseInput(raw.case);
   if (!parsed.ok) return parsed;
-  return { ok: true, value: { case: parsed.value, expectedDatasetHash: hash.value } };
+  return { ok: true, value: { case: parsed.value, expectedRevision: revision.value } };
 }
 
 /** DELETE bodies carry only the concurrency token. */
-export function parseExpectedDatasetHashBody(raw: unknown): Parsed<{ expectedDatasetHash: string }> {
+export function parseExpectedRevisionBody(raw: unknown): Parsed<{ expectedRevision: number }> {
   if (!isRecord(raw)) return { ok: false, error: 'body must be an object' };
-  const hash = parseRequiredHash(raw.expectedDatasetHash);
-  if (!hash.ok) return hash;
-  return { ok: true, value: { expectedDatasetHash: hash.value } };
+  const revision = parseRequiredRevision(raw.expectedRevision);
+  if (!revision.ok) return revision;
+  return { ok: true, value: { expectedRevision: revision.value } };
 }
 
 export function parseEvalRunBody(raw: unknown): Parsed<{

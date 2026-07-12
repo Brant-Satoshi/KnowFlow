@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db/pg";
 import { evalCases, evalDatasets } from "@/lib/db/schema/eval";
 import { hashDataset } from "@/lib/eval/hash";
@@ -35,7 +35,7 @@ export interface EvalDatasetSnapshot {
 export type EvalDatasetWriteResult =
   | { kind: "ok"; dataset: EvalDatasetSummary; cases: EvalCaseRecord[] }
   | { kind: "not_found" }
-  | { kind: "dataset_changed"; currentHash: string }
+  | { kind: "dataset_changed"; currentRevision: number; currentHash: string }
   | { kind: "duplicate_name" }
   | { kind: "case_not_found" }
   | {
@@ -59,6 +59,7 @@ function toSummary(row: DatasetRow): EvalDatasetSummary {
     name: row.name,
     description: row.description,
     datasetHash: row.datasetHash,
+    revision: row.revision,
     caseCount: row.caseCount,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -102,6 +103,42 @@ async function lockDataset(tx: Tx, datasetId: string): Promise<DatasetRow | unde
   return row;
 }
 
+type LockGate =
+  | { ok: true; row: DatasetRow }
+  | {
+      ok: false;
+      failure:
+        | { kind: "not_found" }
+        | { kind: "dataset_changed"; currentRevision: number; currentHash: string };
+    };
+
+/**
+ * Lock the dataset row and verify the caller's optimistic-concurrency token.
+ * `revision` bumps on every write — metadata included — so a rename by one
+ * client makes another client's stale edit/delete fail with 409 instead of
+ * silently overwriting (dataset_hash only covers case content and stays a
+ * pure comparability identity).
+ */
+async function lockDatasetAt(
+  tx: Tx,
+  datasetId: string,
+  expectedRevision: number,
+): Promise<LockGate> {
+  const row = await lockDataset(tx, datasetId);
+  if (!row) return { ok: false, failure: { kind: "not_found" } };
+  if (row.revision !== expectedRevision) {
+    return {
+      ok: false,
+      failure: {
+        kind: "dataset_changed",
+        currentRevision: row.revision,
+        currentHash: row.datasetHash,
+      },
+    };
+  }
+  return { ok: true, row };
+}
+
 async function insertCases(
   tx: Tx,
   datasetId: string,
@@ -120,9 +157,9 @@ async function insertCases(
 
 /**
  * Tail of every successful write: re-read all cases in idx order, recompute
- * dataset_hash and case_count from what is actually stored, write them back,
- * and return the fresh summary + records (the new hash feeds the UI's next
- * `expectedDatasetHash`).
+ * dataset_hash and case_count from what is actually stored, bump the
+ * revision, write everything back, and return the fresh summary + records
+ * (the new revision feeds the UI's next `expectedRevision`).
  */
 async function finalizeDataset(
   tx: Tx,
@@ -132,7 +169,12 @@ async function finalizeDataset(
   const nextHash = hashDataset(rows.map(evalCaseFromColumns));
   const [updated] = await tx
     .update(evalDatasets)
-    .set({ datasetHash: nextHash, caseCount: rows.length, updatedAt: new Date() })
+    .set({
+      datasetHash: nextHash,
+      caseCount: rows.length,
+      revision: sql`${evalDatasets.revision} + 1`,
+      updatedAt: new Date(),
+    })
     .where(eq(evalDatasets.id, datasetId))
     .returning();
   if (!updated) {
@@ -278,15 +320,12 @@ export async function createEvalDataset(input: {
 export async function updateEvalDatasetMeta(
   id: string,
   patch: { name?: string; description?: string | null },
-  expectedDatasetHash: string,
+  expectedRevision: number,
 ): Promise<EvalDatasetWriteResult> {
   try {
     return await db.transaction(async (tx) => {
-      const row = await lockDataset(tx, id);
-      if (!row) return { kind: "not_found" } as const;
-      if (row.datasetHash !== expectedDatasetHash) {
-        return { kind: "dataset_changed", currentHash: row.datasetHash } as const;
-      }
+      const gate = await lockDatasetAt(tx, id, expectedRevision);
+      if (!gate.ok) return gate.failure;
       await tx
         .update(evalDatasets)
         .set({
@@ -306,18 +345,15 @@ export async function updateEvalDatasetMeta(
 /** Cases go with it (FK CASCADE); historical runs keep their snapshot name/hash with dataset_id nulled (FK SET NULL). */
 export async function deleteEvalDataset(
   id: string,
-  expectedDatasetHash: string,
+  expectedRevision: number,
 ): Promise<
   | { kind: "ok" }
   | { kind: "not_found" }
-  | { kind: "dataset_changed"; currentHash: string }
+  | { kind: "dataset_changed"; currentRevision: number; currentHash: string }
 > {
   return db.transaction(async (tx) => {
-    const row = await lockDataset(tx, id);
-    if (!row) return { kind: "not_found" } as const;
-    if (row.datasetHash !== expectedDatasetHash) {
-      return { kind: "dataset_changed", currentHash: row.datasetHash } as const;
-    }
+    const gate = await lockDatasetAt(tx, id, expectedRevision);
+    if (!gate.ok) return gate.failure;
     await tx.delete(evalDatasets).where(eq(evalDatasets.id, id));
     return { kind: "ok" } as const;
   });
@@ -331,14 +367,11 @@ export async function deleteEvalDataset(
 export async function addEvalCases(
   datasetId: string,
   incoming: EvalCase[],
-  expectedDatasetHash: string,
+  expectedRevision: number,
 ): Promise<EvalDatasetWriteResult> {
   return db.transaction(async (tx) => {
-    const row = await lockDataset(tx, datasetId);
-    if (!row) return { kind: "not_found" } as const;
-    if (row.datasetHash !== expectedDatasetHash) {
-      return { kind: "dataset_changed", currentHash: row.datasetHash } as const;
-    }
+    const gate = await lockDatasetAt(tx, datasetId, expectedRevision);
+    if (!gate.ok) return gate.failure;
 
     const existingRows = await readCaseRows(tx, datasetId);
     const counts = {
@@ -371,14 +404,11 @@ export async function updateEvalCase(
   datasetId: string,
   caseId: string,
   next: EvalCase,
-  expectedDatasetHash: string,
+  expectedRevision: number,
 ): Promise<EvalDatasetWriteResult> {
   return db.transaction(async (tx) => {
-    const row = await lockDataset(tx, datasetId);
-    if (!row) return { kind: "not_found" } as const;
-    if (row.datasetHash !== expectedDatasetHash) {
-      return { kind: "dataset_changed", currentHash: row.datasetHash } as const;
-    }
+    const gate = await lockDatasetAt(tx, datasetId, expectedRevision);
+    if (!gate.ok) return gate.failure;
 
     const [target] = await tx
       .select()
@@ -398,7 +428,7 @@ export async function updateEvalCase(
           kind: "case_key_conflict",
           duplicateCaseKeys: [next.id],
           limit: MAX_GOLDSET_CASES,
-          existingCount: row.caseCount,
+          existingCount: gate.row.caseCount,
           incomingCount: 1,
         } as const;
       }
@@ -413,14 +443,11 @@ export async function updateEvalCase(
 export async function deleteEvalCase(
   datasetId: string,
   caseId: string,
-  expectedDatasetHash: string,
+  expectedRevision: number,
 ): Promise<EvalDatasetWriteResult> {
   return db.transaction(async (tx) => {
-    const row = await lockDataset(tx, datasetId);
-    if (!row) return { kind: "not_found" } as const;
-    if (row.datasetHash !== expectedDatasetHash) {
-      return { kind: "dataset_changed", currentHash: row.datasetHash } as const;
-    }
+    const gate = await lockDatasetAt(tx, datasetId, expectedRevision);
+    if (!gate.ok) return gate.failure;
 
     const deleted = await tx
       .delete(evalCases)

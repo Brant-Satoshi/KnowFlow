@@ -177,7 +177,7 @@ conversations   (id uuid PK, knowledge_base_id FK, title, model, created_at, upd
 messages        (id uuid PK, conversation_id FK, role, content, retrieved_chunks jsonb, created_at)
 
 -- eval（lib/db/schema/eval.ts）
-eval_datasets   (id uuid PK, name UNIQUE, description, dataset_hash, case_count, created_at, updated_at)
+eval_datasets   (id uuid PK, name UNIQUE, description, dataset_hash, revision, case_count, created_at, updated_at)
 eval_cases      (id uuid PK, dataset_id FK, case_key, question, expected_keywords jsonb, category, difficulty, target_file_names jsonb, target_chunk_substrings jsonb, expected_answer, notes, idx)
 eval_runs       (id uuid PK, knowledge_base_id FK, dataset_id FK NULL, dataset_name, dataset_hash, mode, use_rerank, total_cases, passed_cases, retrieval_hit_rate, citation_hit_rate, avg_latency_ms, recall_at_k jsonb, precision_at_k jsonb, ndcg_at_k jsonb, mrr, avg_faithfulness, avg_answer_relevance, filter jsonb)
 eval_run_items  (id uuid PK, run_id FK, idx, case_key, question, passed, failure_reasons jsonb, retrieval_hit, citation_hit, latency_ms, retrieved_chunks jsonb, top_k_hits jsonb, answer, expected_answer, graded_hits jsonb, faithfulness, answer_relevance)
@@ -287,7 +287,7 @@ interface RetrievedChunk {
 
 ### 5.3 Eval（`/eval`）
 
-评测集（goldset）**存储在数据库中**，全局归属（不挂 workspace/KB；任何登录用户可管理，跑 eval 仍需 `requireKnowledgeBaseAccess`）。管理面：`GET|POST /api/eval/datasets`、`GET|PATCH|DELETE /api/eval/datasets/[id]`、`POST .../cases`（对象=单条、数组=原子批量导入）、`PATCH|DELETE .../cases/[caseId]`（`[caseId]` 是行 UUID，业务键是 `caseKey`）。除创建外的所有写操作携带 `expectedDatasetHash` 做乐观并发（过期 → 409 `dataset_changed`），每次写在行锁内重算 `dataset_hash` / `case_count`；上限 `MAX_GOLDSET_CASES = 50` 在创建/单条新增/导入三处强制。`pnpm seed:demo` 仅在同名评测集不存在时创建内置的 olympus / olympus-zh（模板在 `lib/eval/dataset.ts`）。见 ADR-011。
+评测集（goldset）**存储在数据库中**，全局归属（不挂 workspace/KB；任何登录用户可管理，跑 eval 仍需 `requireKnowledgeBaseAccess`）。管理面：`GET|POST /api/eval/datasets`、`GET|PATCH|DELETE /api/eval/datasets/[id]`、`POST .../cases`（对象=单条、数组=原子批量导入）、`PATCH|DELETE .../cases/[caseId]`（`[caseId]` 是行 UUID，业务键是 `caseKey`）。除创建外的所有写操作携带 `expectedRevision` 做乐观并发（`revision` 列在每次写——含改名/描述——时 +1，过期 → 409 `dataset_changed`），每次写在行锁内重算 `dataset_hash` / `case_count`（hash 只表示 case 内容、只用于 run 可比性）；上限 `MAX_GOLDSET_CASES = 50` 在创建/单条新增/导入三处强制。`pnpm seed:demo` 仅在同名评测集不存在时创建内置的 olympus / olympus-zh（模板在 `lib/eval/dataset.ts`）。见 ADR-011。
 
 `POST /api/eval/run` 接收 `datasetId`：**一次快照**贯穿整个请求（断言存量 hash 与 cases 一致，不一致 → 500 `dataset_hash_mismatch`），先过两层校验（structural lint + filter 感知的 KB preflight，`lib/eval/validate.ts`），任一 error → 422 `dataset_incompatible` 拒跑；运行期间的编辑/删除不影响本次 run（删除后 run 以 `dataset_id = NULL` 保存，快照 name/hash 保留，孤儿 run 之间按 `dataset_hash` 相等仍可互比——`canCompare`，`lib/eval/goldset.ts`）；`saveRun` 失败整个 API 返回 500。可选叠加 `RetrievalFilter`，**双跑** with/without rerank，同时打分：
 

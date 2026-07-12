@@ -218,8 +218,10 @@ export interface EvalDatasetSummary {
   id: string;
   name: string;
   description: string | null;
-  /** Content hash over the cases (see lib/eval/hash.ts); maintained on every write. */
+  /** Content hash over the cases (see lib/eval/hash.ts) — pure case-content identity, drives run comparability. */
   datasetHash: string;
+  /** Optimistic-concurrency token, bumped on every dataset write (metadata included). */
+  revision: number;
   caseCount: number;
   createdAt: ISODateString;
   updatedAt: ISODateString;

@@ -2,7 +2,7 @@ import { success, error } from '@/lib/api/response';
 import { parseJsonBody, parseUuidParam, withAuth } from '@/lib/api/route';
 import { datasetWriteFailureResponse } from '@/lib/api/eval-datasets';
 import {
-  parseExpectedDatasetHashBody,
+  parseExpectedRevisionBody,
   parseUpdateEvalDatasetBody,
 } from '@/lib/validation';
 import {
@@ -33,8 +33,8 @@ export const PATCH = withAuth('Failed to update eval dataset', async (request, _
     return Response.json(error('invalid_request', { reason: parsed.error }), { status: 400 });
   }
 
-  const { expectedDatasetHash, ...patch } = parsed.value;
-  const result = await updateEvalDatasetMeta(id, patch, expectedDatasetHash);
+  const { expectedRevision, ...patch } = parsed.value;
+  const result = await updateEvalDatasetMeta(id, patch, expectedRevision);
   if (result.kind !== 'ok') return datasetWriteFailureResponse(result);
   return Response.json(success({ dataset: result.dataset, cases: result.cases }));
 });
@@ -47,12 +47,12 @@ export const DELETE = withAuth('Failed to delete eval dataset', async (request, 
 
   const body = await parseJsonBody(request);
   if (body instanceof Response) return body;
-  const parsed = parseExpectedDatasetHashBody(body.raw);
+  const parsed = parseExpectedRevisionBody(body.raw);
   if (!parsed.ok) {
     return Response.json(error('invalid_request', { reason: parsed.error }), { status: 400 });
   }
 
-  const result = await deleteEvalDataset(id, parsed.value.expectedDatasetHash);
+  const result = await deleteEvalDataset(id, parsed.value.expectedRevision);
   if (result.kind !== 'ok') return datasetWriteFailureResponse(result);
   return Response.json(success({ deleted: true }));
 });

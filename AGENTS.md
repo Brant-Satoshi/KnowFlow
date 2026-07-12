@@ -29,7 +29,7 @@ Unit tests run on Node's built-in runner (no extra dependency); `pnpm build` sti
 - `lib/db/` - PostgreSQL database operations
 - `lib/auth/` - Authentication (sessions, users, password, cookies)
 - `lib/authz/` - Workspace access guards (`requireKnowledgeBaseAccess` etc.); all KB-scoped API routes must use them
-- `lib/eval/` - Evaluation validators, runner, and seed templates; goldsets themselves live in the DB via `lib/db/eval-datasets.ts` (global, hash-based optimistic concurrency — see ADR-011)
+- `lib/eval/` - Evaluation validators, runner, and seed templates; goldsets themselves live in the DB via `lib/db/eval-datasets.ts` (global; revision-based optimistic concurrency, dataset_hash = content identity — see ADR-011)
 - `lib/api/` - API response helpers
 - `lib/i18n/` - Translations
 - `lib/telemetry/` - Telemetry

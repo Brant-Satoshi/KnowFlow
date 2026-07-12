@@ -498,7 +498,7 @@ export function DatasetTab({
         return null;
       } catch (err) {
         if (isDatasetChanged(err) && selectedDatasetId) {
-          // Rebase on the winning writer's version so the retry uses a fresh hash.
+          // Rebase on the winning writer's version so the retry uses a fresh revision.
           loadDetail(selectedDatasetId);
           onDatasetsChanged();
         }
@@ -528,7 +528,7 @@ export function DatasetTab({
     if (!detail) return evalT.errOperationFailed;
     return applyWrite(() =>
       httpClient.patch<WriteResponse>(`/api/eval/datasets/${detail.id}`, {
-        expectedDatasetHash: detail.datasetHash,
+        expectedRevision: detail.revision,
         name,
         description,
       }),
@@ -540,7 +540,7 @@ export function DatasetTab({
     setDeleteBusy(true);
     try {
       await httpClient.deleteWithBody(`/api/eval/datasets/${detail.id}`, {
-        expectedDatasetHash: detail.datasetHash,
+        expectedRevision: detail.revision,
       });
       setDeleteDatasetOpen(false);
       setDetail(null);
@@ -561,13 +561,13 @@ export function DatasetTab({
       return applyWrite(() =>
         httpClient.patch<WriteResponse>(
           `/api/eval/datasets/${detail.id}/cases/${editingCase.id}`,
-          { expectedDatasetHash: detail.datasetHash, case: input },
+          { expectedRevision: detail.revision, case: input },
         ),
       );
     }
     return applyWrite(() =>
       httpClient.post<WriteResponse>(`/api/eval/datasets/${detail.id}/cases`, {
-        expectedDatasetHash: detail.datasetHash,
+        expectedRevision: detail.revision,
         cases: input,
       }),
     );
@@ -577,7 +577,7 @@ export function DatasetTab({
     if (!detail) return evalT.errOperationFailed;
     return applyWrite(() =>
       httpClient.post<WriteResponse>(`/api/eval/datasets/${detail.id}/cases`, {
-        expectedDatasetHash: detail.datasetHash,
+        expectedRevision: detail.revision,
         cases,
       }),
     );
@@ -589,7 +589,7 @@ export function DatasetTab({
     const message = await applyWrite(() =>
       httpClient.deleteWithBody<WriteResponse>(
         `/api/eval/datasets/${detail.id}/cases/${deletingCase.id}`,
-        { expectedDatasetHash: detail.datasetHash },
+        { expectedRevision: detail.revision },
       ),
     );
     setDeleteBusy(false);

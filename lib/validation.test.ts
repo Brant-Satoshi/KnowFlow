@@ -6,7 +6,7 @@ import {
   parseEvalCaseInput,
   parseEvalRunBody,
   parseEvalValidateBody,
-  parseExpectedDatasetHashBody,
+  parseExpectedRevisionBody,
   parseUpdateEvalCaseBody,
   parseUpdateEvalDatasetBody,
 } from './validation';
@@ -50,21 +50,24 @@ test('parseEvalCaseInput rejects missing required fields and bad enums', () => {
   assert.equal(parseEvalCaseInput([validCase]).ok, false);
 });
 
-test('parseAddEvalCasesBody: object = single, array = batch, empty array invalid, hash required', () => {
-  const single = parseAddEvalCasesBody({ expectedDatasetHash: 'h', cases: validCase });
+test('parseAddEvalCasesBody: object = single, array = batch, empty array invalid, revision required', () => {
+  const single = parseAddEvalCasesBody({ expectedRevision: 3, cases: validCase });
   assert.ok(single.ok);
   assert.equal(single.value.cases.length, 1);
+  assert.equal(single.value.expectedRevision, 3);
 
   const batch = parseAddEvalCasesBody({
-    expectedDatasetHash: 'h',
+    expectedRevision: 0,
     cases: [validCase, { ...validCase, id: 'case-2' }],
   });
   assert.ok(batch.ok);
   assert.equal(batch.value.cases.length, 2);
 
-  assert.equal(parseAddEvalCasesBody({ expectedDatasetHash: 'h', cases: [] }).ok, false);
+  assert.equal(parseAddEvalCasesBody({ expectedRevision: 1, cases: [] }).ok, false);
   assert.equal(parseAddEvalCasesBody({ cases: validCase }).ok, false);
-  assert.equal(parseAddEvalCasesBody({ expectedDatasetHash: '', cases: validCase }).ok, false);
+  assert.equal(parseAddEvalCasesBody({ expectedRevision: -1, cases: validCase }).ok, false);
+  assert.equal(parseAddEvalCasesBody({ expectedRevision: 1.5, cases: validCase }).ok, false);
+  assert.equal(parseAddEvalCasesBody({ expectedRevision: '1', cases: validCase }).ok, false);
 });
 
 test('parseCreateEvalDatasetBody: name required, cases optional (object or array)', () => {
@@ -83,30 +86,32 @@ test('parseCreateEvalDatasetBody: name required, cases optional (object or array
   assert.equal(parseCreateEvalDatasetBody({ name: 'g', cases: [] }).ok, false);
 });
 
-test('parseUpdateEvalDatasetBody: hash + at least one field; empty description clears to null', () => {
-  const rename = parseUpdateEvalDatasetBody({ expectedDatasetHash: 'h', name: ' New ' });
+test('parseUpdateEvalDatasetBody: revision + at least one field; empty description clears to null', () => {
+  const rename = parseUpdateEvalDatasetBody({ expectedRevision: 2, name: ' New ' });
   assert.ok(rename.ok);
   assert.equal(rename.value.name, 'New');
+  assert.equal(rename.value.expectedRevision, 2);
 
-  const clearDesc = parseUpdateEvalDatasetBody({ expectedDatasetHash: 'h', description: '' });
+  const clearDesc = parseUpdateEvalDatasetBody({ expectedRevision: 2, description: '' });
   assert.ok(clearDesc.ok);
   assert.equal(clearDesc.value.description, null);
 
-  assert.equal(parseUpdateEvalDatasetBody({ expectedDatasetHash: 'h' }).ok, false);
+  assert.equal(parseUpdateEvalDatasetBody({ expectedRevision: 2 }).ok, false);
   assert.equal(parseUpdateEvalDatasetBody({ name: 'x' }).ok, false);
-  assert.equal(parseUpdateEvalDatasetBody({ expectedDatasetHash: 'h', name: '' }).ok, false);
+  assert.equal(parseUpdateEvalDatasetBody({ expectedRevision: 2, name: '' }).ok, false);
 });
 
-test('parseUpdateEvalCaseBody and parseExpectedDatasetHashBody require their pieces', () => {
-  const ok = parseUpdateEvalCaseBody({ expectedDatasetHash: 'h', case: validCase });
+test('parseUpdateEvalCaseBody and parseExpectedRevisionBody require their pieces', () => {
+  const ok = parseUpdateEvalCaseBody({ expectedRevision: 4, case: validCase });
   assert.ok(ok.ok);
   assert.equal(ok.value.case.id, 'case-1');
-  assert.equal(parseUpdateEvalCaseBody({ expectedDatasetHash: 'h' }).ok, false);
+  assert.equal(parseUpdateEvalCaseBody({ expectedRevision: 4 }).ok, false);
   assert.equal(parseUpdateEvalCaseBody({ case: validCase }).ok, false);
 
-  assert.ok(parseExpectedDatasetHashBody({ expectedDatasetHash: 'h' }).ok);
-  assert.equal(parseExpectedDatasetHashBody({}).ok, false);
-  assert.equal(parseExpectedDatasetHashBody(null).ok, false);
+  assert.ok(parseExpectedRevisionBody({ expectedRevision: 0 }).ok);
+  assert.equal(parseExpectedRevisionBody({}).ok, false);
+  assert.equal(parseExpectedRevisionBody(null).ok, false);
+  assert.equal(parseExpectedRevisionBody({ expectedRevision: 'abc' }).ok, false);
 });
 
 test('parseEvalRunBody: requires curated mode and UUID ids; useRerank defaults on', () => {

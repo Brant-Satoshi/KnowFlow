@@ -114,6 +114,7 @@ function mockEvalDatasets(page: Page) {
               name: "olympus",
               description: "mock dataset",
               datasetHash: "hash-mock",
+              revision: 1,
               caseCount: 2,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),

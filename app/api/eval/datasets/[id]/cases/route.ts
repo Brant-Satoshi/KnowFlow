@@ -20,7 +20,7 @@ export const POST = withAuth('Failed to add eval cases', async (request, _user, 
     return Response.json(error('invalid_request', { reason: parsed.error }), { status: 400 });
   }
 
-  const result = await addEvalCases(id, parsed.value.cases, parsed.value.expectedDatasetHash);
+  const result = await addEvalCases(id, parsed.value.cases, parsed.value.expectedRevision);
   if (result.kind !== 'ok') return datasetWriteFailureResponse(result);
   return Response.json(success({ dataset: result.dataset, cases: result.cases }));
 });

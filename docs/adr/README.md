@@ -18,4 +18,4 @@
 | [008](./008.invite-code-collaboration.md) | 可多次使用且会过期的邀请码 | 无邮件基础设施 + 通过操作表达同意 vs 带外 token 处理 |
 | [009](./009.hand-rolled-i18n.md) | 手写带类型的 en/zh 字典 | 编译期检查 key、零依赖 vs 无 ICU/复数能力 |
 | [010](./010.hybrid-search-rrf-gated.md) | 混合检索（RRF 融合向量 + 关键词），默认关闭 | 落地可开关的能力 vs eval 在现有数据集上显示零收益，故不默认打开 |
-| [011](./011.global-goldsets-hash-concurrency.md) | 评测集全局归属 + 内容 hash 乐观并发 | 零新 guard、hash 一体两用（并发 token + 可比性判据） vs 任何登录用户可改任何集、无版本回溯 |
+| [011](./011.global-goldsets-hash-concurrency.md) | 评测集全局归属 + revision 乐观并发（hash 作内容标识） | 并发与可比性各归一字段、零新 guard vs 任何登录用户可改任何集、无版本回溯 |

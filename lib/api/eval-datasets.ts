@@ -5,10 +5,10 @@ type WriteFailure = Exclude<EvalDatasetWriteResult, { kind: 'ok' }>;
 
 /**
  * Maps non-ok dataset write results onto the API's status/message contract:
- * 404 missing resources, 409 name/case_key conflicts, stale
- * `expectedDatasetHash` (`dataset_changed`, data carries the current hash so
- * the client can rebase), and the cap. Conflict payloads follow the import
- * contract: `{ duplicateCaseKeys, limit, existingCount, incomingCount }`.
+ * 404 missing resources, 409 name/case_key conflicts, a stale
+ * `expectedRevision` (`dataset_changed`, data carries the current revision +
+ * hash so the client can rebase), and the cap. Conflict payloads follow the
+ * import contract: `{ duplicateCaseKeys, limit, existingCount, incomingCount }`.
  */
 export function datasetWriteFailureResponse(failure: WriteFailure): Response {
   switch (failure.kind) {
@@ -20,7 +20,10 @@ export function datasetWriteFailureResponse(failure: WriteFailure): Response {
       return Response.json(error('dataset_name_conflict'), { status: 409 });
     case 'dataset_changed':
       return Response.json(
-        error('dataset_changed', { currentHash: failure.currentHash }),
+        error('dataset_changed', {
+          currentRevision: failure.currentRevision,
+          currentHash: failure.currentHash,
+        }),
         { status: 409 },
       );
     case 'case_key_conflict':
