@@ -117,13 +117,65 @@ test('preflight: compatible case produces no issues', () => {
   assert.deepEqual(preflightGoldsetCases([makeCase({})], corpus), []);
 });
 
-test('preflight: file absent from the KB is target_file_missing', () => {
+test('preflight: file absent from the KB is target_file_missing (error when no path remains)', () => {
   const issues = preflightGoldsetCases(
     [makeCase({ targetFileNames: ['ghost.txt'], targetChunkSubstrings: [] })],
     corpus,
   );
   assert.deepEqual(codes(issues), ['target_file_missing']);
   assert.equal(issues[0].value, 'ghost.txt');
+  assert.equal(issues[0].severity, 'error');
+  assert.equal(hasGoldsetErrors(issues), true);
+});
+
+test('preflight: renamed file with a surviving substring stays runnable (gradeChunk mirror)', () => {
+  // gradeChunk scores 3 on the substring regardless of the file name, so the
+  // stale targetFileName must downgrade to a warning instead of blocking.
+  const issues = preflightGoldsetCases(
+    [
+      makeCase({
+        targetFileNames: ['renamed-away.txt'],
+        targetChunkSubstrings: ['Dr. Elena Kovacs'],
+      }),
+    ],
+    corpus,
+  );
+  assert.deepEqual(codes(issues), ['target_file_missing']);
+  assert.equal(issues[0].severity, 'warning');
+  assert.equal(hasGoldsetErrors(issues), false);
+});
+
+test('preflight: one present substring keeps the case runnable despite absent siblings', () => {
+  const issues = preflightGoldsetCases(
+    [
+      makeCase({
+        targetFileNames: [],
+        expectedKeywords: [],
+        targetChunkSubstrings: ['Dr. Elena Kovacs', 'nowhere-to-be-found'],
+        expectedAnswer: undefined,
+      }),
+    ],
+    corpus,
+  );
+  assert.deepEqual(codes(issues), ['substring_not_in_source']);
+  assert.equal(issues[0].severity, 'warning');
+  assert.equal(hasGoldsetErrors(issues), false);
+});
+
+test('preflight: effective file with dead keywords and no substrings has no grade>=2 path — blocks', () => {
+  const issues = preflightGoldsetCases(
+    [
+      makeCase({
+        expectedKeywords: ['zzz-not-in-corpus'],
+        targetChunkSubstrings: [],
+        expectedAnswer: undefined,
+      }),
+    ],
+    corpus,
+  );
+  assert.deepEqual(codes(issues), ['keyword_not_in_source']);
+  assert.equal(issues[0].severity, 'error');
+  assert.equal(hasGoldsetErrors(issues), true);
 });
 
 test('preflight: indexed but chunkless file is not a valid corpus member', () => {
@@ -145,12 +197,16 @@ test('preflight: file excluded by the filter gets its own error code', () => {
   assert.ok(codes(issues).includes('target_file_excluded_by_filter'));
 });
 
-test('preflight: substring must appear in an effective chunk, case-sensitively', () => {
+test('preflight: substring matching is case-sensitive; a live grade-2 path downgrades the miss', () => {
+  // 'dr. elena kovacs' (lowercase) can never fire grade 3, but a.txt +
+  // keyword 'kovacs' keeps grade 2 reachable → warning, not a block.
   const missing = preflightGoldsetCases(
     [makeCase({ targetChunkSubstrings: ['dr. elena kovacs'] })],
     corpus,
   );
-  assert.ok(codes(missing).includes('substring_not_in_source'));
+  assert.deepEqual(codes(missing), ['substring_not_in_source']);
+  assert.equal(missing[0].severity, 'warning');
+  assert.equal(hasGoldsetErrors(missing), false);
 
   const present = preflightGoldsetCases(
     [makeCase({ targetChunkSubstrings: ['Dr. Elena Kovacs'] })],

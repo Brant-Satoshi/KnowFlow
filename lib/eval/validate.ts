@@ -19,7 +19,10 @@ import type { EvalCase, GoldsetIssue, RetrievalFilter } from '@/lib/types';
  * grading signals as `gradeChunk` (lib/eval/relevance.ts) against the KB the
  * run would actually hit. The effective corpus is: files with
  * status='indexed' whose chunks have embeddings, narrowed by the run's
- * RetrievalFilter via the same SQL clauses retrieval uses.
+ * RetrievalFilter via the same SQL clauses retrieval uses. Severity mirrors
+ * grading reachability: a case blocks only when NO grade>=2 path survives
+ * (no present substring and no effective target file with a live keyword);
+ * individually dead targets on a still-reachable case are warnings.
  *
  * A dataset may run against a KB iff neither layer reports an error.
  * Warnings never block.
@@ -107,8 +110,13 @@ export interface KbCorpus {
 /**
  * KB-compatibility preflight (pure core). Match rules mirror `gradeChunk`:
  * substrings are case-sensitive `.includes` against any effective chunk
- * (grade-3 wins file-independently); keywords are case-insensitive against
- * chunks of the case's own effective target files (the grade-2 signal).
+ * (grade-3 wins file-independently — a renamed file with surviving content
+ * still grades), and one effective target file whose chunk carries an
+ * expected keyword suffices for grade 2. A case therefore blocks (error)
+ * only when NO grade>=2 path is reachable; dead individual targets on a
+ * reachable case are downgraded to warnings. (A case with effective files
+ * but an empty keyword list emits no compatibility issue — the structural
+ * `empty_keywords` warning covers that authoring gap.)
  */
 export function preflightGoldsetCases(
   cases: EvalCase[],
@@ -121,32 +129,62 @@ export function preflightGoldsetCases(
     if (isOutOfScope(c)) continue;
     const caseKey = c.id;
 
+    // Classify every declared target first; severities are decided afterwards
+    // from what stays reachable.
+    const missingFiles: string[] = [];
+    const excludedFiles: string[] = [];
     const effectiveTargets = new Set<string>();
     for (const name of c.targetFileNames ?? []) {
       if (!corpus.indexedFileNames.has(name) || !corpus.recallableFileNames.has(name)) {
-        issues.push({ code: 'target_file_missing', severity: 'error', caseKey, value: name });
+        missingFiles.push(name);
       } else if (!effectiveFileNames.has(name)) {
-        issues.push({ code: 'target_file_excluded_by_filter', severity: 'error', caseKey, value: name });
+        excludedFiles.push(name);
       } else {
         effectiveTargets.add(name);
       }
     }
 
+    let substringReachable = false;
+    const absentSubstrings: string[] = [];
     for (const sub of c.targetChunkSubstrings ?? []) {
-      if (sub && !corpus.effectiveChunks.some((ch) => ch.text.includes(sub))) {
-        issues.push({ code: 'substring_not_in_source', severity: 'error', caseKey, value: sub });
+      if (!sub) continue;
+      if (corpus.effectiveChunks.some((ch) => ch.text.includes(sub))) {
+        substringReachable = true; // grade-3 path
+      } else {
+        absentSubstrings.push(sub);
       }
     }
 
+    let keywordReachable = false;
+    const deadKeywords: string[] = [];
     if (effectiveTargets.size > 0) {
       const targetTextsLower = corpus.effectiveChunks
         .filter((ch) => effectiveTargets.has(ch.fileName))
         .map((ch) => ch.text.toLowerCase());
       for (const kw of c.expectedKeywords ?? []) {
-        if (kw && !targetTextsLower.some((t) => t.includes(kw.toLowerCase()))) {
-          issues.push({ code: 'keyword_not_in_source', severity: 'warning', caseKey, value: kw });
+        if (!kw) continue;
+        if (targetTextsLower.some((t) => t.includes(kw.toLowerCase()))) {
+          keywordReachable = true; // grade-2 path
+        } else {
+          deadKeywords.push(kw);
         }
       }
+    }
+
+    const severity: GoldsetIssue['severity'] =
+      substringReachable || keywordReachable ? 'warning' : 'error';
+
+    for (const name of missingFiles) {
+      issues.push({ code: 'target_file_missing', severity, caseKey, value: name });
+    }
+    for (const name of excludedFiles) {
+      issues.push({ code: 'target_file_excluded_by_filter', severity, caseKey, value: name });
+    }
+    for (const sub of absentSubstrings) {
+      issues.push({ code: 'substring_not_in_source', severity, caseKey, value: sub });
+    }
+    for (const kw of deadKeywords) {
+      issues.push({ code: 'keyword_not_in_source', severity, caseKey, value: kw });
     }
   }
 
