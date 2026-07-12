@@ -5,6 +5,9 @@ A Next.js (App Router) RAG chat application — upload documents into a knowledg
 
 **🌐 Choose a language / 选择语言：**
 
+<table>
+<tr>
+<td valign="top">
 <details name="readme-lang">
 <summary><kbd> 🇬🇧 English </kbd></summary>
 
@@ -130,7 +133,8 @@ Dimensions are ANDed; values within a dimension are ORed. Validation lives in `p
 See `CLAUDE.md` for the full set of repo conventions and `Architecture.md` for the design rationale, tradeoffs, and failure-mode strategies. Individual decisions and their tradeoffs are recorded in [`docs/adr/`](./docs/adr/README.md).
 
 </details>
-
+</td>
+<td valign="top">
 <details name="readme-lang">
 <summary><kbd> 🇨🇳 简体中文 </kbd></summary>
 
@@ -258,3 +262,6 @@ hybrid 仍是默认关闭的实验功能：可复现的 `olympus-zh` A/B 显示�
 > 若需独立中文页面：[README.zh-CN.md](./README.zh-CN.md)
 
 </details>
+</td>
+</tr>
+</table>
