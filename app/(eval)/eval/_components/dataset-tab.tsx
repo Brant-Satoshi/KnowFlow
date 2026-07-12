@@ -21,6 +21,8 @@ import {
 } from '@/lib/validation';
 import type { EvalTranslationKeys } from '@/lib/i18n/translations';
 import type {
+  EvalCaseCategory,
+  EvalCaseDifficulty,
   EvalCaseRecord,
   EvalDatasetDetail,
   EvalDatasetSummary,
@@ -69,6 +71,34 @@ function apiErrorMessage(err: unknown, evalT: EvalTranslationKeys): string {
 
 function isDatasetChanged(err: unknown): boolean {
   return err instanceof HttpError && err.message === 'dataset_changed';
+}
+
+/* ───────────────────── enum display labels ───────────────────── */
+
+const CATEGORY_LABEL_KEY: Record<EvalCaseCategory, keyof EvalTranslationKeys> = {
+  single_fact: 'catSingleFact',
+  numeric_fact: 'catNumericFact',
+  list_extraction: 'catListExtraction',
+  synthesis: 'catSynthesis',
+  disambiguation: 'catDisambiguation',
+  out_of_scope: 'catOutOfScope',
+};
+
+const DIFFICULTY_LABEL_KEY: Record<EvalCaseDifficulty, keyof EvalTranslationKeys> = {
+  easy: 'diffEasy',
+  medium: 'diffMedium',
+  hard: 'diffHard',
+};
+
+/** Translated label; falls back to the raw value for out-of-enum legacy rows. */
+function categoryLabel(evalT: EvalTranslationKeys, value: EvalCaseCategory): string {
+  const key = CATEGORY_LABEL_KEY[value];
+  return key ? evalT[key] : value;
+}
+
+function difficultyLabel(evalT: EvalTranslationKeys, value: EvalCaseDifficulty): string {
+  const key = DIFFICULTY_LABEL_KEY[value];
+  return key ? evalT[key] : value;
 }
 
 /* ───────────────────── case form ───────────────────── */
@@ -204,7 +234,7 @@ function CaseFormDialog({
                   className={selectClass}
                 >
                   {EVAL_CASE_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c} value={c}>{categoryLabel(evalT, c)}</option>
                   ))}
                 </select>
               </div>
@@ -217,7 +247,7 @@ function CaseFormDialog({
                   className={selectClass}
                 >
                   {EVAL_CASE_DIFFICULTIES.map((d) => (
-                    <option key={d} value={d}>{d}</option>
+                    <option key={d} value={d}>{difficultyLabel(evalT, d)}</option>
                   ))}
                 </select>
               </div>
@@ -399,7 +429,7 @@ function ImportDialog({
           value={text}
           onChange={(e) => setText(e.target.value)}
           className="font-mono text-[12px]"
-          placeholder='[{"id": "case-1", "question": "…", "category": "single_fact", "difficulty": "easy", "expectedKeywords": ["…"], "targetFileNames": ["…"], "targetChunkSubstrings": ["…"]}]'
+          placeholder={evalT.importPlaceholder}
         />
         {formError && <p className="text-[12.5px] font-sans" style={{ color: BAD }}>{formError}</p>}
         <DialogFooter>
@@ -752,11 +782,11 @@ export function DatasetTab({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-[11px] text-muted-foreground">{c.caseKey}</span>
-                      <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded-md border border-border text-muted-foreground">
-                        {c.category}
+                      <span className="text-[10px] font-sans px-1.5 py-0.5 rounded-md border border-border text-muted-foreground">
+                        {categoryLabel(evalT, c.category)}
                       </span>
-                      <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded-md border border-border text-muted-foreground">
-                        {c.difficulty}
+                      <span className="text-[10px] font-sans px-1.5 py-0.5 rounded-md border border-border text-muted-foreground">
+                        {difficultyLabel(evalT, c.difficulty)}
                       </span>
                     </div>
                     <p className="text-[13px] font-sans text-foreground line-clamp-1 mt-0.5">{c.question}</p>
