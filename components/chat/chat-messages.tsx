@@ -6,6 +6,9 @@ import type { RetrievedChunk } from "@/lib/types"
 import type { AssistantProgress } from "@/lib/hooks/use-chat-stream"
 import { AssistantMessageCard } from "@/components/chat/assistant-message-card"
 
+// Stable fallback so memoized cards don't see a fresh [] identity every render.
+const NO_CHUNKS: RetrievedChunk[] = []
+
 function getUIMessageText(message: UIMessage): string {
   if (!message.parts || !Array.isArray(message.parts)) return ""
   return message.parts
@@ -67,8 +70,8 @@ export function ChatMessages({
             messageId={message.id}
             text={text}
             isStreaming={isStreamingMessage}
-            citations={citationsMap.get(message.id) ?? []}
-            retrievedChunks={retrievedChunksMap.get(message.id) ?? []}
+            citations={citationsMap.get(message.id) ?? NO_CHUNKS}
+            retrievedChunks={retrievedChunksMap.get(message.id) ?? NO_CHUNKS}
             progress={progressMap.get(message.id)}
             onRegenerate={onRegenerate}
             regenerateDisabled={isLoading || isStreaming}
