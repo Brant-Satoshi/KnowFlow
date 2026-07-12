@@ -12,7 +12,7 @@ The doc set describes the code; the code moves; the docs rot. Run this after any
 - **`CLAUDE.md`** (highest value — it steers every future agent session):
   - Route list, table list *and count*, RAG stage numbers/params, SSE event types, env vars, "Adding a table" steps, key file paths. Verify each claim by grepping the code, not from memory.
 - **`AGENTS.md`** — mirror of CLAUDE.md for other agents; keep the module map and rules consistent with CLAUDE.md (they have drifted apart before).
-- **`README.md` / `README.zh-CN.md`** — feature list, setup steps, commands. The two languages must say the same thing; update both or neither.
+- **`README.md` / `README.zh-CN.md`** — feature list, setup steps, commands. The two languages must say the same thing; update both or neither. The full Chinese version is also embedded in a `<details>` block at the top of `README.md` — keep it identical to `README.zh-CN.md` (the three copies move together).
 - **`Architecture.md`** — component diagram prose, data flow, schema description.
 - **`RAG_pipeline.md`** — stage-by-stage pipeline description; must match `lib/rag/retrieve.ts` and the `RETRIEVAL` config values exactly (top-20 / distance 0.6 / topN 8 / top-5 as of writing — re-check, don't copy).
 - **`docs/adr/`** — if the change reverses or extends a recorded decision, update the ADR status or write a new one (`write-adr` skill). Both zh and `en/` copies.
