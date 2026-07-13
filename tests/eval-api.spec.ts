@@ -1,10 +1,25 @@
 /**
- * API-level tests for POST /api/eval/run.
- * These use Playwright's APIRequestContext so no browser is needed.
- * They verify the input validation layer in app/api/eval/run/route.ts
- * without hitting the database or external services.
+ * API-level tests for the eval endpoints (Playwright APIRequestContext, no
+ * browser). Covers the request-validation layer of POST /api/eval/run and the
+ * managed-dataset CRUD semantics (optimistic concurrency, atomic import,
+ * cap). None of these hit OpenRouter — runs are never actually started.
  */
 import { test, expect } from "@playwright/test"
+
+const VALID_UUID = "550e8400-e29b-41d4-a716-446655440000"
+
+function makeCase(id: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id,
+    question: `What does the corpus say about ${id}?`,
+    expectedKeywords: ["kovacs"],
+    category: "single_fact",
+    difficulty: "easy",
+    targetFileNames: ["sample.txt"],
+    targetChunkSubstrings: [],
+    ...overrides,
+  }
+}
 
 test.describe("POST /api/eval/run — request validation", () => {
   test("returns 400 when body is empty JSON object", async ({ request }) => {
@@ -28,7 +43,7 @@ test.describe("POST /api/eval/run — request validation", () => {
     request,
   }) => {
     const res = await request.post("/api/eval/run", {
-      data: { knowledgeBaseId: "not-a-uuid" },
+      data: { knowledgeBaseId: "not-a-uuid", datasetId: VALID_UUID, mode: "curated" },
     })
     expect(res.status()).toBe(400)
     const json = await res.json()
@@ -39,7 +54,7 @@ test.describe("POST /api/eval/run — request validation", () => {
     request,
   }) => {
     const res = await request.post("/api/eval/run", {
-      data: { knowledgeBaseId: "" },
+      data: { knowledgeBaseId: "", datasetId: VALID_UUID, mode: "curated" },
     })
     expect(res.status()).toBe(400)
     const json = await res.json()
@@ -48,7 +63,7 @@ test.describe("POST /api/eval/run — request validation", () => {
 
   test("returns 400 when knowledgeBaseId is a number", async ({ request }) => {
     const res = await request.post("/api/eval/run", {
-      data: { knowledgeBaseId: 12345 },
+      data: { knowledgeBaseId: 12345, datasetId: VALID_UUID, mode: "curated" },
     })
     expect(res.status()).toBe(400)
     const json = await res.json()
@@ -70,7 +85,7 @@ test.describe("POST /api/eval/run — request validation", () => {
   test("returns 400 when body is a JSON array", async ({ request }) => {
     const res = await request.post("/api/eval/run", {
       headers: { "Content-Type": "application/json" },
-      data: JSON.stringify([{ knowledgeBaseId: "550e8400-e29b-41d4-a716-446655440000" }]),
+      data: JSON.stringify([{ knowledgeBaseId: VALID_UUID }]),
     })
     expect(res.status()).toBe(400)
     const json = await res.json()
@@ -97,8 +112,8 @@ test.describe("POST /api/eval/run — request validation", () => {
 
 test.describe("POST /api/eval/run — curated mode validation", () => {
   // Must be a real KB the signed-in e2e user can access: the route runs
-  // requireKnowledgeBaseAccess before mode/dataset validation and returns 404
-  // for unknown ids, so a hardcoded UUID would never reach the branches
+  // requireKnowledgeBaseAccess before the dataset lookup and returns 404 for
+  // unknown KB ids, so a hardcoded UUID would never reach the branches
   // asserted below.
   let validKbId: string
 
@@ -115,7 +130,7 @@ test.describe("POST /api/eval/run — curated mode validation", () => {
     if (validKbId) await request.delete(`/api/knowledge-bases/${validKbId}`)
   })
 
-  test("curated mode with missing datasetName returns 400", async ({ request }) => {
+  test("curated mode with missing datasetId returns 400", async ({ request }) => {
     const res = await request.post("/api/eval/run", {
       data: { knowledgeBaseId: validKbId, mode: "curated" },
     })
@@ -124,41 +139,32 @@ test.describe("POST /api/eval/run — curated mode validation", () => {
     expect(json.ok).toBe(false)
   })
 
-  test("curated mode with empty datasetName returns 400", async ({ request }) => {
+  test("curated mode with non-UUID datasetId returns 400", async ({ request }) => {
     const res = await request.post("/api/eval/run", {
-      data: { knowledgeBaseId: validKbId, mode: "curated", datasetName: "" },
+      data: { knowledgeBaseId: validKbId, mode: "curated", datasetId: "not-a-uuid" },
     })
     expect(res.status()).toBe(400)
     const json = await res.json()
     expect(json.ok).toBe(false)
   })
 
-  test("curated mode with unknown datasetName returns 400 unknown_dataset", async ({ request }) => {
+  test("curated mode with an unknown datasetId returns 404 dataset_not_found", async ({ request }) => {
     const res = await request.post("/api/eval/run", {
       data: {
         knowledgeBaseId: validKbId,
         mode: "curated",
-        datasetName: "does-not-exist",
+        datasetId: "00000000-0000-4000-8000-0000000000ff",
       },
     })
-    expect(res.status()).toBe(400)
+    expect(res.status()).toBe(404)
     const json = await res.json()
     expect(json.ok).toBe(false)
-    expect(json.error).toBe("unknown_dataset")
-  })
-
-  test("curated mode still validates knowledgeBaseId first", async ({ request }) => {
-    const res = await request.post("/api/eval/run", {
-      data: { knowledgeBaseId: "not-a-uuid", mode: "curated", datasetName: "olympus" },
-    })
-    expect(res.status()).toBe(400)
-    const json = await res.json()
-    expect(json.ok).toBe(false)
+    expect(json.error).toBe("dataset_not_found")
   })
 
   test("unknown mode value returns 400", async ({ request }) => {
     const res = await request.post("/api/eval/run", {
-      data: { knowledgeBaseId: validKbId, mode: "bogus", datasetName: "olympus" },
+      data: { knowledgeBaseId: validKbId, mode: "bogus", datasetId: VALID_UUID },
     })
     expect(res.status()).toBe(400)
     const json = await res.json()
@@ -166,13 +172,236 @@ test.describe("POST /api/eval/run — curated mode validation", () => {
     expect(json.error).toBe("invalid_request")
   })
 
-  test("missing mode returns 400 even with a datasetName", async ({ request }) => {
+  test("missing mode returns 400 even with a datasetId", async ({ request }) => {
     const res = await request.post("/api/eval/run", {
-      data: { knowledgeBaseId: validKbId, datasetName: "olympus" },
+      data: { knowledgeBaseId: validKbId, datasetId: VALID_UUID },
     })
     expect(res.status()).toBe(400)
     const json = await res.json()
     expect(json.ok).toBe(false)
     expect(json.error).toBe("invalid_request")
+  })
+})
+
+test.describe("eval datasets API — CRUD, atomic import, optimistic concurrency", () => {
+  test("lifecycle: create, add, conflict, stale-revision 409, edit, delete", async ({ request }) => {
+    const name = `Goldset Spec ${Date.now()}`
+
+    // create (no expectedRevision on creation)
+    let res = await request.post("/api/eval/datasets", {
+      data: { name, description: "spec dataset" },
+    })
+    expect(res.status()).toBe(200)
+    let json = await res.json()
+    expect(json.ok).toBe(true)
+    const datasetId: string = json.data.dataset.id
+    const emptyHash: string = json.data.dataset.datasetHash
+    const revisionAtCreate: number = json.data.dataset.revision
+    expect(json.data.dataset.caseCount).toBe(0)
+
+    try {
+      // duplicate name → 409
+      res = await request.post("/api/eval/datasets", { data: { name } })
+      expect(res.status()).toBe(409)
+      json = await res.json()
+      expect(json.error).toBe("dataset_name_conflict")
+
+      // single add (object form) — response carries the new revision and hash
+      res = await request.post(`/api/eval/datasets/${datasetId}/cases`, {
+        data: { expectedRevision: revisionAtCreate, cases: makeCase("case-a") },
+      })
+      expect(res.status()).toBe(200)
+      json = await res.json()
+      expect(json.data.dataset.caseCount).toBe(1)
+      const hashAfterA: string = json.data.dataset.datasetHash
+      const revisionAfterA: number = json.data.dataset.revision
+      expect(hashAfterA).not.toBe(emptyHash)
+      expect(revisionAfterA).toBeGreaterThan(revisionAtCreate)
+      const caseAUuid: string = json.data.cases[0].id
+      expect(json.data.cases[0].caseKey).toBe("case-a")
+
+      // concurrent editor with the stale (pre-add) revision → 409 dataset_changed
+      res = await request.post(`/api/eval/datasets/${datasetId}/cases`, {
+        data: { expectedRevision: revisionAtCreate, cases: makeCase("case-b") },
+      })
+      expect(res.status()).toBe(409)
+      json = await res.json()
+      expect(json.error).toBe("dataset_changed")
+      expect(json.data.currentRevision).toBe(revisionAfterA)
+      expect(json.data.currentHash).toBe(hashAfterA)
+
+      // batch with an in-batch duplicate id → whole batch rejected, nothing written
+      res = await request.post(`/api/eval/datasets/${datasetId}/cases`, {
+        data: {
+          expectedRevision: revisionAfterA,
+          cases: [makeCase("case-dup"), makeCase("case-dup")],
+        },
+      })
+      expect(res.status()).toBe(409)
+      json = await res.json()
+      expect(json.error).toBe("duplicate_case_keys")
+      expect(json.data.duplicateCaseKeys).toEqual(["case-dup"])
+
+      // batch conflicting with a stored case_key → whole batch rejected
+      res = await request.post(`/api/eval/datasets/${datasetId}/cases`, {
+        data: {
+          expectedRevision: revisionAfterA,
+          cases: [makeCase("case-a"), makeCase("case-c")],
+        },
+      })
+      expect(res.status()).toBe(409)
+      json = await res.json()
+      expect(json.error).toBe("duplicate_case_keys")
+      expect(json.data.duplicateCaseKeys).toEqual(["case-a"])
+
+      // nothing was written by the two rejected batches
+      res = await request.get(`/api/eval/datasets/${datasetId}`)
+      json = await res.json()
+      expect(json.data.dataset.caseCount).toBe(1)
+      expect(json.data.dataset.datasetHash).toBe(hashAfterA)
+      expect(json.data.dataset.revision).toBe(revisionAfterA)
+
+      // edit the case (full replacement, business key rename)
+      res = await request.patch(`/api/eval/datasets/${datasetId}/cases/${caseAUuid}`, {
+        data: {
+          expectedRevision: revisionAfterA,
+          case: makeCase("case-a-renamed", { question: "Renamed question?" }),
+        },
+      })
+      expect(res.status()).toBe(200)
+      json = await res.json()
+      const revisionAfterEdit: number = json.data.dataset.revision
+      expect(json.data.dataset.datasetHash).not.toBe(hashAfterA)
+      expect(json.data.cases[0].caseKey).toBe("case-a-renamed")
+
+      // delete the case; idx compaction leaves an empty set
+      res = await request.fetch(`/api/eval/datasets/${datasetId}/cases/${caseAUuid}`, {
+        method: "DELETE",
+        data: { expectedRevision: revisionAfterEdit },
+      })
+      expect(res.status()).toBe(200)
+      json = await res.json()
+      expect(json.data.dataset.caseCount).toBe(0)
+
+      // delete the dataset with its current revision
+      const finalRevision: number = json.data.dataset.revision
+      res = await request.fetch(`/api/eval/datasets/${datasetId}`, {
+        method: "DELETE",
+        data: { expectedRevision: finalRevision },
+      })
+      expect(res.status()).toBe(200)
+
+      res = await request.get(`/api/eval/datasets/${datasetId}`)
+      expect(res.status()).toBe(404)
+    } finally {
+      // best-effort cleanup if an assertion aborted the flow above
+      const detail = await request.get(`/api/eval/datasets/${datasetId}`)
+      if (detail.ok()) {
+        const body = await detail.json()
+        await request.fetch(`/api/eval/datasets/${datasetId}`, {
+          method: "DELETE",
+          data: { expectedRevision: body.data.dataset.revision },
+        })
+      }
+    }
+  })
+
+  test("metadata writes are concurrency-protected: stale rename/delete → 409", async ({ request }) => {
+    // Renames don't change dataset_hash, so the revision token must catch
+    // conflicting metadata writes and stale deletes (review fix, PR #45).
+    const name = `Goldset Meta Spec ${Date.now()}`
+    let res = await request.post("/api/eval/datasets", { data: { name } })
+    expect(res.status()).toBe(200)
+    let json = await res.json()
+    const datasetId: string = json.data.dataset.id
+    const revision0: number = json.data.dataset.revision
+    const hash0: string = json.data.dataset.datasetHash
+
+    try {
+      // client A renames — hash stays identical, revision bumps
+      res = await request.patch(`/api/eval/datasets/${datasetId}`, {
+        data: { expectedRevision: revision0, name: `${name} renamed-by-A` },
+      })
+      expect(res.status()).toBe(200)
+      json = await res.json()
+      const revision1: number = json.data.dataset.revision
+      expect(json.data.dataset.datasetHash).toBe(hash0)
+      expect(revision1).toBeGreaterThan(revision0)
+
+      // client B holds the stale revision: its rename must NOT silently win
+      res = await request.patch(`/api/eval/datasets/${datasetId}`, {
+        data: { expectedRevision: revision0, name: `${name} renamed-by-B` },
+      })
+      expect(res.status()).toBe(409)
+      json = await res.json()
+      expect(json.error).toBe("dataset_changed")
+      expect(json.data.currentRevision).toBe(revision1)
+
+      // stale delete is rejected too
+      res = await request.fetch(`/api/eval/datasets/${datasetId}`, {
+        method: "DELETE",
+        data: { expectedRevision: revision0 },
+      })
+      expect(res.status()).toBe(409)
+
+      // fresh delete succeeds
+      res = await request.fetch(`/api/eval/datasets/${datasetId}`, {
+        method: "DELETE",
+        data: { expectedRevision: revision1 },
+      })
+      expect(res.status()).toBe(200)
+    } finally {
+      const detail = await request.get(`/api/eval/datasets/${datasetId}`)
+      if (detail.ok()) {
+        const body = await detail.json()
+        await request.fetch(`/api/eval/datasets/${datasetId}`, {
+          method: "DELETE",
+          data: { expectedRevision: body.data.dataset.revision },
+        })
+      }
+    }
+  })
+
+  test("cap: the 50th case is allowed, the 51st single add is rejected", async ({ request }) => {
+    const name = `Goldset Cap Spec ${Date.now()}`
+    const initial = Array.from({ length: 49 }, (_, i) => makeCase(`case-${i}`))
+
+    let res = await request.post("/api/eval/datasets", {
+      data: { name, cases: initial },
+    })
+    expect(res.status()).toBe(200)
+    let json = await res.json()
+    const datasetId: string = json.data.dataset.id
+    let revision: number = json.data.dataset.revision
+    expect(json.data.dataset.caseCount).toBe(49)
+
+    try {
+      // 50th case: allowed
+      res = await request.post(`/api/eval/datasets/${datasetId}/cases`, {
+        data: { expectedRevision: revision, cases: makeCase("case-49") },
+      })
+      expect(res.status()).toBe(200)
+      json = await res.json()
+      expect(json.data.dataset.caseCount).toBe(50)
+      revision = json.data.dataset.revision
+
+      // 51st case: single add rejected with the structured cap payload
+      res = await request.post(`/api/eval/datasets/${datasetId}/cases`, {
+        data: { expectedRevision: revision, cases: makeCase("case-50") },
+      })
+      expect(res.status()).toBe(409)
+      json = await res.json()
+      expect(json.error).toBe("goldset_limit_exceeded")
+      expect(json.data).toMatchObject({ limit: 50, existingCount: 50, incomingCount: 1 })
+    } finally {
+      const detail = await request.get(`/api/eval/datasets/${datasetId}`)
+      if (detail.ok()) {
+        const body = await detail.json()
+        await request.fetch(`/api/eval/datasets/${datasetId}`, {
+          method: "DELETE",
+          data: { expectedRevision: body.data.dataset.revision },
+        })
+      }
+    }
   })
 })

@@ -62,3 +62,22 @@ export async function parseUuidParam(
   }
   return value;
 }
+
+/**
+ * Reads the request body as JSON; returns a ready 400 `Response` on syntax
+ * errors (same convention as `parseUuidParam`). Shape validation stays in the
+ * per-endpoint parsers in `lib/validation.ts`.
+ *
+ *   const body = await parseJsonBody(req);
+ *   if (body instanceof Response) return body;
+ *   const parsed = parseSomeBody(body.raw);
+ */
+export async function parseJsonBody(
+  req: NextRequest,
+): Promise<{ raw: unknown } | Response> {
+  try {
+    return { raw: await req.json() };
+  } catch {
+    return Response.json(error('invalid_request'), { status: 400 });
+  }
+}

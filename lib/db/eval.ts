@@ -1,9 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/pg";
-import { evalRuns, evalRunItems } from "@/lib/db/schema/eval";
-import { evalCases, evalDatasets } from "@/lib/db/schema/eval";
-import type { EvalCase, EvalRunResult, RetrievalFilter } from "@/lib/types";
-import { hashDataset } from "../eval/hash";
+import { evalRuns, evalRunItems, evalDatasets } from "@/lib/db/schema/eval";
+import type { EvalRunResult, RetrievalFilter } from "@/lib/types";
 
 export type SaveRunOptions = {
   datasetId?: string | null;
@@ -11,95 +9,6 @@ export type SaveRunOptions = {
   useRerank: boolean;
   filter?: RetrievalFilter;
 };
-
-export async function ensureDataset(
-  name: string,
-  description: string | undefined,
-  cases: EvalCase[],
-): Promise<string> {
-  const datasetHash = hashDataset(cases);
-
-  return db.transaction(async (tx) => {
-    const [existing] = await tx
-      .select({
-        id: evalDatasets.id,
-        datasetHash: evalDatasets.datasetHash,
-      })
-      .from(evalDatasets)
-      .where(eq(evalDatasets.name, name))
-      .limit(1);
-
-    if (!existing) {
-      const [created] = await tx
-        .insert(evalDatasets)
-        .values({
-          name,
-          description,
-          datasetHash,
-          caseCount: cases.length,
-        })
-        .returning({
-          id: evalDatasets.id,
-        });
-
-      if (!created) {
-        throw new Error("Failed to create eval dataset");
-      }
-
-      await insertEvalCases(tx, created.id, cases);
-
-      return created.id;
-    }
-
-    if (existing.datasetHash !== datasetHash) {
-      await tx
-        .update(evalDatasets)
-        .set({
-          description,
-          datasetHash,
-          caseCount: cases.length,
-          updatedAt: new Date(),
-        })
-        .where(eq(evalDatasets.id, existing.id));
-
-      await tx
-        .delete(evalCases)
-        .where(eq(evalCases.datasetId, existing.id));
-
-      await insertEvalCases(tx, existing.id, cases);
-    }
-
-    return existing.id;
-  });
-}
-
-async function insertEvalCases(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  datasetId: string,
-  cases: EvalCase[],
-): Promise<void> {
-  if (cases.length === 0) return;
-
-  await tx.insert(evalCases).values(
-    cases.map((item, index) => ({
-      datasetId,
-      caseKey: item.id,
-      question: item.question,
-
-      expectedKeywords: item.expectedKeywords ?? [],
-      category: item.category,
-      difficulty: item.difficulty,
-
-      targetFileNames: item.targetFileNames ?? [],
-      targetChunkSubstrings: item.targetChunkSubstrings ?? [],
-
-      expectedAnswer: item.expectedAnswer ?? null,
-      notes: item.notes ?? null,
-
-      idx: index,
-    })),
-  );
-}
 
 export type EvalRunRow = typeof evalRuns.$inferSelect;
 export type EvalRunItemRow = typeof evalRunItems.$inferSelect;
@@ -142,15 +51,77 @@ export async function getRunById(
   return { ...run, items };
 }
 
+type ErrorWithCause = { code?: unknown; constraint?: unknown; cause?: unknown };
+
+/**
+ * FK violation (23503) attributable to eval_runs.dataset_id. Some driver
+ * wrappers drop `constraint`; that shape is accepted because the retry is
+ * bounded to one attempt — if the real violation was the KB FK, the retry
+ * fails identically and the error propagates.
+ */
+function isDatasetFkViolation(error: unknown): boolean {
+  const seen = new Set<object>();
+  let current = error;
+  for (let depth = 0; depth < 6 && current && typeof current === "object"; depth += 1) {
+    if (seen.has(current)) return false;
+    seen.add(current);
+    const candidate = current as ErrorWithCause;
+    if (
+      candidate.code === "23503" &&
+      (candidate.constraint === undefined ||
+        (typeof candidate.constraint === "string" &&
+          candidate.constraint.includes("dataset_id")))
+    ) {
+      return true;
+    }
+    current = candidate.cause;
+  }
+  return false;
+}
+
+/**
+ * Persist a run. `dataset_name`/`dataset_hash` always come from the caller's
+ * execution snapshot; if the dataset was deleted while the run executed, the
+ * run is still saved with `dataset_id = NULL` (an orphan that stays hash-
+ * comparable). Persistence failures propagate — callers must surface them,
+ * never report success.
+ */
 export async function saveRun(
   result: EvalRunResult,
   opts: SaveRunOptions,
 ): Promise<void> {
+  try {
+    await insertRun(result, opts, opts.datasetId ?? null);
+  } catch (e) {
+    // Dataset deleted between the in-transaction existence check and commit.
+    if (opts.datasetId && isDatasetFkViolation(e)) {
+      await insertRun(result, opts, null);
+      return;
+    }
+    throw e;
+  }
+}
+
+async function insertRun(
+  result: EvalRunResult,
+  opts: SaveRunOptions,
+  datasetIdInput: string | null,
+): Promise<void> {
   await db.transaction(async (tx) => {
+    let datasetId = datasetIdInput;
+    if (datasetId) {
+      const [ds] = await tx
+        .select({ id: evalDatasets.id })
+        .from(evalDatasets)
+        .where(eq(evalDatasets.id, datasetId))
+        .limit(1);
+      if (!ds) datasetId = null;
+    }
+
     await tx.insert(evalRuns).values({
       id: result.runId,
       knowledgeBaseId: result.knowledgeBaseId,
-      datasetId: opts.datasetId ?? null,
+      datasetId,
       datasetName: opts.datasetName ?? null,
       datasetHash: result.datasetHash ?? null,
       mode: result.mode ?? "curated",

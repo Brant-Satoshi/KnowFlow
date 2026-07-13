@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test"
 
 const MOCK_KB_ID = "550e8400-e29b-41d4-a716-446655440000"
 const MOCK_KB_NAME = "Test Knowledge Base"
+const MOCK_DATASET_ID = "550e8400-e29b-41d4-a716-446655440111"
 
 function makeEvalRunResult(knowledgeBaseId: string, runId: string) {
   return {
@@ -93,6 +94,38 @@ function mockKnowledgeBases(page: Page, kbs: { id: string; name: string }[]) {
   )
 }
 
+/**
+ * The page loads the managed dataset list on mount and auto-selects the first
+ * entry — the run button can only enable once a dataset is selected, so every
+ * test mocks this endpoint to stay hermetic.
+ */
+function mockEvalDatasets(page: Page) {
+  return page.route("**/api/eval/datasets", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        requestId: "req-mock-datasets",
+        ok: true,
+        data: {
+          datasets: [
+            {
+              id: MOCK_DATASET_ID,
+              name: "olympus",
+              description: "mock dataset",
+              datasetHash: "hash-mock",
+              revision: 1,
+              caseCount: 2,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ],
+        },
+      }),
+    })
+  )
+}
+
 function mockEvalRun(
   page: Page,
   response: { status: number; body: object }
@@ -140,6 +173,7 @@ async function runMockedEval(page: Page) {
 test.describe("/eval page — layout and initial state", () => {
   test("renders the dashboard topbar and sidebar", async ({ page }) => {
     await mockKnowledgeBases(page, [])
+    await mockEvalDatasets(page)
     await page.goto("/eval")
 
     // The page is a tabbed dashboard now (no <h1>): topbar shows the active
@@ -153,6 +187,7 @@ test.describe("/eval page — layout and initial state", () => {
     page,
   }) => {
     await mockKnowledgeBases(page, [])
+    await mockEvalDatasets(page)
     await page.goto("/eval")
 
     // With an empty KB list the selector is not rendered at all and the run
@@ -167,6 +202,7 @@ test.describe("/eval page — layout and initial state", () => {
     await mockKnowledgeBases(page, [
       { id: MOCK_KB_ID, name: MOCK_KB_NAME },
     ])
+    await mockEvalDatasets(page)
     await page.goto("/eval")
 
     // The select exists; nothing chosen yet (placeholder selected)
@@ -180,12 +216,14 @@ test.describe("/eval page — layout and initial state", () => {
     await mockKnowledgeBases(page, [
       { id: MOCK_KB_ID, name: MOCK_KB_NAME },
     ])
+    await mockEvalDatasets(page)
     await page.goto("/eval")
 
     await page
       .getByRole("combobox", { name: /select knowledge base/i })
       .selectOption({ value: MOCK_KB_ID })
 
+    // The first dataset is auto-selected, so KB selection completes the gate.
     const runBtn = page.getByRole("button", { name: /run evaluation/i })
     await expect(runBtn).toBeEnabled()
   })
@@ -194,6 +232,7 @@ test.describe("/eval page — layout and initial state", () => {
     await mockKnowledgeBases(page, [
       { id: MOCK_KB_ID, name: MOCK_KB_NAME },
     ])
+    await mockEvalDatasets(page)
     await mockEvalHistory(page)
     await mockKbFiles(page)
     await page.goto("/eval")
@@ -209,6 +248,7 @@ test.describe("/eval page — running evaluation", () => {
     await mockKnowledgeBases(page, [
       { id: MOCK_KB_ID, name: MOCK_KB_NAME },
     ])
+    await mockEvalDatasets(page)
 
     // Delay the eval response so we can observe the loading state
     await page.route("/api/eval/run", async (route) => {
@@ -219,11 +259,7 @@ test.describe("/eval page — running evaluation", () => {
         body: JSON.stringify({
           requestId: "req-slow",
           ok: true,
-          data: {
-            knowledgeBaseId: MOCK_KB_ID,
-            withRerank: makeEvalRunResult(MOCK_KB_ID, "run-a"),
-            withoutRerank: makeEvalRunResult(MOCK_KB_ID, "run-b"),
-          },
+          data: makeEvalRunResult(MOCK_KB_ID, "run-a"),
         }),
       })
     })
@@ -244,6 +280,7 @@ test.describe("/eval page — running evaluation", () => {
     await mockKnowledgeBases(page, [
       { id: MOCK_KB_ID, name: MOCK_KB_NAME },
     ])
+    await mockEvalDatasets(page)
     await mockEvalHistory(page)
     await mockKbFiles(page)
     await mockEvalRun(page, {
@@ -266,6 +303,7 @@ test.describe("/eval page — running evaluation", () => {
     await mockKnowledgeBases(page, [
       { id: MOCK_KB_ID, name: MOCK_KB_NAME },
     ])
+    await mockEvalDatasets(page)
     await mockEvalHistory(page)
     await mockKbFiles(page)
     await mockEvalRun(page, {
@@ -297,6 +335,7 @@ test.describe("/eval page — running evaluation", () => {
     await mockKnowledgeBases(page, [
       { id: MOCK_KB_ID, name: MOCK_KB_NAME },
     ])
+    await mockEvalDatasets(page)
     await mockEvalHistory(page)
     await mockKbFiles(page)
     await mockEvalRun(page, {
@@ -324,18 +363,34 @@ test.describe("/eval page — running evaluation", () => {
 })
 
 test.describe("/eval page — error handling", () => {
-  test("shows 'no indexed documents' error for eval_no_chunks", async ({
+  test("shows the run-blocked banner with issues on a 422", async ({
     page,
   }) => {
     await mockKnowledgeBases(page, [
       { id: MOCK_KB_ID, name: MOCK_KB_NAME },
     ])
+    await mockEvalDatasets(page)
     await mockEvalRun(page, {
       status: 422,
       body: {
         requestId: "req-err",
         ok: false,
-        error: "eval_no_chunks",
+        error: "dataset_incompatible",
+        data: {
+          datasetId: MOCK_DATASET_ID,
+          knowledgeBaseId: MOCK_KB_ID,
+          issues: {
+            structural: [],
+            compatibility: [
+              {
+                code: "target_file_missing",
+                severity: "error",
+                caseKey: "case-1",
+                value: "sample.txt",
+              },
+            ],
+          },
+        },
       },
     })
 
@@ -345,9 +400,8 @@ test.describe("/eval page — error handling", () => {
       .selectOption({ value: MOCK_KB_ID })
     await page.getByRole("button", { name: /run evaluation/i }).click()
 
-    await expect(
-      page.getByText(/no indexed documents/i)
-    ).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/run blocked/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(/sample\.txt/).first()).toBeVisible()
   })
 
   test("shows generic error message for unexpected API failures", async ({
@@ -356,6 +410,7 @@ test.describe("/eval page — error handling", () => {
     await mockKnowledgeBases(page, [
       { id: MOCK_KB_ID, name: MOCK_KB_NAME },
     ])
+    await mockEvalDatasets(page)
     await mockEvalRun(page, {
       status: 500,
       body: {
@@ -380,6 +435,7 @@ test.describe("/eval page — error handling", () => {
     await mockKnowledgeBases(page, [
       { id: MOCK_KB_ID, name: MOCK_KB_NAME },
     ])
+    await mockEvalDatasets(page)
     await mockEvalRun(page, {
       status: 500,
       body: { requestId: "req-err", ok: false, error: "eval_failed" },

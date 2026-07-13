@@ -11,8 +11,8 @@ pnpm build        # production build and type-check
 pnpm lint         # run ESLint
 pnpm test:e2e     # Playwright end-to-end tests
 pnpm test:unit    # node:test via tsx (lib/**/*.test.ts)
-pnpm seed:demo    # idempotent demo login + indexed bilingual KB
-pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>  # vector vs hybrid A/B
+pnpm seed:demo    # idempotent demo login + indexed bilingual KB + built-in eval datasets
+pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset-id=<uuid>  # vector vs hybrid A/B
 ```
 
 Unit tests run on Node's built-in runner (no extra dependency); `pnpm build` still catches type errors project-wide.
@@ -29,7 +29,7 @@ Unit tests run on Node's built-in runner (no extra dependency); `pnpm build` sti
 - `lib/db/` - PostgreSQL database operations
 - `lib/auth/` - Authentication (sessions, users, password, cookies)
 - `lib/authz/` - Workspace access guards (`requireKnowledgeBaseAccess` etc.); all KB-scoped API routes must use them
-- `lib/eval/` - Evaluation datasets and run logic
+- `lib/eval/` - Evaluation validators, runner, and seed templates; goldsets themselves live in the DB via `lib/db/eval-datasets.ts` (global; revision-based optimistic concurrency, dataset_hash = content identity — see ADR-011)
 - `lib/api/` - API response helpers
 - `lib/i18n/` - Translations
 - `lib/telemetry/` - Telemetry

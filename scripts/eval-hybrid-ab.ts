@@ -1,5 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import { config } from 'dotenv';
+import { isValidUuid } from '@/lib/validation';
 import type { EvalCase } from '@/lib/types';
 
 type RecallMode = 'vector' | 'hybrid';
@@ -7,7 +8,7 @@ type RerankSetting = 'on' | 'off';
 
 interface CliOptions {
   knowledgeBaseId: string;
-  datasetName: string;
+  datasetId: string;
   repetitions: number;
   rerank: RerankSetting;
 }
@@ -45,6 +46,13 @@ function parseOptions(): CliOptions {
     );
   }
 
+  const datasetId = readFlag('dataset-id');
+  if (!datasetId || !isValidUuid(datasetId)) {
+    throw new Error(
+      'Missing --dataset-id=<uuid>. Datasets live in the database now — manage them on /eval or seed the built-ins with `pnpm seed:demo`.',
+    );
+  }
+
   const repetitionsRaw = readFlag('repetitions') ?? '1';
   const repetitions = Number.parseInt(repetitionsRaw, 10);
   if (!Number.isInteger(repetitions) || repetitions < 1 || repetitions > 20) {
@@ -58,7 +66,7 @@ function parseOptions(): CliOptions {
 
   return {
     knowledgeBaseId,
-    datasetName: readFlag('dataset') ?? 'olympus-zh',
+    datasetId,
     repetitions,
     rerank,
   };
@@ -101,7 +109,11 @@ function formatNumber(value: number): string {
   return value.toFixed(3);
 }
 
-function printReport(options: CliOptions, summaries: Record<RecallMode, ModeSummary>): void {
+function printReport(
+  options: CliOptions,
+  datasetName: string,
+  summaries: Record<RecallMode, ModeSummary>,
+): void {
   const vector = summaries.vector;
   const hybrid = summaries.hybrid;
   const percentDelta = (a: number, b: number) => `${((b - a) * 100).toFixed(1)} pp`;
@@ -110,7 +122,7 @@ function printReport(options: CliOptions, summaries: Record<RecallMode, ModeSumm
     return `${(b - a).toFixed(1)} ms (${relative >= 0 ? '+' : ''}${relative.toFixed(1)}%)`;
   };
 
-  console.log(`Hybrid retrieval A/B — dataset=${options.datasetName}, rerank=${options.rerank}, repetitions=${options.repetitions}`);
+  console.log(`Hybrid retrieval A/B — dataset=${datasetName} (${options.datasetId}), rerank=${options.rerank}, repetitions=${options.repetitions}`);
   console.log(`Knowledge base: ${options.knowledgeBaseId}`);
   console.log('');
   console.log('| Metric | Vector | Hybrid | Hybrid − Vector |');
@@ -129,8 +141,20 @@ function printReport(options: CliOptions, summaries: Record<RecallMode, ModeSumm
 
 async function main(): Promise<void> {
   const options = parseOptions();
-  const [datasetModule, metricsModule, relevanceModule, retrieveModule, pgModule] = await Promise.all([
+  const [
+    datasetModule,
+    datasetsDbModule,
+    hashModule,
+    validateModule,
+    metricsModule,
+    relevanceModule,
+    retrieveModule,
+    pgModule,
+  ] = await Promise.all([
     import('@/lib/eval/dataset'),
+    import('@/lib/db/eval-datasets'),
+    import('@/lib/eval/hash'),
+    import('@/lib/eval/validate'),
     import('@/lib/eval/metrics'),
     import('@/lib/eval/relevance'),
     import('@/lib/rag/retrieve'),
@@ -138,7 +162,39 @@ async function main(): Promise<void> {
   ]);
 
   try {
-    const cases = datasetModule.loadDataset(options.datasetName);
+    // Same execution model as /api/eval/run: one snapshot, hash assertion,
+    // then the two-layer gate (the CLI applies no retrieval filter).
+    const snapshot = await datasetsDbModule.getEvalDatasetSnapshot(options.datasetId);
+    if (!snapshot) {
+      throw new Error(
+        `Eval dataset ${options.datasetId} not found. Manage datasets on /eval or seed the built-ins with \`pnpm seed:demo\`.`,
+      );
+    }
+    if (hashModule.hashDataset(snapshot.cases) !== snapshot.datasetHash) {
+      throw new Error(
+        `dataset_hash_mismatch: stored dataset_hash does not match the stored cases of "${snapshot.name}" — refusing to run.`,
+      );
+    }
+
+    const structural = validateModule.lintGoldset(snapshot.cases);
+    const compatibility = await validateModule.preflightDataset({
+      datasetSnapshot: snapshot,
+      knowledgeBaseId: options.knowledgeBaseId,
+      filter: undefined,
+    });
+    const issues = [...structural, ...compatibility];
+    for (const issue of issues) {
+      console.error(
+        `[preflight:${issue.severity}] ${issue.code}${issue.caseKey ? ` (${issue.caseKey})` : ''}${issue.value ? `: ${issue.value}` : ''}`,
+      );
+    }
+    if (validateModule.hasGoldsetErrors(issues)) {
+      throw new Error(
+        `Preflight failed: dataset "${snapshot.name}" is incompatible with knowledge base ${options.knowledgeBaseId} — fix the errors above instead of measuring a broken ground truth.`,
+      );
+    }
+
+    const cases = snapshot.cases;
     const measurements: Record<RecallMode, CaseMeasurement[]> = { vector: [], hybrid: [] };
     const modeOrders: RecallMode[][] = [
       ['vector', 'hybrid'],
@@ -176,7 +232,7 @@ async function main(): Promise<void> {
       }
     }
 
-    printReport(options, {
+    printReport(options, snapshot.name, {
       vector: summarize(measurements.vector, metricsModule.aggregateMetrics),
       hybrid: summarize(measurements.hybrid, metricsModule.aggregateMetrics),
     });

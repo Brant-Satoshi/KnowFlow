@@ -195,6 +195,88 @@ export interface EvalCase {
   notes?: string;
 }
 
+/**
+ * One managed eval case as stored in `eval_cases` and returned by the
+ * datasets API. `id` is the row UUID (used in URLs); `caseKey` is the
+ * business key — `EvalCase.id` in JSON import/export. Never mix the two.
+ */
+export interface EvalCaseRecord {
+  id: string;
+  caseKey: string;
+  question: string;
+  expectedKeywords: string[];
+  category: EvalCaseCategory;
+  difficulty: EvalCaseDifficulty;
+  targetFileNames: string[];
+  targetChunkSubstrings: string[];
+  expectedAnswer: string | null;
+  notes: string | null;
+  idx: number;
+}
+
+export interface EvalDatasetSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  /** Content hash over the cases (see lib/eval/hash.ts) — pure case-content identity, drives run comparability. */
+  datasetHash: string;
+  /** Optimistic-concurrency token, bumped on every dataset write (metadata included). */
+  revision: number;
+  caseCount: number;
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
+}
+
+export interface EvalDatasetDetail extends EvalDatasetSummary {
+  /** Ordered by idx. */
+  cases: EvalCaseRecord[];
+}
+
+// Goldset validation (two layers: structural lint + KB compatibility preflight)
+export type GoldsetIssueSeverity = 'error' | 'warning';
+
+export type GoldsetStructuralIssueCode =
+  | 'missing_id'
+  | 'duplicate_id'
+  | 'missing_question'
+  | 'invalid_category'
+  | 'invalid_difficulty'
+  | 'empty_keywords'
+  | 'no_targets'
+  | 'out_of_scope_has_targets'
+  | 'keyword_not_in_expected_answer'
+  | 'empty_dataset'
+  | 'over_limit';
+
+export type GoldsetCompatibilityIssueCode =
+  | 'target_file_missing'
+  | 'target_file_excluded_by_filter'
+  | 'substring_not_in_source'
+  | 'keyword_not_in_source';
+
+export type GoldsetIssueCode = GoldsetStructuralIssueCode | GoldsetCompatibilityIssueCode;
+
+export interface GoldsetIssue {
+  code: GoldsetIssueCode;
+  severity: GoldsetIssueSeverity;
+  /** Business key of the offending case; absent for dataset-level issues. */
+  caseKey?: string;
+  /** Offending value (file name, substring, keyword, …) for templated messages. */
+  value?: string;
+}
+
+/** Result of validating a dataset against a knowledge base (POST /api/eval/validate). */
+export interface GoldsetValidationReport {
+  datasetId: string;
+  datasetName: string;
+  knowledgeBaseId: string;
+  totalCases: number;
+  structural: GoldsetIssue[];
+  compatibility: GoldsetIssue[];
+  /** True when neither layer contains an error — the dataset may run against this KB. */
+  ok: boolean;
+}
+
 export interface EvalChunkHit {
   chunkId: string;
   fileId: string;

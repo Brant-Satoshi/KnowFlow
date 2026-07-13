@@ -6,6 +6,8 @@ import type {
   EvalCaseResult,
   EvalRunSummary,
   EvalRunDetail,
+  GoldsetIssue,
+  GoldsetIssueCode,
 } from '@/lib/types';
 import type { EvalTranslationKeys, Language } from '@/lib/i18n/translations';
 import { formatDateTime } from '@/lib/format';
@@ -439,6 +441,124 @@ export function RetrievedChunks({
       )}
     </div>
   );
+}
+
+/* ───────────────────── goldset validation issues ───────────────────── */
+
+const ISSUE_MSG_KEY: Record<GoldsetIssueCode, keyof EvalTranslationKeys> = {
+  missing_id: 'issueMissingId',
+  duplicate_id: 'issueDuplicateId',
+  missing_question: 'issueMissingQuestion',
+  invalid_category: 'issueInvalidCategory',
+  invalid_difficulty: 'issueInvalidDifficulty',
+  empty_dataset: 'issueEmptyDataset',
+  over_limit: 'issueOverLimit',
+  empty_keywords: 'issueEmptyKeywords',
+  no_targets: 'issueNoTargets',
+  out_of_scope_has_targets: 'issueOutOfScopeHasTargets',
+  keyword_not_in_expected_answer: 'issueKeywordNotInExpectedAnswer',
+  target_file_missing: 'issueTargetFileMissing',
+  target_file_excluded_by_filter: 'issueTargetFileExcludedByFilter',
+  substring_not_in_source: 'issueSubstringNotInSource',
+  keyword_not_in_source: 'issueKeywordNotInSource',
+};
+
+export function goldsetIssueMessage(evalT: EvalTranslationKeys, issue: GoldsetIssue): string {
+  return evalT[ISSUE_MSG_KEY[issue.code]].replace('{value}', issue.value ?? '');
+}
+
+function GoldsetIssueRow({ issue, evalT }: { issue: GoldsetIssue; evalT: EvalTranslationKeys }) {
+  const isError = issue.severity === 'error';
+  const accent = isError ? BAD : GOLD;
+  return (
+    <div
+      className="flex flex-wrap items-start gap-2.5 p-3 rounded-[10px] border"
+      style={{
+        background: `color-mix(in srgb, ${accent} 7%, transparent)`,
+        borderColor: `color-mix(in srgb, ${accent} 30%, transparent)`,
+      }}
+    >
+      <span
+        className="text-[10px] font-mono font-medium uppercase tracking-wide px-1.5 py-0.5 rounded-md shrink-0"
+        style={{ color: accent, border: `1px solid color-mix(in srgb, ${accent} 35%, transparent)` }}
+      >
+        {isError ? evalT.datasetSeverityError : evalT.datasetSeverityWarning}
+      </span>
+      {issue.caseKey && (
+        <span className="font-mono text-[11px] text-muted-foreground shrink-0 pt-0.5">{issue.caseKey}</span>
+      )}
+      <p className="flex-1 min-w-40 text-[12.5px] font-sans text-foreground/85 leading-relaxed">
+        {goldsetIssueMessage(evalT, issue)}
+      </p>
+    </div>
+  );
+}
+
+function GoldsetIssueLayer({
+  title,
+  issues,
+  evalT,
+}: {
+  title: string;
+  issues: GoldsetIssue[];
+  evalT: EvalTranslationKeys;
+}) {
+  // Errors first, then warnings.
+  const sorted = [...issues].sort((a, b) =>
+    a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1,
+  );
+  return (
+    <div className="bg-card border border-border rounded-xl p-4">
+      <div className="text-[11px] font-mono uppercase tracking-wide text-muted-foreground mb-3">{title}</div>
+      {sorted.length === 0 ? (
+        <p className="text-[12.5px] font-sans" style={{ color: GOOD }}>✓ {evalT.validateLayerClean}</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {sorted.map((issue, i) => (
+            <GoldsetIssueRow key={`${issue.code}-${issue.caseKey ?? ''}-${issue.value ?? i}`} issue={issue} evalT={evalT} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Two-layer validation issues, shared by the Datasets tab and the run-blocked (422) banner. */
+export function GoldsetIssuesPanel({
+  structural,
+  compatibility,
+  evalT,
+}: {
+  structural: GoldsetIssue[];
+  compatibility: GoldsetIssue[];
+  evalT: EvalTranslationKeys;
+}) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      <GoldsetIssueLayer title={evalT.validateStructuralTitle} issues={structural} evalT={evalT} />
+      <GoldsetIssueLayer title={evalT.validateCompatibilityTitle} issues={compatibility} evalT={evalT} />
+    </div>
+  );
+}
+
+/* ───────────────────── run ↔ dataset lineage ───────────────────── */
+
+export type DatasetRunStatus = 'deleted' | 'changed' | null;
+
+/**
+ * Lineage of a persisted run relative to the current datasets: 'deleted' when
+ * its dataset is gone (dataset_id nulled by FK or no longer listed), 'changed'
+ * when the dataset still exists but its content hash moved on.
+ */
+export function datasetRunStatus(
+  run: EvalRunSummary,
+  datasets: readonly { id: string; datasetHash: string }[],
+): DatasetRunStatus {
+  if (!run.datasetId) return 'deleted';
+  const ds = datasets.find((d) => d.id === run.datasetId);
+  if (!ds) return 'deleted';
+  if (run.datasetHash && ds.datasetHash !== run.datasetHash) return 'changed';
+  return null;
 }
 
 export function ScanSkeleton() {
