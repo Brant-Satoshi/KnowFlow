@@ -49,7 +49,7 @@ export function ConfirmDialog({
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
+          <DialogDescription className="mt-2 text-sm/6 text-muted-foreground">
             {description}
           </DialogDescription>
         </DialogHeader>

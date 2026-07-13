@@ -185,7 +185,7 @@ export function ProcessTimeline({ progress, sourceCount, t }: ProcessTimelinePro
               </div>
               <div
                 className={cn(
-                  "text-[12.5px] leading-5",
+                  "text-[12.5px]/5",
                   !isLast && "pb-2",
                   step.state === "active" && "text-foreground",
                   step.state === "error" && "text-destructive",

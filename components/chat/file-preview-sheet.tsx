@@ -50,7 +50,7 @@ const markdownComponents: Components = {
   pre: ({ children, className }) => (
     <pre
       className={cn(
-        "mt-4 overflow-x-auto rounded-xl border border-border bg-secondary p-4 font-code text-sm leading-6",
+        "mt-4 overflow-x-auto rounded-xl border border-border bg-secondary p-4 font-code text-sm/6",
         className,
       )}
     >
@@ -177,7 +177,7 @@ export function FilePreviewSheet({
           )}
 
           {status === "ready" && chunks.length > 0 && !asMarkdown && (
-            <article className="whitespace-pre-wrap wrap-break-word text-sm leading-7 text-foreground">
+            <article className="whitespace-pre-wrap wrap-break-word text-sm/7 text-foreground">
               {chunks.map((chunk) => {
                 const isTarget = chunk.id === chunkId
                 if (isTarget) {

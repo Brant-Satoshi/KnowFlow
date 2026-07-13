@@ -318,7 +318,7 @@ export function KnowledgePanel({
                     {files.length === 0 ? (
                       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-4 py-8 text-center">
                         <p className="text-[12.5px] font-medium text-foreground">{t.panelEmptyTitle}</p>
-                        <p className="mt-1.5 text-[11.5px] leading-5 text-muted-foreground">{t.panelEmptyDesc}</p>
+                        <p className="mt-1.5 text-[11.5px]/5 text-muted-foreground">{t.panelEmptyDesc}</p>
                       </div>
                     ) : (
                       files.map((file) => {

@@ -38,7 +38,7 @@ const ChatMessages = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
       </div>
     ),
   }
@@ -396,9 +396,9 @@ export default function ChatPage() {
         type="button"
         onClick={() => scrollToBottom()}
         aria-label={t.scrollToBottom}
-        className="absolute bottom-4 left-1/2 z-10 flex h-10 w-10 -translate-x-1/2 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-foreground shadow-lg transition hover:bg-accent"
+        className="absolute bottom-4 left-1/2 z-10 flex size-10 -translate-x-1/2 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-foreground shadow-lg transition hover:bg-accent"
       >
-        <ArrowDown className="h-5 w-5" />
+        <ArrowDown className="size-5" />
       </button>
     ) : null
 
@@ -406,14 +406,14 @@ export default function ChatPage() {
     return (
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-10">
         <div className={cn("relative w-full max-w-xl rounded-[1.25rem] p-8 text-center", chatSurfaceClass)}>
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-black/4 dark:bg-white/6">
-            <Database className="h-7 w-7 text-muted-foreground" />
+          <div className="mx-auto flex size-16 items-center justify-center rounded-xl bg-black/4 dark:bg-white/6">
+            <Database className="size-7 text-muted-foreground" />
           </div>
           <h2 className="mt-5 text-2xl font-semibold tracking-[-0.04em] text-foreground">{t.selectKnowledgeBaseTitle}</h2>
-          <p className="mt-3 text-sm leading-7 text-muted-foreground">{t.selectKnowledgeBaseDesc}</p>
+          <p className="mt-3 text-sm/7 text-muted-foreground">{t.selectKnowledgeBaseDesc}</p>
           <Button asChild className="mt-6 rounded-xl px-5">
             <Link href="/">
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="size-4" />
               {t.goToHome}
             </Link>
           </Button>
@@ -426,13 +426,13 @@ export default function ChatPage() {
     return (
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-10">
         <div className={cn("relative flex w-full max-w-sm flex-col items-center rounded-[1.25rem] p-8 text-center", chatSurfaceClass)}>
-          <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-black/4 dark:bg-white/6">
-            <Loader2 className="h-7 w-7 animate-spin text-primary" />
+          <div className="flex size-16 items-center justify-center rounded-xl bg-black/4 dark:bg-white/6">
+            <Loader2 className="size-7 animate-spin text-primary" />
           </div>
           <h2 className="mt-5 text-2xl font-semibold tracking-[-0.04em] text-foreground">
             {t.pageLoadingTitle}
           </h2>
-          <p className="mt-3 text-sm leading-7 text-muted-foreground">
+          <p className="mt-3 text-sm/7 text-muted-foreground">
             {t.pageLoadingDesc}
           </p>
         </div>
@@ -453,9 +453,9 @@ export default function ChatPage() {
           />
         </Link>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Button asChild variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+          <Button asChild variant="ghost" size="icon" className="size-8 rounded-full">
             <Link href="/eval" aria-label={t.evalEntry}>
-              <FlaskConical className="h-4 w-4" />
+              <FlaskConical className="size-4" />
             </Link>
           </Button>
           <SettingsMenu />
@@ -542,8 +542,8 @@ export default function ChatPage() {
     return (
       <PreviewContext.Provider value={openPreview}>
       <div className="relative flex h-dvh flex-col overflow-hidden bg-background">
-        <div className="home-orb-float pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-[#C49A2E]/6 blur-3xl dark:bg-[#C49A2E]/8" />
-        <div className="home-orb-float pointer-events-none absolute -right-12 top-32 h-72 w-72 rounded-full bg-[#4A8A5C]/5 blur-3xl dark:bg-[#4A8A5C]/8 [animation-delay:-5s]" />
+        <div className="home-orb-float pointer-events-none absolute -left-20 top-10 size-56 rounded-full bg-[#C49A2E]/6 blur-3xl dark:bg-[#C49A2E]/8" />
+        <div className="home-orb-float pointer-events-none absolute -right-12 top-32 size-72 rounded-full bg-[#4A8A5C]/5 blur-3xl dark:bg-[#4A8A5C]/8 [animation-delay:-5s]" />
 
         <div className="relative flex min-h-0 flex-1 flex-col">
           {chatHeader}
@@ -630,9 +630,9 @@ export default function ChatPage() {
   return (
     <PreviewContext.Provider value={openPreview}>
     <div className="relative flex h-dvh flex-col overflow-hidden bg-background">
-      <div className="home-orb-float pointer-events-none absolute -left-24 top-8 h-72 w-72 rounded-full bg-[#C49A2E]/6 blur-3xl dark:bg-[#C49A2E]/8" />
-      <div className="home-orb-float pointer-events-none absolute -right-16 top-24 h-96 w-96 rounded-full bg-[#4A8A5C]/5 blur-3xl dark:bg-[#4A8A5C]/8 [animation-delay:-6s]" />
-      <div className="home-orb-float pointer-events-none absolute -bottom-28 left-1/3 h-80 w-80 rounded-full bg-[#C05B3C]/4 blur-3xl dark:bg-[#C05B3C]/6 [animation-delay:-9s]" />
+      <div className="home-orb-float pointer-events-none absolute -left-24 top-8 size-72 rounded-full bg-[#C49A2E]/6 blur-3xl dark:bg-[#C49A2E]/8" />
+      <div className="home-orb-float pointer-events-none absolute -right-16 top-24 size-96 rounded-full bg-[#4A8A5C]/5 blur-3xl dark:bg-[#4A8A5C]/8 [animation-delay:-6s]" />
+      <div className="home-orb-float pointer-events-none absolute -bottom-28 left-1/3 size-80 rounded-full bg-[#C05B3C]/4 blur-3xl dark:bg-[#C05B3C]/6 [animation-delay:-9s]" />
 
       <div className="relative flex min-h-0 w-full flex-1 flex-col">
         {chatHeader}

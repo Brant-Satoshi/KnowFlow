@@ -80,7 +80,7 @@ export function WorkspaceJoinDialog({
       >
         <DialogHeader>
           <DialogTitle>{t.joinWorkspaceTitle}</DialogTitle>
-          <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
+          <DialogDescription className="mt-2 text-sm/6 text-muted-foreground">
             {t.joinWorkspaceDescription}
           </DialogDescription>
         </DialogHeader>
