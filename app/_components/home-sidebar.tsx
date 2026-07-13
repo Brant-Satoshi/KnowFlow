@@ -63,7 +63,7 @@ export function HomeSidebarNav({
   return (
     <SidebarBody footerTitle={userEmail ?? ""} footerSubtitle={workspaceLabel}>
       <Button onClick={onCreate} className="mb-2 w-full cursor-pointer rounded-lg">
-        <Plus className="h-3.5 w-3.5" />
+        <Plus className="size-3.5" />
         {t.newKnowledgeBase}
       </Button>
 

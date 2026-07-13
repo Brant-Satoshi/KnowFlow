@@ -30,6 +30,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Session worktrees (each with its own .next) live under .claude/ —
+    // they are separate checkouts and must not be linted from here.
+    ".claude/worktrees/**",
   ]),
 ]);
 

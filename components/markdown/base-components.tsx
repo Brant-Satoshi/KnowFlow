@@ -13,16 +13,16 @@ import { cn } from "@/lib/utils"
  */
 export const baseMarkdownComponents: Components = {
   h1: ({ children }) => (
-    <h1 className="mt-6 text-lg font-semibold leading-7 first:mt-0">{children}</h1>
+    <h1 className="mt-6 text-lg/7 font-semibold first:mt-0">{children}</h1>
   ),
   h2: ({ children }) => (
-    <h2 className="mt-6 text-base font-semibold leading-7 first:mt-0">{children}</h2>
+    <h2 className="mt-6 text-base/7 font-semibold first:mt-0">{children}</h2>
   ),
   h3: ({ children }) => (
-    <h3 className="mt-5 text-sm font-semibold leading-6 first:mt-0">{children}</h3>
+    <h3 className="mt-5 text-sm/6 font-semibold first:mt-0">{children}</h3>
   ),
   h4: ({ children }) => (
-    <h4 className="mt-4 text-sm font-medium leading-6 first:mt-0">{children}</h4>
+    <h4 className="mt-4 text-sm/6 font-medium first:mt-0">{children}</h4>
   ),
   p: ({ children }) => <p className="leading-7 not-first:mt-4">{children}</p>,
   ul: ({ children }) => <ul className="mt-4 list-disc space-y-2 pl-5">{children}</ul>,

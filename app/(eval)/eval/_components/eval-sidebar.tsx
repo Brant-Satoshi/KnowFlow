@@ -27,7 +27,7 @@ function NavItem({
 }) {
   return (
     <button type="button" onClick={() => onSelect(tab)} className={navItemClass(active)}>
-      <Icon className="h-4 w-4 shrink-0" />
+      <Icon className="size-4 shrink-0" />
       {label}
     </button>
   );
@@ -42,7 +42,7 @@ function ManageItem({ label, icon: Icon }: { label: string; icon: IconType }) {
       )}
       title={label}
     >
-      <Icon className="h-4 w-4 shrink-0" />
+      <Icon className="size-4 shrink-0" />
       {label}
     </div>
   );

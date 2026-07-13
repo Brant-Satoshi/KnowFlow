@@ -83,7 +83,7 @@ export function ChatInput({
             placeholder={hasKnowledge ? t.placeholderWithKnowledge : t.placeholderNoKnowledge}
             rows={1}
             disabled={isDisabled}
-            className="h-auto max-h-[30svh] min-h-10 resize-none border-0 bg-transparent px-1 py-1.5 text-[13.5px] leading-7 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
+            className="h-auto max-h-[30svh] min-h-10 resize-none border-0 bg-transparent px-1 py-1.5 text-[13.5px]/7 text-foreground shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
           />
 
           <div className="flex items-center justify-between gap-2">
@@ -124,7 +124,7 @@ export function ChatInput({
                 className="flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full border border-border bg-secondary px-3.5 text-[12.5px] font-medium text-foreground transition-colors hover:bg-secondary/80"
                 aria-label={t.stop}
               >
-                <Square className="h-3 w-3 fill-current" />
+                <Square className="size-3 fill-current" />
                 {t.stop}
               </button>
             ) : (
