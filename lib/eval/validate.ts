@@ -10,10 +10,13 @@ import type { EvalCase, GoldsetIssue, RetrievalFilter } from '@/lib/types';
  * Managed-goldset validation: two layers.
  *
  * Layer 1 — structural lint (pure, KB-independent): required fields, enum
- * values, duplicate case_keys, the MAX_GOLDSET_CASES cap, and `no_targets` as
- * an ERROR: a non-out_of_scope case with neither targetFileNames nor
- * targetChunkSubstrings cannot produce a trustworthy retrieval ground truth,
- * so it must not run.
+ * values, duplicate case_keys, the MAX_GOLDSET_CASES cap, and two severity
+ * escalations for structurally unreachable ground truth: `no_targets` is an
+ * ERROR (neither targetFileNames nor targetChunkSubstrings), and
+ * `empty_keywords` is an ERROR when the case also declares no substrings —
+ * grade 2 needs a keyword and grade 3 needs a substring, so a file-only case
+ * without keywords caps at grade 1 against every KB and would only ever
+ * produce guaranteed-zero retrieval metrics.
  *
  * Layer 2 — KB compatibility (filter-aware preflight): checks the same
  * grading signals as `gradeChunk` (lib/eval/relevance.ts) against the KB the
@@ -69,13 +72,20 @@ export function lintGoldset(cases: EvalCase[]): GoldsetIssue[] {
     }
 
     const keywords = c.expectedKeywords ?? [];
-    const targetCount =
-      (c.targetFileNames ?? []).length + (c.targetChunkSubstrings ?? []).length;
+    const substringCount = (c.targetChunkSubstrings ?? []).length;
+    const targetCount = (c.targetFileNames ?? []).length + substringCount;
     const outOfScope = isOutOfScope(c);
 
     if (!outOfScope) {
       if (keywords.length === 0) {
-        issues.push({ code: 'empty_keywords', severity: 'warning', caseKey });
+        // Grade 2 needs a keyword; without substrings there is no grade-3
+        // path either, so a file-only case can never reach grade >= 2 —
+        // that's an authoring defect on every KB, not a compatibility issue.
+        issues.push({
+          code: 'empty_keywords',
+          severity: substringCount === 0 ? 'error' : 'warning',
+          caseKey,
+        });
       }
       if (targetCount === 0) {
         issues.push({ code: 'no_targets', severity: 'error', caseKey });
@@ -114,9 +124,11 @@ export interface KbCorpus {
  * still grades), and one effective target file whose chunk carries an
  * expected keyword suffices for grade 2. A case therefore blocks (error)
  * only when NO grade>=2 path is reachable; dead individual targets on a
- * reachable case are downgraded to warnings. (A case with effective files
- * but an empty keyword list emits no compatibility issue — the structural
- * `empty_keywords` warning covers that authoring gap.)
+ * reachable case are downgraded to warnings. (A file-only case with neither
+ * keywords nor substrings emits no compatibility issue here — that shape is
+ * unreachable on EVERY KB, so the structural lint blocks it via the
+ * `empty_keywords` error escalation; together the two layers leave no
+ * unreachable case without an error.)
  */
 export function preflightGoldsetCases(
   cases: EvalCase[],

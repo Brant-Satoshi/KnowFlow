@@ -92,7 +92,8 @@ test('lint: missing id/question and invalid enums are errors', () => {
   assert.ok(issues.every((i) => i.severity === 'error'));
 });
 
-test('lint: empty keywords and keyword/expected-answer drift are warnings', () => {
+test('lint: empty keywords stay a warning while a substring (grade-3) path exists', () => {
+  // makeCase declares a targetChunkSubstring, so grade >= 2 is still reachable.
   const emptyKw = lintGoldset([makeCase({ expectedKeywords: [], expectedAnswer: undefined })]);
   assert.deepEqual(codes(emptyKw), ['empty_keywords']);
   assert.equal(emptyKw[0].severity, 'warning');
@@ -100,6 +101,22 @@ test('lint: empty keywords and keyword/expected-answer drift are warnings', () =
   const drift = lintGoldset([makeCase({ expectedAnswer: 'Someone else entirely.' })]);
   assert.deepEqual(codes(drift), ['keyword_not_in_expected_answer']);
   assert.equal(drift[0].severity, 'warning');
+});
+
+test('lint: file-only case with no keywords and no substrings caps at grade 1 — blocks', () => {
+  // gradeChunk needs a keyword for grade 2 and a substring for grade 3; with
+  // neither, retrievalHit can never be true on ANY KB, so the structural
+  // layer must block instead of letting the run produce known-invalid metrics.
+  const issues = lintGoldset([
+    makeCase({
+      expectedKeywords: [],
+      targetChunkSubstrings: [],
+      expectedAnswer: undefined,
+    }),
+  ]);
+  assert.deepEqual(codes(issues), ['empty_keywords']);
+  assert.equal(issues[0].severity, 'error');
+  assert.equal(hasGoldsetErrors(issues), true);
 });
 
 /* ── KB compatibility preflight ── */
