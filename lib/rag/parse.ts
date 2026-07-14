@@ -7,10 +7,46 @@ import { promisify } from "node:util";
 import { FileDoc } from "../types";
 
 /**
+ * What went wrong, in terms the person who uploaded the file can act on.
+ * The route sends the code alongside the message so the UI can say it in their
+ * language; the underlying error stays in `cause`, for the log only.
+ */
+export type ParseErrorCode =
+  | 'unsupported_type'
+  | 'pdf_parse_failed'
+  | 'docx_parse_failed'
+  | 'doc_convert_failed'
+  | 'doc_convert_unavailable'
+  | 'no_text_extracted'
+  | 'embedding_failed'
+  | 'parse_failed';
+
+/**
  * Parse failures whose message is meant for the end user (actionable, free of
  * storage/provider internals). Everything else is reported generically.
  */
-export class ParseUserError extends Error {}
+export class ParseUserError extends Error {
+  readonly code: ParseErrorCode;
+
+  constructor(message: string, code: ParseErrorCode = 'parse_failed', options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'ParseUserError';
+    this.code = code;
+  }
+}
+
+/**
+ * Whether anything survived parsing that could be searched.
+ *
+ * A scanned or image-only PDF parses "successfully" into an empty string; before
+ * this check the file was chunked into nothing, embedded into nothing, and then
+ * marked `indexed` — a document that looks ready in the list and can never be
+ * retrieved. Better to fail it loudly and let the user re-upload something with
+ * a text layer.
+ */
+export function hasExtractableText(text: string): boolean {
+  return text.trim().length > 0;
+}
 
 type PDFParserCtor = typeof import("pdf2json")["default"];
 type MammothModule = typeof import("mammoth");
@@ -49,7 +85,7 @@ export async function parseFile(file: FileDoc, buffer: Buffer) {
     return decodeTextBuffer(buffer);
   }
 
-  throw new ParseUserError(`Unsupported file type: ${file.name}`);
+  throw new ParseUserError(`Unsupported file type: ${file.name}`, 'unsupported_type');
 }
 
 /**
@@ -91,7 +127,7 @@ async function parsePdfText(buffer: Buffer): Promise<string> {
 
     const onError = (err: { parserError: Error } | Error) => {
       cleanup();
-      reject(err instanceof Error ? err : err.parserError);
+      reject(toPdfError(err instanceof Error ? err : err.parserError));
     };
 
     parser.on("pdfParser_dataReady", onReady);
@@ -101,9 +137,17 @@ async function parsePdfText(buffer: Buffer): Promise<string> {
       parser.parseBuffer(buffer, 0);
     } catch (error) {
       cleanup();
-      reject(error);
+      reject(toPdfError(error));
     }
   });
+}
+
+function toPdfError(cause: unknown): ParseUserError {
+  return new ParseUserError(
+    "This PDF could not be read. It may be corrupted, encrypted, or password-protected.",
+    'pdf_parse_failed',
+    { cause },
+  );
 }
 
 function getPdfParserCtor(): Promise<PDFParserCtor> {
@@ -116,7 +160,17 @@ function getPdfParserCtor(): Promise<PDFParserCtor> {
 
 async function parseDocxText(buffer: Buffer): Promise<string> {
   const mammoth = await getMammothModule();
-  const result = await mammoth.extractRawText({ buffer });
+
+  let result: { value: string };
+  try {
+    result = await mammoth.extractRawText({ buffer });
+  } catch (cause) {
+    throw new ParseUserError(
+      "This Word document could not be read. It may be corrupted or not a valid .docx file.",
+      'docx_parse_failed',
+      { cause },
+    );
+  }
 
   return result.value.trim();
 }
@@ -182,17 +236,25 @@ async function convertDocToDocx(inputPath: string, outputDir: string, profileDir
         continue;
       }
 
-      throw new Error(`LibreOffice failed to convert .doc file: ${getErrorMessage(error)}`);
+      throw new ParseUserError(
+        "This .doc file could not be converted. It may be corrupted; try re-saving it as .docx.",
+        'doc_convert_failed',
+        { cause: error },
+      );
     }
   }
 
   if (sawMissingBinary) {
     throw new ParseUserError(
-      "LibreOffice is required to parse .doc files. Install LibreOffice and expose `soffice`, or set `LIBREOFFICE_BIN` to the full executable path."
+      "LibreOffice is required to parse .doc files. Install LibreOffice and expose `soffice`, or set `LIBREOFFICE_BIN` to the full executable path.",
+      'doc_convert_unavailable',
     );
   }
 
-  throw new Error("LibreOffice conversion for .doc files could not be started.");
+  throw new ParseUserError(
+    "This .doc file could not be converted. Try re-saving it as .docx.",
+    'doc_convert_failed',
+  );
 }
 
 async function findConvertedDocxPath(outputDir: string): Promise<string> {
@@ -200,7 +262,10 @@ async function findConvertedDocxPath(outputDir: string): Promise<string> {
   const docxName = entries.find((entry) => entry.toLowerCase().endsWith(".docx"));
 
   if (!docxName) {
-    throw new Error("LibreOffice did not produce a .docx output file.");
+    throw new ParseUserError(
+      "This .doc file could not be converted. Try re-saving it as .docx.",
+      'doc_convert_failed',
+    );
   }
 
   return join(outputDir, docxName);
@@ -221,12 +286,4 @@ function getLibreOfficeBinaryCandidates(): string[] {
 
 function isCommandNotFound(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
 }
