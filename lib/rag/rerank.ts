@@ -1,6 +1,7 @@
 import { Chunk } from "../types";
 import { isRerankEnabled, resolveRerankProvider } from "../models";
 import { extractUpstreamMessage, openRouterFetch, readJsonSafe } from "../llm/openrouter";
+import { LLM_TIMEOUTS, withDeadline } from "../llm/timeouts";
 
 type OpenRouterRerankResponse = {
     id?: string;
@@ -50,16 +51,27 @@ export async function rerankChunks(
 
     const cfg = resolveRerankProvider();
 
+    // A hung reranker must not hang the whole answer: on timeout this lands in
+    // the catch below and degrades to recall order, exactly like any other
+    // rerank failure.
+    const deadline = withDeadline(
+        options.signal,
+        LLM_TIMEOUTS.rerankMs,
+        `rerank timed out after ${LLM_TIMEOUTS.rerankMs}ms`,
+    );
+
     let res: Response;
     try {
         res = await openRouterFetch(
             cfg,
             { model: cfg.model, query: queryText, documents, top_n: topN },
-            options.signal,
+            deadline.signal,
         );
     } catch (error) {
         console.error('[rerank] request failed, fallback to recall order:', error);
         return chunks;
+    } finally {
+        deadline.dispose();
     }
     const payload = await readJsonSafe(res);
     if (!res.ok) {

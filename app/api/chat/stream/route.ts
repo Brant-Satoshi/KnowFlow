@@ -15,6 +15,7 @@ import {
   type ChatHistoryMessage,
   type SseSend,
 } from '@/lib/llm/chat';
+import { classifyChatError } from '@/lib/llm/errors';
 import { emitRefusal } from '@/lib/llm/refusal';
 import { resolveRerankProvider } from '@/lib/models';
 import { assessRetrieval } from '@/lib/rag/refusal-gate';
@@ -322,9 +323,13 @@ export async function POST(request: NextRequest) {
           },
         });
       } catch (e) {
-        console.error(`[${requestId}] chat error:`, e);
+        // `code` is what the client renders; `message` keeps the upstream detail
+        // for this log line, which shares the requestId with the client's turn.
+        const code = classifyChatError(e);
+        console.error(`[${requestId}] chat error (${code}):`, e);
         send('error', {
           requestId,
+          code,
           message: e instanceof Error ? e.message : 'Chat failed',
         });
       } finally {
