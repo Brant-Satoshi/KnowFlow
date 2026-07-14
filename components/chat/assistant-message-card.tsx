@@ -8,6 +8,8 @@ import { AlertCircle } from "lucide-react"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import type { AssistantProgress } from "@/lib/hooks/use-chat-stream"
 import type { RetrievedChunk } from "@/lib/types"
+
+type ChatT = ReturnType<typeof useLanguage>["t"]
 import { CitationContext, renderWithCitations } from "@/components/chat/inline-citation"
 import { baseMarkdownComponents } from "@/components/markdown/base-components"
 import { CodeBlock, StreamingContext } from "@/components/markdown/code-block"
@@ -53,10 +55,18 @@ const markdownComponents: Components = {
   pre: CodeBlock,
 }
 
-function ErrorTag({ message }: { message: string }) {
+function ErrorTag({ progress, t }: { progress: AssistantProgress; t: ChatT }) {
+  // Prefer the localized copy for the server's error code. `errorMessage` is a
+  // raw upstream string (often English, often jargon) — a last resort, not the
+  // first thing to show someone.
+  const message = progress.errorCode
+    ? t.errors[progress.errorCode]
+    : progress.errorMessage || t.commonError
+
   return (
     <div
       role="alert"
+      data-testid="chat-error"
       className="inline-flex items-start gap-1.5 rounded-[7px] border border-destructive/20 bg-destructive/10 px-2.5 py-1.5 text-[12.5px] font-medium text-destructive"
     >
       <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
@@ -136,9 +146,7 @@ export const AssistantMessageCard = memo(function AssistantMessageCard({
           </CitationContext.Provider>
         </div>
 
-        {progress?.currentStage === "error" && progress.errorMessage && (
-          <ErrorTag message={progress.errorMessage} />
-        )}
+        {progress?.currentStage === "error" && <ErrorTag progress={progress} t={t} />}
 
         <SourcesList citations={citations} messageId={messageId} t={t} />
 

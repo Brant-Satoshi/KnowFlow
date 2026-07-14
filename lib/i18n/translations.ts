@@ -287,6 +287,19 @@ export const translations = {
       conversationRenameFailed: "Failed to rename conversation",
       conversationDeleteFailed: "Failed to delete conversation",
       chatsTab: "Chats",
+      // Keyed by ChatErrorCode (lib/llm/errors.ts). The server sends the code;
+      // the raw upstream message stays in the log, not in the user's face.
+      errors: {
+        rate_limited: "The AI service is busy right now. Please try again in a moment.",
+        llm_unavailable: "The AI service is temporarily unavailable. Please try again.",
+        llm_auth: "The AI service rejected our credentials. Please contact an administrator.",
+        timeout: "The answer took too long and timed out. Please try again.",
+        embedding_failed: "We couldn’t search the knowledge base. Please try again.",
+        service_config: "The AI service is misconfigured. Please contact an administrator.",
+        llm_error: "Something went wrong while generating the answer. Please try again.",
+      },
+      noCitationWarning:
+        "This answer cites no sources, so it may not be grounded in your documents. Verify before relying on it.",
       process: {
         processLabel: "Process",
         understanding: "Preparing",
@@ -770,6 +783,18 @@ export const translations = {
       conversationRenameFailed: "重命名对话失败",
       conversationDeleteFailed: "删除对话失败",
       chatsTab: "对话",
+      // 键名对应 ChatErrorCode（lib/llm/errors.ts）：服务端只传 code，
+      // 上游原始报错留在日志里，不摆到用户面前。
+      errors: {
+        rate_limited: "AI 服务繁忙（触发限流），请稍后重试。",
+        llm_unavailable: "AI 服务暂时不可用，请稍后重试。",
+        llm_auth: "AI 服务凭据校验失败，请联系管理员。",
+        timeout: "生成回答超时，请重试。",
+        embedding_failed: "知识库检索失败，请重试。",
+        service_config: "AI 服务配置异常，请联系管理员。",
+        llm_error: "生成回答时出错，请重试。",
+      },
+      noCitationWarning: "该回答未标注引用来源，可能未完全基于你的文档，请谨慎参考。",
       process: {
         processLabel: "过程",
         understanding: "准备中",
