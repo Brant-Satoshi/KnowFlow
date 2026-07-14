@@ -294,6 +294,14 @@ function aggregate(
 
   const m = aggregateMetrics(metricsInputs, TOP_K_VALUES);
 
+  // Refusal correctness needs its own numbers. The retrieval metrics cannot
+  // carry it: an out-of-scope case has no ground-truth chunks, so `retrievalHit`
+  // (= "retrieved nothing relevant") is true whether the system refused or
+  // invented an answer, and `citationHit` (= "cited nothing") passes an
+  // uncited hallucination just as happily as a refusal.
+  const oos = records.filter(r => r.outOfScope);
+  const inScope = records.filter(r => !r.outOfScope);
+
   return {
     runId: crypto.randomUUID(),
     knowledgeBaseId,
@@ -315,9 +323,17 @@ function aggregate(
     mrr: m.mrr,
     avgFaithfulness: meanNullable(caseResults.map(c => c.faithfulness ?? null)),
     avgAnswerRelevance: meanNullable(caseResults.map(c => c.answerRelevance ?? null)),
+    oosRefusalRate: rate(oos, r => r.result.refused === true),
+    inScopeFalseRefusalRate: rate(inScope, r => r.result.refused === true),
     mode: 'curated',
     datasetHash,
   };
+}
+
+/** Share of `records` matching `predicate`; null over an empty set. */
+function rate(records: CaseRunRecord[], predicate: (r: CaseRunRecord) => boolean): number | null {
+  if (records.length === 0) return null;
+  return records.filter(predicate).length / records.length;
 }
 
 /** Mean over the non-null values; null when there are none (e.g. judging off). */

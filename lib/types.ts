@@ -259,6 +259,18 @@ export interface EvalRunResult {
   avgFaithfulness?: number | null;
   /** Mean LLM-judge answer relevance over judged cases; null when none judged. */
   avgAnswerRelevance?: number | null;
+  /**
+   * Share of out-of-scope cases the gate refused. This — not retrievalHitRate —
+   * is what measures refusal: an out-of-scope case has no target chunks, so it
+   * scores a retrieval "hit" for free whether we refused or hallucinated.
+   * Higher is better. null when the dataset has no out-of-scope cases.
+   */
+  oosRefusalRate?: number | null;
+  /**
+   * Share of in-scope cases the gate refused — answerable questions we declined.
+   * This is the cost side of the threshold, and the number that must stay at 0.
+   */
+  inScopeFalseRefusalRate?: number | null;
   mode?: 'curated';
   datasetHash?: string;
 }
