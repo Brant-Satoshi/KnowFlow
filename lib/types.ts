@@ -137,6 +137,13 @@ export interface RetrievalFilter {
   titleQuery?: string;
 }
 
+/**
+ * Why the server answered with a canned refusal instead of calling the LLM.
+ *   - 'empty':     retrieval came back with nothing to answer from
+ *   - 'low_score': it came back with chunks, but none the reranker rated relevant
+ */
+export type RefusalReason = 'empty' | 'low_score';
+
 export type RetrievedChunkScoreType = 'rerank' | 'vector' | 'keyword';
 
 export interface RetrievedChunk {
@@ -226,6 +233,12 @@ export interface EvalCaseResult {
   faithfulness?: number | null;
   /** LLM-judge answer relevance 0–1 (answer addresses the question). null when not judged. */
   answerRelevance?: number | null;
+  /** True when the refusal gate answered instead of the LLM (see lib/rag/refusal-gate.ts). */
+  refused?: boolean;
+  /** Which gate rule fired; null when the turn reached the LLM. */
+  refusalReason?: RefusalReason | null;
+  /** Best rerank score over the final chunks; null when nothing was scored. Drives threshold calibration. */
+  maxRerankScore?: number | null;
 }
 
 export interface EvalRunResult {

@@ -1,5 +1,5 @@
 import { Chunk } from "../types";
-import { isSummaryQuery } from '../validation';
+import { isConversationSummaryQuery, isSummaryQuery } from '../validation';
 import { resolveChatProvider } from '../models';
 import { extractUpstreamMessage, openRouterFetch, readJsonSafe } from './openrouter';
 import {
@@ -43,7 +43,13 @@ export function buildPrompt(question: string, chunks: Chunk[]) {
 
   if (isSummaryQuery(question)) {
     if (chunks.length === 0) {
-      return buildConversationSummaryPrompt();
+      // Only a bare "recap the conversation" may be answered from history alone.
+      // A topical summary with nothing retrieved falls through to the QA prompt,
+      // which is instructed to refuse — and in chat it never gets this far,
+      // because the retrieval gate refuses it first.
+      return isConversationSummaryQuery(question)
+        ? buildConversationSummaryPrompt()
+        : buildQaPrompt(question, numberedContext);
     }
 
     return buildSummaryPrompt(question, numberedContext);

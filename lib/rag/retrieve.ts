@@ -13,6 +13,11 @@ export const RETRIEVAL = {
   maxDistance: 0.6,
   rerankTopN: 8,
   finalTopK: 5,
+  // Refusal floor: if the reranker's best score for a query falls below this,
+  // the answer is refused instead of generated (see lib/rag/refusal-gate.ts).
+  // 0 disables the floor, leaving only the empty-retrieval refusal. Calibrated
+  // for CALIBRATED_RERANK_MODEL; see `pnpm eval:refusal` and ADR-012.
+  minRerankScore: 0,
   // pg_trgm word_similarity floor for the keyword leg. The extension default
   // (0.6) is unreachable for CJK queries against continuous prose.
   keywordSimThreshold: 0.05,
