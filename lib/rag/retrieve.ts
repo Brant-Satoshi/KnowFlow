@@ -13,10 +13,13 @@ export const RETRIEVAL = {
   maxDistance: 0.6,
   rerankTopN: 8,
   finalTopK: 5,
-  // Refusal floor: if the reranker's best score for a query falls below this,
-  // the answer is refused instead of generated (see lib/rag/refusal-gate.ts).
-  // 0 disables the floor, leaving only the empty-retrieval refusal. Calibrated
-  // for CALIBRATED_RERANK_MODEL; see `pnpm eval:refusal` and ADR-012.
+  // Refusal floor: refuse when the reranker's best score falls below this
+  // (lib/rag/refusal-gate.ts). Deliberately 0 — i.e. off. `pnpm eval:refusal`
+  // found the reranker scores an unanswerable near-miss ABOVE an answerable
+  // question (0.9055 vs 0.8808): relevance is not answerability, so no floor
+  // separates them. The best "safe" floor sat 0.0058 from a real answer and
+  // then false-refused 11.1% of the held-out set. See ADR-011. Do not raise this
+  // without re-running that calibration on the target corpus.
   minRerankScore: 0,
   // pg_trgm word_similarity floor for the keyword leg. The extension default
   // (0.6) is unreachable for CJK queries against continuous prose.

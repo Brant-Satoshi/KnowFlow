@@ -108,6 +108,14 @@ const olympus: EvalCase[] = [
   // near-miss that reuses the document's own vocabulary and asks for the one
   // fact it never states. The near-misses are the ones that decide the floor:
   // they score high on any reranker and are exactly where a model invents.
+  //
+  // Authoring rule, learned the hard way: verify against the *whole* fixture
+  // before calling a question unanswerable. A case here once asked which station
+  // recorded the Tharsis dust intensification — a fact the Chinese fixture states
+  // outright further down. The model answered it correctly, with a citation, and
+  // was scored as a hallucination. Grep the fixture, don't trust a skim. And run
+  // each dataset against a KB holding only its own fixture: in a bilingual KB the
+  // other language's document answers questions this one cannot.
   {
     id: 'olympus-out-of-scope',
     category: 'out_of_scope',
@@ -301,14 +309,14 @@ const olympusZh: EvalCase[] = [
     notes: '近似负样本：文档给了初始资金 4.2 亿信用点，并明确说「后续预算需在第一阶段评审后确认」——即第二阶段预算恰恰没写，极易诱导模型套用初始资金。',
   },
   {
-    id: 'olympus-zh-oos-tharsis-attribution',
+    id: 'olympus-zh-oos-antenna-diameter',
     category: 'out_of_scope',
     difficulty: 'hard',
-    question: '是哪一座气象站记录到塔尔西斯地区尘暴增强 18%？',
+    question: '水星链路的高增益天线直径是多少米？',
     expectedAnswer: '文档未说明。',
     expectedKeywords: [],    targetFileNames: [],
     targetChunkSubstrings: [],
-    notes: '近似负样本：文档既有「塔尔西斯尘暴增强 18%」，也有「赫利俄斯每天多次飞越塔尔西斯」，但从未把这一发现归属到某座气象站。问题预设了一个文档没有的事实。',
+    notes: '近似负样本：「水星链路」和「高增益天线」都在文档里，所在段落还密集出现数字（四十天、数分钟到二十多分钟），但天线直径从未给出，极易诱导模型凑一个数。',
   },
   {
     id: 'olympus-zh-oos-ground-station-count',

@@ -16,6 +16,7 @@ pnpm test:e2e     # Playwright end-to-end tests
 pnpm test:unit    # node:test via tsx (lib/**/*.test.ts)
 pnpm seed:demo    # idempotent demo login + indexed bilingual KB
 pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>  # vector vs hybrid A/B
+pnpm eval:refusal   -- --knowledge-base-id=<uuid>  # rerank-score floor calibration (ADR-011)
 ```
 
 Unit tests run on Node's built-in runner (no extra dependency); `pnpm build` still catches type errors project-wide.
@@ -38,8 +39,11 @@ Next.js App Router RAG chat app. PostgreSQL + pgvector for vector storage.
 **RAG pipeline** (per chat request at `app/api/chat/stream/route.ts`; retrieval stages shared with the eval runner via `lib/rag/retrieve.ts`, params centralized in its exported `RETRIEVAL` config):
 1. Embed the user query + vector search top-20 chunks with cosine distance < 0.6, optionally narrowed by a `RetrievalFilter` (`fileIds` / `fileTypes` / `titleQuery`; type in `lib/types.ts`, parsed via `parseRetrievalFilter` in `lib/validation.ts`) → `lib/rag/retrieve.ts` (`recallChunks`)
 2. Rerank via OpenRouter/Cohere (topN 8), then take top-5 → `lib/rag/retrieve.ts` (`selectFinalChunks`)
-3. Build prompt → `lib/llm/chat.ts` (`buildPrompt`)
-4. Stream answer via OpenRouter → `lib/llm/chat.ts` (`streamLlmAnswer`), returned as SSE
+3. **Refusal gate** → `lib/rag/refusal-gate.ts` (`assessRetrieval`). With zero final chunks the route **does not call the LLM**: `emitRefusal` (`lib/llm/refusal.ts`) streams the canned refusal as a normal turn (`meta` → `progress` → one `token` → `done`) and persists it. `meta.refusal` (`'empty' | 'low_score'`) is the only proof the gate fired — the text alone isn't, since `buildQaPrompt` asks the LLM for the same sentence. Exempt: a bare conversation recap (`isConversationSummaryQuery`), which answers from history. `RETRIEVAL.minRerankScore` (the low-score floor) ships at **0 = off**: rerank scores don't encode answerability (the reranker rates an unanswerable near-miss 0.9055 vs an answerable question's 0.8808), and the prompt already refuses 14/14 near-misses on its own — see ADR-011 and re-run `pnpm eval:refusal` before changing it. Eval datasets must run against a KB holding only their own fixture; a bilingual KB lets one language's document answer the other's negatives.
+4. Build prompt → `lib/llm/chat.ts` (`buildPrompt`)
+5. Stream answer via OpenRouter → `lib/llm/chat.ts` (`streamLlmAnswer`), returned as SSE
+
+**Timeouts & error codes**: every OpenRouter call carries a deadline (`lib/llm/timeouts.ts`). The chat stream bounds the connect, then re-arms an idle watchdog over *model output* — it is kicked by upstream `data:` payloads only, never by raw bytes, because the provider's own heartbeat comments would otherwise reset it forever (the client's watchdog can't help: the route's 15s SSE keepalive keeps the browser's connection looking alive). Failures are classified into a `ChatErrorCode` (`lib/llm/errors.ts`) sent on the SSE `error` event; the UI renders `t.errors[code]`, and the raw upstream message stays in the log next to the requestId.
 
 The same `RetrievalFilter` is accepted by `/api/rag/search` and `/api/eval/run`. `/api/rag/search` also accepts `mode: 'vector' | 'keyword' | 'hybrid'` — keyword mode runs pg_trgm `word_similarity` against `chunks.embedding_text` (`keywordSearchChunks` in `lib/db/chunks.ts`, GIN trigram index) without calling the embedding API; hybrid mode fuses the vector and keyword legs via Reciprocal Rank Fusion (`reciprocalRankFusion` in `lib/rag/fusion.ts`). Chat recall goes hybrid only when `HYBRID_SEARCH_ENABLED=true` (`isHybridSearchEnabled` in `lib/models.ts`); it **defaults off** because the eval found fusion neutral-to-negative on the current dataset — see ADR-010. So the chat pipeline is vector-only by default. Do not enable hybrid by default without re-running `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>` on the target corpus; `RunCuratedEvalOpts.retrievalMode` in `lib/eval/runner.ts` remains the full answer/citation comparison entry point.
 
