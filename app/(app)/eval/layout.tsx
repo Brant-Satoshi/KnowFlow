@@ -10,7 +10,7 @@ const fontOverride: CSSProperties = {
 
 export default function EvalLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen" style={fontOverride}>
+    <div className="min-h-screen text-foreground" style={fontOverride}>
       {children}
     </div>
   );

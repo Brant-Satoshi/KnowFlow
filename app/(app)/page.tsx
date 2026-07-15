@@ -4,9 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowRight, BookmarkPlus, Edit3, Loader2, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react"
-import { HomeSidebar, HomeSidebarNav, type HomeSection } from "./_components/home-sidebar"
 import { PublicKnowledgeBases } from "./_components/home-public-kbs"
-import { MobileNav } from "@/components/mobile-nav"
+import { useAppShell } from "./_components/app-shell-context"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -277,10 +276,10 @@ export default function HomePage() {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null)
   const [isMembersOpen, setIsMembersOpen] = useState(false)
   const [isJoinOpen, setIsJoinOpen] = useState(false)
-  const [activeSection, setActiveSection] = useState<HomeSection>("workspace")
   const router = useRouter()
-  const { home: t, evalT, language } = useLanguage()
+  const { home: t, language } = useLanguage()
   const { user } = useAuth()
+  const { setWorkspaceLabel, intent, clearIntent } = useAppShell()
   const showErrorToast = useErrorToast()
 
   const activeWorkspace = useMemo(
@@ -322,16 +321,31 @@ export default function HomePage() {
     setStoredWorkspaceId(id)
   }, [])
 
-  const handleSelectSection = useCallback((section: HomeSection) => {
-    setActiveSection(section)
-    // Clearing search re-mounts the public section (hidden during search) so the
-    // active nav item always points at visible content; scroll after that render.
-    setSearchQuery("")
-    const id = section === "workspace" ? "my-knowledge-bases" : "public-knowledge-bases"
-    requestAnimationFrame(() =>
-      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })
+  // Keep the shared sidebar footer's workspace subtitle in sync.
+  useEffect(() => {
+    setWorkspaceLabel(
+      activeWorkspace ? displayWorkspaceName(activeWorkspace.name, t) : t.allWorkspaces
     )
-  }, [])
+  }, [activeWorkspace, t, setWorkspaceLabel])
+
+  // Consume one-shot intents raised by the shared sidebar (which owns the nav but
+  // not this page's create dialog / scrollable sections). Cleared after handling,
+  // so arriving fresh from /eval fires exactly once.
+  useEffect(() => {
+    if (!intent) return
+    if (intent.kind === "create") {
+      setIsCreating(true)
+    } else {
+      // Clearing search re-mounts the public section (hidden during search) so the
+      // active nav item always points at visible content; scroll after that render.
+      setSearchQuery("")
+      const id = intent.section === "workspace" ? "my-knowledge-bases" : "public-knowledge-bases"
+      requestAnimationFrame(() =>
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })
+      )
+    }
+    clearIntent()
+  }, [intent, clearIntent])
 
   const fetchKnowledgeBases = useCallback(async (workspaceId: string | null) => {
     try {
@@ -478,43 +492,7 @@ export default function HomePage() {
   }, [knowledgeBases, searchQuery])
 
   return (
-    <div className="min-h-screen bg-background md:grid md:grid-cols-[232px_1fr]">
-      {/* ── Mobile top bar (< md) ──────────────────────────────────── */}
-      <MobileNav appName={t.title} menuLabel={t.openMenu} navTitle={t.navLabel}>
-        {(close) => (
-          <HomeSidebarNav
-            activeSection={activeSection}
-            onSelectSection={(section) => {
-              handleSelectSection(section)
-              close()
-            }}
-            onCreate={() => {
-              setIsCreating(true)
-              close()
-            }}
-            userEmail={user?.email}
-            workspaceLabel={
-              activeWorkspace ? displayWorkspaceName(activeWorkspace.name, t) : t.allWorkspaces
-            }
-            t={t}
-            evalT={evalT}
-          />
-        )}
-      </MobileNav>
-
-      {/* ── Sidebar (md+) ──────────────────────────────────────────── */}
-      <HomeSidebar
-        activeSection={activeSection}
-        onSelectSection={handleSelectSection}
-        onCreate={() => setIsCreating(true)}
-        userEmail={user?.email}
-        workspaceLabel={
-          activeWorkspace ? displayWorkspaceName(activeWorkspace.name, t) : t.allWorkspaces
-        }
-        t={t}
-        evalT={evalT}
-      />
-
+    <>
       {/* ── Main ───────────────────────────────────────────────────── */}
       <main className="min-w-0 max-w-310 px-4 py-6 sm:px-6 md:py-10 lg:px-8">
         {/* Inline editorial search */}
@@ -777,6 +755,6 @@ export default function HomePage() {
         }}
         t={t}
       />
-    </div>
+    </>
   )
 }
