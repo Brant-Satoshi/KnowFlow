@@ -23,8 +23,7 @@ import {
   baselineLabel,
   GOLD,
 } from './_components/shared';
-import { EvalSidebar, EvalSidebarNav, type EvalTab } from './_components/eval-sidebar';
-import { MobileNav } from '@/components/mobile-nav';
+import { useAppShell, type EvalTab } from '../_components/app-shell-context';
 import { OverviewTab } from './_components/overview-tab';
 import { CompareTab } from './_components/compare-tab';
 import { InspectorTab } from './_components/inspector-tab';
@@ -47,7 +46,8 @@ export default function EvalPage() {
 function EvalPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { evalT, home, language } = useLanguage();
+  const { evalT, language } = useLanguage();
+  const { setEvalTab } = useAppShell();
   const datasetNames = listDatasetNames();
 
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
@@ -67,6 +67,11 @@ function EvalPageContent() {
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const activeTab = parseTab(searchParams.get('tab'));
+  // Mirror the URL-derived tab into the shared shell so the persistent sidebar
+  // (rendered by the (app) layout) can highlight the active tab.
+  useEffect(() => {
+    setEvalTab(activeTab);
+  }, [activeTab, setEvalTab]);
   const selectTab = useCallback(
     (tab: EvalTab) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -216,31 +221,7 @@ function EvalPageContent() {
   return (
     <>
       <style>{EVAL_STYLES}</style>
-      <div className="min-h-screen md:grid md:grid-cols-[232px_1fr] bg-background text-foreground">
-        {/* ── Mobile top bar (< md) ── */}
-        <MobileNav appName={home.title} menuLabel={evalT.openMenu} navTitle={evalT.navSectionEvaluate}>
-          {(close) => (
-            <EvalSidebarNav
-              activeTab={activeTab}
-              onSelect={(tab) => {
-                selectTab(tab);
-                close();
-              }}
-              kbLabel={selectedKb ? selectedKb.name : null}
-              evalT={evalT}
-            />
-          )}
-        </MobileNav>
-
-        <EvalSidebar
-          activeTab={activeTab}
-          onSelect={selectTab}
-          appName={home.title}
-          kbLabel={selectedKb ? selectedKb.name : null}
-          evalT={evalT}
-        />
-
-        <main className="min-w-0 flex flex-col">
+      <main className="min-w-0 flex flex-col text-foreground">
           {/* ── Topbar ── */}
           <div className="z-20 border-b border-border bg-background/90 backdrop-blur px-4 py-2.5 md:sticky md:top-0 md:px-5">
             <div className="flex flex-col gap-2.5 md:flex-row md:flex-wrap md:items-center md:gap-3">
@@ -387,7 +368,6 @@ function EvalPageContent() {
             )}
           </div>
         </main>
-      </div>
     </>
   );
 }
