@@ -102,6 +102,7 @@ export default function ChatPage() {
     uploadFailedMessage: t.uploadFailed,
     fileTooLargeMessage: t.fileTooLarge.replace("{maxMb}", String(MAX_UPLOAD_FILE_MB)),
     parseFailedMessage: t.parseFailed,
+    parseErrorMessages: t.parseErrors,
     deleteFailedTitle: t.deleteFailedTitle,
     deleteFailedDesc: t.deleteFailedDesc,
   })

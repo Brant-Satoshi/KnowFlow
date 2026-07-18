@@ -6,9 +6,13 @@ import type {
   EvalRunComparison,
   EvalRunResult,
   EvalTopKHit,
+  RefusalReason,
   RetrievalFilter,
 } from '@/lib/types';
-import { recallChunks, selectFinalChunks, type RecallMode } from '@/lib/rag/retrieve';
+import { recallChunks, RETRIEVAL, selectFinalChunks, type RecallMode } from '@/lib/rag/retrieve';
+import { assessRetrieval, maxRerankScore } from '@/lib/rag/refusal-gate';
+import { resolveRerankProvider } from '@/lib/models';
+import { refusalTextFor } from '@/lib/llm/refusal';
 import { buildPrompt, generateAnswer } from '@/lib/llm/chat';
 import { isOutOfScope } from './dataset';
 import { gradeRecalled } from './relevance';
@@ -38,6 +42,12 @@ export interface RunCuratedEvalOpts {
    * a vector-vs-hybrid comparison regardless of the env flag.
    */
   retrievalMode?: RecallMode;
+  /**
+   * Whether the refusal gate runs (production default: on). Set false to measure
+   * the pipeline as it behaved before the gate existed — that gate-off/gate-on
+   * pair is the before/after for a refusal change, run on one dataset.
+   */
+  refusalGate?: boolean;
 }
 
 interface JudgeScores {
@@ -92,6 +102,8 @@ interface CaseBranchOutcome {
   answer: string;
   latencyMs: number;
   pipelineError: boolean;
+  refusalReason: RefusalReason | null;
+  maxRerankScore: number | null;
 }
 
 interface PerCaseResult {
@@ -116,17 +128,19 @@ async function runCase(c: EvalCase, opts: RunCuratedEvalOpts): Promise<PerCaseRe
   }
 
   const [withRerankBranch, withoutRerankBranch] = await Promise.all([
-    runBranch(c, recalled, recallError, true, opts.signal),
-    runBranch(c, recalled, recallError, false, opts.signal),
+    runBranch(c, recalled, recallError, true, opts),
+    runBranch(c, recalled, recallError, false, opts),
   ]);
 
   const outOfScope = isOutOfScope(c);
 
   // Judge only the branch the caller keeps; skip refusals and pipeline errors.
+  // Judging a refusal would score the canned text's faithfulness to chunks it
+  // deliberately declined to use.
   const useRerankSelected = opts.useRerank !== false;
   const selected = useRerankSelected ? withRerankBranch : withoutRerankBranch;
   let scores: JudgeScores = EMPTY_SCORES;
-  if (opts.judge && !selected.pipelineError && !outOfScope) {
+  if (opts.judge && !selected.pipelineError && !outOfScope && !selected.refusalReason) {
     const [faithfulness, answerRelevance] = await Promise.all([
       judgeFaithfulness(selected.answer, selected.finalChunks, opts.signal),
       judgeAnswerRelevance(c.question, selected.answer, opts.signal),
@@ -151,12 +165,14 @@ async function runBranch(
   recalled: Chunk[],
   recallError: boolean,
   useRerank: boolean,
-  signal: AbortSignal | undefined,
+  opts: RunCuratedEvalOpts,
 ): Promise<CaseBranchOutcome> {
+  const signal = opts.signal;
   const start = Date.now();
   let finalChunks: Chunk[] = [];
   let answer = '';
   let pipelineError = recallError;
+  let refusalReason: RefusalReason | null = null;
 
   if (!pipelineError) {
     try {
@@ -166,7 +182,21 @@ async function runBranch(
         useRerank ? 'force' : 'off',
         signal,
       );
-      answer = await generateAnswer(buildPrompt(c.question, finalChunks), { signal });
+
+      // Same gate as production chat. Without it, eval would measure a pipeline
+      // that no longer exists — and would credit the LLM for refusals the server
+      // now makes on its own.
+      refusalReason =
+        opts.refusalGate === false
+          ? null
+          : assessRetrieval(c.question, finalChunks, {
+              minRerankScore: RETRIEVAL.minRerankScore,
+              rerankModel: resolveRerankProvider().model,
+            });
+
+      answer = refusalReason
+        ? refusalTextFor(c.question)
+        : await generateAnswer(buildPrompt(c.question, finalChunks), { signal });
     } catch (e) {
       pipelineError = true;
       console.error('[eval/runner] branch error:', e);
@@ -178,6 +208,8 @@ async function runBranch(
     answer,
     latencyMs: Date.now() - start,
     pipelineError,
+    refusalReason,
+    maxRerankScore: maxRerankScore(finalChunks),
   };
 }
 
@@ -240,6 +272,9 @@ function buildCaseResult(
     gradedHits: grades,
     faithfulness: scores.faithfulness,
     answerRelevance: scores.answerRelevance,
+    refused: branch.refusalReason !== null,
+    refusalReason: branch.refusalReason,
+    maxRerankScore: branch.maxRerankScore,
   };
 }
 
@@ -258,6 +293,14 @@ function aggregate(
   }));
 
   const m = aggregateMetrics(metricsInputs, TOP_K_VALUES);
+
+  // Refusal correctness needs its own numbers. The retrieval metrics cannot
+  // carry it: an out-of-scope case has no ground-truth chunks, so `retrievalHit`
+  // (= "retrieved nothing relevant") is true whether the system refused or
+  // invented an answer, and `citationHit` (= "cited nothing") passes an
+  // uncited hallucination just as happily as a refusal.
+  const oos = records.filter(r => r.outOfScope);
+  const inScope = records.filter(r => !r.outOfScope);
 
   return {
     runId: crypto.randomUUID(),
@@ -280,9 +323,17 @@ function aggregate(
     mrr: m.mrr,
     avgFaithfulness: meanNullable(caseResults.map(c => c.faithfulness ?? null)),
     avgAnswerRelevance: meanNullable(caseResults.map(c => c.answerRelevance ?? null)),
+    oosRefusalRate: rate(oos, r => r.result.refused === true),
+    inScopeFalseRefusalRate: rate(inScope, r => r.result.refused === true),
     mode: 'curated',
     datasetHash,
   };
+}
+
+/** Share of `records` matching `predicate`; null over an empty set. */
+function rate(records: CaseRunRecord[], predicate: (r: CaseRunRecord) => boolean): number | null {
+  if (records.length === 0) return null;
+  return records.filter(predicate).length / records.length;
 }
 
 /** Mean over the non-null values; null when there are none (e.g. judging off). */

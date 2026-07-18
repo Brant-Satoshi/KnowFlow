@@ -102,6 +102,20 @@ const olympus: EvalCase[] = [
     targetChunkSubstrings: ['-78°C to -12°C'],
     notes: 'Tests whether numeric ranges and negative signs are preserved.',
   },
+  // Out-of-scope cases: questions the corpus cannot answer. A threshold picked
+  // against one easy negative is a threshold fitted to noise, so these span the
+  // ways a question can be unanswerable — from trivially unrelated to a
+  // near-miss that reuses the document's own vocabulary and asks for the one
+  // fact it never states. The near-misses are the ones that decide the floor:
+  // they score high on any reranker and are exactly where a model invents.
+  //
+  // Authoring rule, learned the hard way: verify against the *whole* fixture
+  // before calling a question unanswerable. A case here once asked which station
+  // recorded the Tharsis dust intensification — a fact the Chinese fixture states
+  // outright further down. The model answered it correctly, with a citation, and
+  // was scored as a hallucination. Grep the fixture, don't trust a skim. And run
+  // each dataset against a KB holding only its own fixture: in a bilingual KB the
+  // other language's document answers questions this one cannot.
   {
     id: 'olympus-out-of-scope',
     category: 'out_of_scope',
@@ -110,7 +124,67 @@ const olympus: EvalCase[] = [
     expectedAnswer: 'The document does not say.',
     expectedKeywords: [],    targetFileNames: [],
     targetChunkSubstrings: [],
-    notes: 'Tests whether the model refuses or expresses uncertainty when the KB does not contain the answer.',
+    notes: 'In-domain entity, absent fact: the brief never gives a headcount.',
+  },
+  {
+    id: 'olympus-oos-phase2-budget',
+    category: 'out_of_scope',
+    difficulty: 'hard',
+    question: 'How many credits were allocated to Phase 2 of the Olympus Initiative?',
+    expectedAnswer: 'The document does not say.',
+    expectedKeywords: [],    targetFileNames: [],
+    targetChunkSubstrings: [],
+    notes: 'Near-miss: the brief gives initial funding (420M) and describes Phase 2, but never budgets Phase 2. Invites borrowing the wrong number.',
+  },
+  {
+    id: 'olympus-oos-tharsis-attribution',
+    category: 'out_of_scope',
+    difficulty: 'hard',
+    question: 'Which orbital station recorded the 18% dust-storm intensification in the Tharsis region?',
+    expectedAnswer: 'The document does not say.',
+    expectedKeywords: [],    targetFileNames: [],
+    targetChunkSubstrings: [],
+    notes: 'Near-miss: the 18%/Tharsis finding and the three station names are both in the corpus, but the finding is never attributed to a station. Presupposes a fact not in evidence.',
+  },
+  {
+    id: 'olympus-oos-relay-latency',
+    category: 'out_of_scope',
+    difficulty: 'hard',
+    question: 'What is the transmission latency of the Mercury Link relay satellite?',
+    expectedAnswer: 'The document does not say.',
+    expectedKeywords: [],    targetFileNames: [],
+    targetChunkSubstrings: [],
+    notes: 'Near-miss: Mercury Link exists and "every 90 minutes" appears (as a recording interval), tempting the model to report it as latency.',
+  },
+  {
+    id: 'olympus-oos-future-window',
+    category: 'out_of_scope',
+    difficulty: 'medium',
+    question: 'What did the Daedalus station observe in 2031?',
+    expectedAnswer: 'The document does not say.',
+    expectedKeywords: [],    targetFileNames: [],
+    targetChunkSubstrings: [],
+    notes: 'Out of the timeline: the brief ends at Phase 2 (2027–2030).',
+  },
+  {
+    id: 'olympus-oos-adjacent-program',
+    category: 'out_of_scope',
+    difficulty: 'medium',
+    question: 'Who is the lead researcher of the Artemis Initiative?',
+    expectedAnswer: 'The document does not say.',
+    expectedKeywords: [],    targetFileNames: [],
+    targetChunkSubstrings: [],
+    notes: 'Adjacent subject: same question shape as a case the corpus does answer, about a program it never mentions.',
+  },
+  {
+    id: 'olympus-oos-unrelated',
+    category: 'out_of_scope',
+    difficulty: 'easy',
+    question: 'What is the best way to cook a risotto?',
+    expectedAnswer: 'The document does not say.',
+    expectedKeywords: [],    targetFileNames: [],
+    targetChunkSubstrings: [],
+    notes: 'Baseline: nothing in the corpus is even topically close. If this one is not refused, nothing else will be.',
   },
 ];
 
@@ -210,6 +284,10 @@ const olympusZh: EvalCase[] = [
     targetChunkSubstrings: ['-78°C 到 -12°C'],
     notes: '测试数值范围和负号是否被保留。',
   },
+  // 负样本（out_of_scope）：文档回答不了的问题。只用一条容易的负样本去选阈值，
+  // 选到的是噪声；因此这里覆盖「不可回答」的几种形态——从完全无关，到复用文档
+  // 自身词汇、却偏偏问它唯一没写的那个事实的近似负样本。近似负样本才是决定
+  // 分数下限的关键：它们在任何 reranker 上都得分很高，也正是模型最容易编造的地方。
   {
     id: 'olympus-zh-out-of-scope',
     category: 'out_of_scope',
@@ -218,7 +296,67 @@ const olympusZh: EvalCase[] = [
     expectedAnswer: '文档未说明。',
     expectedKeywords: [],    targetFileNames: [],
     targetChunkSubstrings: [],
-    notes: '测试当知识库不包含答案时，模型是否会拒答或表达不确定。',
+    notes: '同域实体、缺失事实：文档从未给出人员编制。',
+  },
+  {
+    id: 'olympus-zh-oos-phase2-budget',
+    category: 'out_of_scope',
+    difficulty: 'hard',
+    question: '第二阶段的预算是多少信用点？',
+    expectedAnswer: '文档未说明。',
+    expectedKeywords: [],    targetFileNames: [],
+    targetChunkSubstrings: [],
+    notes: '近似负样本：文档给了初始资金 4.2 亿信用点，并明确说「后续预算需在第一阶段评审后确认」——即第二阶段预算恰恰没写，极易诱导模型套用初始资金。',
+  },
+  {
+    id: 'olympus-zh-oos-antenna-diameter',
+    category: 'out_of_scope',
+    difficulty: 'hard',
+    question: '水星链路的高增益天线直径是多少米？',
+    expectedAnswer: '文档未说明。',
+    expectedKeywords: [],    targetFileNames: [],
+    targetChunkSubstrings: [],
+    notes: '近似负样本：「水星链路」和「高增益天线」都在文档里，所在段落还密集出现数字（四十天、数分钟到二十多分钟），但天线直径从未给出，极易诱导模型凑一个数。',
+  },
+  {
+    id: 'olympus-zh-oos-ground-station-count',
+    category: 'out_of_scope',
+    difficulty: 'hard',
+    question: '地面观测网络一共有多少个无人气象点？',
+    expectedAnswer: '文档未说明。',
+    expectedKeywords: [],    targetFileNames: [],
+    targetChunkSubstrings: [],
+    notes: '近似负样本：文档只说「设置多个无人气象点」，从未给出数量，但周围段落数字密集（每十五分钟、每九十分钟），诱导模型凑一个数。',
+  },
+  {
+    id: 'olympus-zh-oos-future-window',
+    category: 'out_of_scope',
+    difficulty: 'medium',
+    question: '代达罗斯气象站在 2031 年观测到了什么？',
+    expectedAnswer: '文档未说明。',
+    expectedKeywords: [],    targetFileNames: [],
+    targetChunkSubstrings: [],
+    notes: '时间越界：文档的时间线止于第二阶段（2027–2030）。',
+  },
+  {
+    id: 'olympus-zh-oos-adjacent-program',
+    category: 'out_of_scope',
+    difficulty: 'medium',
+    question: '阿尔忒弥斯计划的首席研究员是谁？',
+    expectedAnswer: '文档未说明。',
+    expectedKeywords: [],    targetFileNames: [],
+    targetChunkSubstrings: [],
+    notes: '相邻主题：与「首席研究员是谁」这一可回答问题同形，但问的是文档从未提及的另一个计划。',
+  },
+  {
+    id: 'olympus-zh-oos-unrelated',
+    category: 'out_of_scope',
+    difficulty: 'easy',
+    question: '红烧肉怎么做最好吃？',
+    expectedAnswer: '文档未说明。',
+    expectedKeywords: [],    targetFileNames: [],
+    targetChunkSubstrings: [],
+    notes: '基线：语料里没有任何话题接近它。这条都拒不掉，其他就更别提了。',
   },
 ];
 

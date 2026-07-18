@@ -15,7 +15,11 @@ import {
   type ChatHistoryMessage,
   type SseSend,
 } from '@/lib/llm/chat';
-import { recallChunks, selectFinalChunks } from '@/lib/rag/retrieve';
+import { classifyChatError } from '@/lib/llm/errors';
+import { emitRefusal } from '@/lib/llm/refusal';
+import { resolveRerankProvider } from '@/lib/models';
+import { assessRetrieval } from '@/lib/rag/refusal-gate';
+import { recallChunks, RETRIEVAL, selectFinalChunks } from '@/lib/rag/retrieve';
 import { NextRequest } from 'next/server';
 import { isValidUuid, parseRetrievalFilter } from '@/lib/validation';
 import type { RetrievedChunk } from '@/lib/types';
@@ -273,6 +277,31 @@ export async function POST(request: NextRequest) {
           };
         });
 
+        // Nothing worth answering from: say so, and never let the LLM improvise
+        // over an empty (or irrelevant) context. `meta.refusal` records which
+        // rule fired; `emitRefusal` streams the canned text as a normal turn, so
+        // the client needs no special case.
+        const refusal = assessRetrieval(message, finalChunks, {
+          minRerankScore: RETRIEVAL.minRerankScore,
+          rerankModel: resolveRerankProvider().model,
+        });
+        if (refusal) {
+          console.log(
+            `[${requestId}] refusal=${refusal} recalled=${recalledChunks.length} final=${finalChunks.length}`,
+          );
+          await emitRefusal(send, {
+            requestId,
+            question: message,
+            retrievedChunks,
+            reason: refusal,
+            onComplete: async (text) => {
+              await appendMessage(conversationId, 'assistant', text, retrievedChunks, requestId);
+              await touchConversation(conversationId);
+            },
+          });
+          return;
+        }
+
         send('meta', { requestId, retrievedChunks });
         send('progress', { requestId, stage: 'generating' });
 
@@ -294,9 +323,13 @@ export async function POST(request: NextRequest) {
           },
         });
       } catch (e) {
-        console.error(`[${requestId}] chat error:`, e);
+        // `code` is what the client renders; `message` keeps the upstream detail
+        // for this log line, which shares the requestId with the client's turn.
+        const code = classifyChatError(e);
+        console.error(`[${requestId}] chat error (${code}):`, e);
         send('error', {
           requestId,
+          code,
           message: e instanceof Error ? e.message : 'Chat failed',
         });
       } finally {

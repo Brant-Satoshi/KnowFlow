@@ -1,14 +1,14 @@
 import type { Chunk } from '../types';
+import { refusalTextFor } from './refusal';
 
 export function formatChunks(chunks: Chunk[]): string {
   return chunks.map((c, i) => `[${i + 1}] ${c.text}`).join('\n\n');
 }
 
 export function buildQaPrompt(question: string, numberedContext: string): string {
-  const isChinese = /[\u4e00-\u9fff]/.test(question);
-  const fallback = isChinese
-    ? '我没有在知识库中找到相关信息。'
-    : "I couldn't find relevant information in the knowledge base.";
+  // Same string the retrieval gate emits when it skips the LLM entirely, so a
+  // prompt-level refusal and a server-side one stay indistinguishable downstream.
+  const fallback = refusalTextFor(question);
   return `You are a helpful assistant.
 
 Answer the user's question using ONLY the provided context.

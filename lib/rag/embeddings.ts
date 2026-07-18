@@ -1,6 +1,10 @@
 import { Chunk } from "../types";
 import { resolveEmbeddingProvider, type EmbeddingProviderConfig } from "../models";
+import { EmbeddingError } from "../llm/errors";
 import { extractUpstreamMessage, openRouterFetch, readJsonSafe } from "../llm/openrouter";
+import { LLM_TIMEOUTS, withDeadline } from "../llm/timeouts";
+
+export { EmbeddingError };
 
 const EXPECTED_EMBEDDING_DIMENSIONS = 1536;
 
@@ -21,11 +25,11 @@ type EmbeddingOptions = {
 
 function assertValidEmbedding(vector: number[] | undefined, index: number): number[] {
   if (!vector) {
-    throw new Error(`embedding response missing vector at index ${index}`);
+    throw new EmbeddingError(`embedding response missing vector at index ${index}`);
   }
 
   if (vector.length !== EXPECTED_EMBEDDING_DIMENSIONS) {
-    throw new Error(
+    throw new EmbeddingError(
       `embedding dimension mismatch: expected ${EXPECTED_EMBEDDING_DIMENSIONS}, got ${vector.length}`
     );
   }
@@ -53,24 +57,35 @@ async function createEmbeddings(
 
   // env-supplied dimensions must match chunks.embedding vector(1536) schema.
   if (cfg.dimensions !== undefined && cfg.dimensions !== EXPECTED_EMBEDDING_DIMENSIONS) {
-    throw new Error(
-      `embedding dimensions=${cfg.dimensions} does not match chunks.embedding vector(${EXPECTED_EMBEDDING_DIMENSIONS})`
+    throw new EmbeddingError(
+      `embedding dimensions=${cfg.dimensions} does not match chunks.embedding vector(${EXPECTED_EMBEDDING_DIMENSIONS})`,
+      'config'
     );
   }
 
-  const res = await openRouterFetch(cfg, buildRequestBody(input, cfg), options?.signal);
-  const payload = await readJsonSafe(res);
+  const deadline = withDeadline(
+    options?.signal,
+    LLM_TIMEOUTS.embeddingMs,
+    `embedding request timed out after ${LLM_TIMEOUTS.embeddingMs}ms`
+  );
 
-  if (!res.ok) {
-    throw new Error(`embedding failed: ${getResponseMessage(payload, res.status)}`);
+  try {
+    const res = await openRouterFetch(cfg, buildRequestBody(input, cfg), deadline.signal);
+    const payload = await readJsonSafe(res);
+
+    if (!res.ok) {
+      throw new EmbeddingError(`embedding failed: ${getResponseMessage(payload, res.status)}`);
+    }
+
+    const response = payload as OpenAIEmbeddingResponse;
+    if (!response.data || response.data.length !== input.length) {
+      throw new EmbeddingError(`embedding failed: ${getResponseMessage(response, res.status)}`);
+    }
+
+    return response.data.map((item, index) => assertValidEmbedding(item.embedding, index));
+  } finally {
+    deadline.dispose();
   }
-
-  const response = payload as OpenAIEmbeddingResponse;
-  if (!response.data || response.data.length !== input.length) {
-    throw new Error(`embedding failed: ${getResponseMessage(response, res.status)}`);
-  }
-
-  return response.data.map((item, index) => assertValidEmbedding(item.embedding, index));
 }
 
 export async function embedText(

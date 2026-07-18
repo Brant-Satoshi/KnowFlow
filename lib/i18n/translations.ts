@@ -241,6 +241,17 @@ export const translations = {
       uploadFailed: "Upload failed",
       fileTooLarge: "File exceeds the {maxMb}MB size limit",
       parseFailed: "Parse failed",
+      // Keyed by ParseErrorCode (lib/rag/parse.ts).
+      parseErrors: {
+        unsupported_type: "This file type isn’t supported. Upload a PDF, Word, Markdown, or text file.",
+        pdf_parse_failed: "This PDF couldn’t be read. It may be corrupted, encrypted, or password-protected.",
+        docx_parse_failed: "This Word document couldn’t be read. It may be corrupted or not a valid .docx file.",
+        doc_convert_failed: "This .doc file couldn’t be converted. Try re-saving it as .docx.",
+        doc_convert_unavailable: "The server can’t process .doc files right now. Convert it to .docx and upload again.",
+        no_text_extracted: "No text could be extracted. If this is a scan or images, it needs OCR before uploading.",
+        embedding_failed: "The file was read, but indexing it failed. Please try again.",
+        parse_failed: "Parse failed",
+      },
       deleteFailed: "Delete failed",
       deleteFailedTitle: "Delete failed",
       deleteFailedDesc: "We couldn’t delete this file. Please try again.",
@@ -287,6 +298,19 @@ export const translations = {
       conversationRenameFailed: "Failed to rename conversation",
       conversationDeleteFailed: "Failed to delete conversation",
       chatsTab: "Chats",
+      // Keyed by ChatErrorCode (lib/llm/errors.ts). The server sends the code;
+      // the raw upstream message stays in the log, not in the user's face.
+      errors: {
+        rate_limited: "The AI service is busy right now. Please try again in a moment.",
+        llm_unavailable: "The AI service is temporarily unavailable. Please try again.",
+        llm_auth: "The AI service rejected our credentials. Please contact an administrator.",
+        timeout: "The answer took too long and timed out. Please try again.",
+        embedding_failed: "We couldn’t search the knowledge base. Please try again.",
+        service_config: "The AI service is misconfigured. Please contact an administrator.",
+        llm_error: "Something went wrong while generating the answer. Please try again.",
+      },
+      noCitationWarning:
+        "This answer cites no sources, so it may not be grounded in your documents. Verify before relying on it.",
       process: {
         processLabel: "Process",
         understanding: "Preparing",
@@ -724,6 +748,17 @@ export const translations = {
       uploadFailed: "上传失败",
       fileTooLarge: "文件超过 {maxMb}MB 大小限制",
       parseFailed: "解析失败",
+      // 键名对应 ParseErrorCode（lib/rag/parse.ts）。
+      parseErrors: {
+        unsupported_type: "不支持该文件类型，请上传 PDF、Word、Markdown 或纯文本文件。",
+        pdf_parse_failed: "无法读取该 PDF，文件可能已损坏、被加密或设有密码。",
+        docx_parse_failed: "无法读取该 Word 文档，文件可能已损坏或不是有效的 .docx。",
+        doc_convert_failed: "无法转换该 .doc 文件，请另存为 .docx 后重试。",
+        doc_convert_unavailable: "服务器当前无法处理 .doc 文件，请转换为 .docx 后重新上传。",
+        no_text_extracted: "未能提取到任何文本。如果这是扫描件或图片，需要先做 OCR。",
+        embedding_failed: "文件已读取，但建立索引失败，请重试。",
+        parse_failed: "解析失败",
+      },
       deleteFailed: "删除失败",
       deleteFailedTitle: "删除失败",
       deleteFailedDesc: "未能删除该文件，请稍后重试。",
@@ -770,6 +805,18 @@ export const translations = {
       conversationRenameFailed: "重命名对话失败",
       conversationDeleteFailed: "删除对话失败",
       chatsTab: "对话",
+      // 键名对应 ChatErrorCode（lib/llm/errors.ts）：服务端只传 code，
+      // 上游原始报错留在日志里，不摆到用户面前。
+      errors: {
+        rate_limited: "AI 服务繁忙（触发限流），请稍后重试。",
+        llm_unavailable: "AI 服务暂时不可用，请稍后重试。",
+        llm_auth: "AI 服务凭据校验失败，请联系管理员。",
+        timeout: "生成回答超时，请重试。",
+        embedding_failed: "知识库检索失败，请重试。",
+        service_config: "AI 服务配置异常，请联系管理员。",
+        llm_error: "生成回答时出错，请重试。",
+      },
+      noCitationWarning: "该回答未标注引用来源，可能未完全基于你的文档，请谨慎参考。",
       process: {
         processLabel: "过程",
         understanding: "准备中",

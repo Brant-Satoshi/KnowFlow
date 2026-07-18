@@ -1,7 +1,9 @@
 import { Chunk } from "../types";
-import { isSummaryQuery } from '../validation';
+import { isConversationSummaryQuery, isSummaryQuery } from '../validation';
 import { resolveChatProvider } from '../models';
+import { classifyUpstreamStatus } from './errors';
 import { extractUpstreamMessage, openRouterFetch, readJsonSafe } from './openrouter';
+import { LLM_TIMEOUTS, withDeadline } from './timeouts';
 import {
   buildConversationSummaryPrompt,
   buildQaPrompt,
@@ -43,7 +45,13 @@ export function buildPrompt(question: string, chunks: Chunk[]) {
 
   if (isSummaryQuery(question)) {
     if (chunks.length === 0) {
-      return buildConversationSummaryPrompt();
+      // Only a bare "recap the conversation" may be answered from history alone.
+      // A topical summary with nothing retrieved falls through to the QA prompt,
+      // which is instructed to refuse — and in chat it never gets this far,
+      // because the retrieval gate refuses it first.
+      return isConversationSummaryQuery(question)
+        ? buildConversationSummaryPrompt()
+        : buildQaPrompt(question, numberedContext);
     }
 
     return buildSummaryPrompt(question, numberedContext);
@@ -56,6 +64,8 @@ export interface StreamLlmAnswerOptions {
   history?: ChatHistoryMessage[];
   onComplete?: (fullText: string) => Promise<void> | void;
   modelId?: string;
+  /** Overrides for LLM_TIMEOUTS. Tests use it to compress the deadlines. */
+  timeouts?: { connectMs?: number; streamIdleMs?: number };
 }
 
 /**
@@ -79,83 +89,112 @@ export async function streamLlmAnswer(
     { role: 'user' as const, content: prompt },
   ];
 
-  const response = await openRouterFetch(
-    provider,
-    { model: provider.model, stream: true, messages: llmMessages },
+  const connectMs = options?.timeouts?.connectMs ?? LLM_TIMEOUTS.connectMs;
+  const streamIdleMs = options?.timeouts?.streamIdleMs ?? LLM_TIMEOUTS.streamIdleMs;
+
+  // One deadline, re-armed for two jobs: first "headers must arrive", then —
+  // once they have — "the model must keep producing output".
+  const deadline = withDeadline(
     signal,
+    connectMs,
+    `LLM did not respond within ${connectMs}ms`,
   );
 
-  if (!response.ok) {
-    let errorData: unknown = null;
-    try {
-      errorData = await response.json();
-    } catch {
-      errorData = await response.text();
-    }
-    const message = extractUpstreamMessage(errorData) ?? `LLM request failed: ${response.status}`;
-    console.error(`[${requestId}] LLM upstream ${response.status}:`, errorData);
-    send('error', { requestId, status: response.status, message, error: errorData });
-    return;
-  }
-
-  const accumulated: string[] = [];
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error('No response body');
-
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let streamDone = false;
-  let streamedOk = false;
-
   try {
-    while (!streamDone) {
-      const { done, value } = await reader.read();
-      if (done) {
-        streamDone = true;
-        break;
+    const response = await openRouterFetch(
+      provider,
+      { model: provider.model, stream: true, messages: llmMessages },
+      deadline.signal,
+    );
+
+    if (!response.ok) {
+      let errorData: unknown = null;
+      try {
+        errorData = await response.json();
+      } catch {
+        errorData = await response.text();
       }
+      const message = extractUpstreamMessage(errorData) ?? `LLM request failed: ${response.status}`;
+      const code = classifyUpstreamStatus(response.status);
+      console.error(`[${requestId}] LLM upstream ${response.status} (${code}):`, errorData);
+      send('error', { requestId, status: response.status, code, message, error: errorData });
+      return;
+    }
 
-      buffer += decoder.decode(value, { stream: true });
+    const accumulated: string[] = [];
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
 
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
+    // Headers are in, so the connect deadline must not fire mid-answer. From
+    // here the watchdog measures *model output*: nothing else can. The route
+    // sends its own SSE keepalive every 15s, which resets the browser's idle
+    // timer on every tick — so if the upstream went silent after responding, the
+    // client would wait forever and only this timer would ever notice.
+    deadline.reset(streamIdleMs);
 
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let streamDone = false;
+    let streamedOk = false;
 
-        const jsonStr = line.slice(6);
-
-        if (jsonStr === '[DONE]') {
+    try {
+      while (!streamDone) {
+        const { done, value } = await reader.read();
+        if (done) {
           streamDone = true;
           break;
         }
 
-        try {
-          const data = JSON.parse(jsonStr);
-          const content = data.choices?.[0]?.delta?.content;
+        buffer += decoder.decode(value, { stream: true });
 
-          if (content) {
-            accumulated.push(content);
-            // Forward upstream deltas as-is: pacing mirrors the real LLM stream
-            // (the client batches renders per animation frame).
-            send('token', { delta: content });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          // Deliberately *not* reset on every chunk of bytes: OpenRouter sends
+          // ": OPENROUTER PROCESSING" comment lines while a request is queued,
+          // and treating those as progress would make the watchdog unable to
+          // ever detect a stall — the exact bug it exists to catch.
+          if (!line.startsWith('data: ')) continue;
+          deadline.reset(streamIdleMs);
+
+          const jsonStr = line.slice(6);
+
+          if (jsonStr === '[DONE]') {
+            streamDone = true;
+            break;
           }
-        } catch { }
+
+          try {
+            const data = JSON.parse(jsonStr);
+            const content = data.choices?.[0]?.delta?.content;
+
+            if (content) {
+              accumulated.push(content);
+              // Forward upstream deltas as-is: pacing mirrors the real LLM stream
+              // (the client batches renders per animation frame).
+              send('token', { delta: content });
+            }
+          } catch { }
+        }
       }
+      streamedOk = true;
+    } finally {
+      if (onComplete) {
+        try {
+          // Runs on the stall path too, so a half-streamed answer is still saved.
+          await onComplete(accumulated.join(''));
+        } catch (err) {
+          console.error(`[${requestId}] onComplete failed:`, err);
+        }
+      }
+      // `done` is the client's completion signal: emit it only after onComplete
+      // has persisted the assistant turn, so unlocking the UI on `done` can't
+      // race a regenerate against the pending insert.
+      if (streamedOk) send('done', { requestId });
     }
-    streamedOk = true;
   } finally {
-    if (onComplete) {
-      try {
-        await onComplete(accumulated.join(''));
-      } catch (err) {
-        console.error(`[${requestId}] onComplete failed:`, err);
-      }
-    }
-    // `done` is the client's completion signal: emit it only after onComplete
-    // has persisted the assistant turn, so unlocking the UI on `done` can't
-    // race a regenerate against the pending insert.
-    if (streamedOk) send('done', { requestId });
+    deadline.dispose();
   }
 }
 
@@ -207,21 +246,31 @@ export async function generateAnswer(
   options?: GenerateAnswerOptions,
 ): Promise<string> {
   const provider = resolveChatProvider(options?.modelId);
-  const response = await openRouterFetch(
-    provider,
-    { model: provider.model, stream: false, messages: [{ role: 'user', content: prompt }] },
+  const deadline = withDeadline(
     options?.signal,
+    LLM_TIMEOUTS.generateMs,
+    `LLM did not respond within ${LLM_TIMEOUTS.generateMs}ms`,
   );
 
-  if (!response.ok) {
-    const message = extractUpstreamMessage(await readJsonSafe(response));
-    throw new Error(message ?? `LLM request failed: ${response.status}`);
-  }
+  try {
+    const response = await openRouterFetch(
+      provider,
+      { model: provider.model, stream: false, messages: [{ role: 'user', content: prompt }] },
+      deadline.signal,
+    );
 
-  const data = await response.json() as ChatApiResponse;
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error('Empty LLM response');
-  return content;
+    if (!response.ok) {
+      const message = extractUpstreamMessage(await readJsonSafe(response));
+      throw new Error(message ?? `LLM request failed: ${response.status}`);
+    }
+
+    const data = await response.json() as ChatApiResponse;
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) throw new Error('Empty LLM response');
+    return content;
+  } finally {
+    deadline.dispose();
+  }
 }
 
 const TITLE_MAX_CHARS = 60;

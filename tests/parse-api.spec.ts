@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs"
 import path from "node:path"
 
 const TXT_FIXTURE = path.join(__dirname, "fixtures/sample.txt")
+const BLANK_FIXTURE = path.join(__dirname, "fixtures/blank.txt")
 
 const REQUIRED_ENV = [
   "OPENROUTER_API_KEY",
@@ -62,6 +63,52 @@ test.describe("POST /api/files/[id]/parse — concurrency guard", () => {
         (f: { id: string }) => f.id === fileId,
       )
       expect(fileRow?.status).toBe("indexed")
+    } finally {
+      await request.delete(`/api/knowledge-bases/${kbId}`)
+    }
+  })
+
+  // A file with no extractable text (a scan, an image-only PDF, an empty doc)
+  // used to parse "successfully" into zero chunks and be stored as `indexed`:
+  // present in the list, ready-looking, and permanently unsearchable. It must
+  // fail instead, and say why. No LLM is involved — parsing fails before the
+  // embedding call — so this is deterministic.
+  test("a file with no extractable text fails with a traceable reason", async ({ request }) => {
+    test.setTimeout(120_000)
+
+    const createKb = await request.post("/api/knowledge-bases", {
+      data: { name: `parse-blank-e2e-${Date.now()}` },
+    })
+    const kbId = (await createKb.json()).data.knowledgeBase.id as string
+
+    try {
+      const upload = await request.post("/api/files/upload", {
+        multipart: {
+          knowledgeBaseId: kbId,
+          file: {
+            name: "blank.txt",
+            mimeType: "text/plain",
+            buffer: readFileSync(BLANK_FIXTURE),
+          },
+        },
+      })
+      expect(upload.ok()).toBeTruthy()
+      const fileId = (await upload.json()).data.file.id as string
+
+      const parse = await request.post(`/api/files/${fileId}/parse`)
+      expect(parse.status()).toBe(500)
+
+      const body = await parse.json()
+      expect(body.ok).toBe(false)
+      expect(body.data.code).toBe("no_text_extracted")
+      // The same id is on the server's log line for this failure.
+      expect(body.requestId).toBeTruthy()
+
+      const files = await request.get(`/api/files?knowledgeBaseId=${kbId}`)
+      const fileRow = (await files.json()).data.files.find(
+        (f: { id: string }) => f.id === fileId,
+      )
+      expect(fileRow?.status).toBe("failed")
     } finally {
       await request.delete(`/api/knowledge-bases/${kbId}`)
     }
