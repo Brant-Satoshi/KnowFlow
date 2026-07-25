@@ -50,7 +50,7 @@ export function EmptyState({
         {/* Greeting glyph */}
         {isPreparing ? (
           <div className="flex h-12 w-12 items-center justify-center rounded-[14px] border border-amber-200/60 bg-amber-50 text-amber-600 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400">
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Loader2 className="size-5 animate-spin" />
           </div>
         ) : (
           <div aria-hidden className="wave-hand text-5xl leading-none">👋</div>
@@ -128,7 +128,7 @@ export function EmptyState({
               onClick={() => fileInputRef.current?.click()}
               className="cursor-pointer rounded-xl px-5"
             >
-              <Upload className="h-4 w-4" />
+              <Upload className="size-4" />
               {t.uploadFile}
             </Button>
           </div>
