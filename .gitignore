@@ -20,9 +20,6 @@
 # production
 /build
 
-# editor (personal settings)
-.vscode/
-
 # misc
 .DS_Store
 *.pem
