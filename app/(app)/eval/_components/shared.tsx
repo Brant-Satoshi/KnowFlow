@@ -82,6 +82,7 @@ export function detailToResult(run: EvalRunDetail): EvalRunResult {
     retrievalHitRate: run.retrievalHitRate,
     citationHitRate: run.citationHitRate,
     avgLatencyMs: run.avgLatencyMs,
+    hitAtK: run.hitAtK ?? undefined,
     recallAtK: run.recallAtK ?? undefined,
     precisionAtK: run.precisionAtK ?? undefined,
     ndcgAtK: run.ndcgAtK ?? undefined,
@@ -120,7 +121,8 @@ export interface RunMetrics {
   answerRelevance: number | null;
   retrievalHitRate: number;
   citationHitRate: number;
-  recall: number | null;
+  hit: number | null;
+  legacyHit: number | null;
   precision: number | null;
   ndcg: number | null;
   mrr: number | null;
@@ -136,7 +138,8 @@ export function metricsFromSummary(s: EvalRunSummary): RunMetrics {
     answerRelevance: s.avgAnswerRelevance,
     retrievalHitRate: s.retrievalHitRate,
     citationHitRate: s.citationHitRate,
-    recall: at5(s.recallAtK),
+    hit: at5(s.hitAtK),
+    legacyHit: at5(s.recallAtK),
     precision: at5(s.precisionAtK),
     ndcg: at5(s.ndcgAtK),
     mrr: s.mrr,
@@ -153,7 +156,8 @@ export function metricsFromResult(r: EvalRunResult): RunMetrics {
     answerRelevance: r.avgAnswerRelevance ?? null,
     retrievalHitRate: r.retrievalHitRate,
     citationHitRate: r.citationHitRate,
-    recall: at5(r.recallAtK),
+    hit: at5(r.hitAtK),
+    legacyHit: at5(r.recallAtK),
     precision: at5(r.precisionAtK),
     ndcg: at5(r.ndcgAtK),
     mrr: r.mrr ?? null,
@@ -185,7 +189,8 @@ export const METRIC_SPECS: MetricSpec[] = [
   { key: 'answerRelevance', labelKey: 'answerRelevance', value: m => m.answerRelevance, display: m => scalar2(m.answerRelevance), higherIsBetter: true, kind: 'scalar' },
   { key: 'retrieval', labelKey: 'retrievalHitRate', value: m => m.retrievalHitRate, display: m => pct(m.retrievalHitRate), higherIsBetter: true, kind: 'rate' },
   { key: 'citation', labelKey: 'citationHitRate', value: m => m.citationHitRate, display: m => pct(m.citationHitRate), higherIsBetter: true, kind: 'rate' },
-  { key: 'recall', labelKey: 'recallAtK', value: m => m.recall, display: m => pct(m.recall), higherIsBetter: true, kind: 'rate' },
+  { key: 'hit', labelKey: 'hitAtK', value: m => m.hit, display: m => pct(m.hit), higherIsBetter: true, kind: 'rate' },
+  { key: 'legacyHit', labelKey: 'legacyHitAtK', value: m => m.legacyHit, display: m => pct(m.legacyHit), higherIsBetter: true, kind: 'rate' },
   { key: 'precision', labelKey: 'precisionAtK', value: m => m.precision, display: m => pct(m.precision), higherIsBetter: true, kind: 'rate' },
   { key: 'ndcg', labelKey: 'ndcgAtK', value: m => m.ndcg, display: m => pct(m.ndcg), higherIsBetter: true, kind: 'rate' },
   { key: 'mrr', labelKey: 'mrr', value: m => m.mrr, display: m => scalar2(m.mrr), higherIsBetter: true, kind: 'scalar' },

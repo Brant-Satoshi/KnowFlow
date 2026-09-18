@@ -17,12 +17,16 @@ import {
 import { formatDateTime } from '@/lib/format';
 import { TrendChart, ScatterChart } from './charts';
 
-/** The five hero metrics shown as cards. */
-const HERO_KEYS = ['faithfulness', 'answerRelevance', 'precision', 'recall', 'latency'];
+/**
+ * The five hero metrics shown as cards. `legacyHit` is deliberately not one:
+ * runs stopped persisting recall_at_k, so it is "—" on every new run. It stays
+ * in the leaderboard and compare table, where historical rows still carry it.
+ */
+const HERO_KEYS = ['faithfulness', 'answerRelevance', 'precision', 'hit', 'latency'];
 const HERO_SPECS = HERO_KEYS.map(k => METRIC_SPECS.find(s => s.key === k)).filter((s): s is MetricSpec => !!s);
 
 /** Curated leaderboard columns (mirrors the design; $/q dropped — no cost data). */
-const LEADERBOARD_KEYS = ['faithfulness', 'answerRelevance', 'precision', 'recall', 'retrieval', 'mrr', 'latency'];
+const LEADERBOARD_KEYS = ['faithfulness', 'answerRelevance', 'precision', 'hit', 'legacyHit', 'retrieval', 'mrr', 'latency'];
 const LEADERBOARD_SPECS = LEADERBOARD_KEYS.map(k => METRIC_SPECS.find(s => s.key === k)).filter((s): s is MetricSpec => !!s);
 
 const RANK_DOT = [EVAL_POSITIVE, EVAL_WARNING, 'hsl(var(--muted-foreground))'];
@@ -207,6 +211,10 @@ export function OverviewTab({
             );
           })}
         </div>
+      )}
+
+      {curMetrics && (
+        <p className="text-[12px] font-sans text-muted-foreground leading-relaxed">{evalT.hitMetricHelp}</p>
       )}
 
       {history.length > 0 && (

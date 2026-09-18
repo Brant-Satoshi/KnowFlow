@@ -160,7 +160,7 @@ export async function saveRun(
       retrievalHitRate: result.retrievalHitRate,
       citationHitRate: result.citationHitRate,
       avgLatencyMs: result.avgLatencyMs,
-      recallAtK: result.recallAtK ?? null,
+      hitAtK: result.hitAtK ?? null,
       precisionAtK: result.precisionAtK ?? null,
       ndcgAtK: result.ndcgAtK ?? null,
       mrr: result.mrr ?? null,

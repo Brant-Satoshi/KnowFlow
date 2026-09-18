@@ -236,11 +236,15 @@ function buildCaseResult(
       : c.expectedKeywords.some(kw => lowered.includes(kw.toLowerCase()));
   const citationHit = outOfScope ? !hasCitation : hasCitation && hasKeyword;
 
-  const topKHits: EvalTopKHit[] = TOP_K_VALUES.map(k => {
-    const slice = grades.slice(0, k);
-    const hasRelevantInK = slice.some(g => g >= 2);
-    return { k, hit: outOfScope ? !hasRelevantInK : hasRelevantInK };
-  });
+  // Per-case Hit@K, same definition as the aggregate in lib/eval/metrics.ts:
+  // "a relevant chunk in the top K", never inverted for out-of-scope cases, so
+  // tallying these reproduces the reported Hit@K. Out-of-scope cases are all
+  // false here and contribute to neither side of that average; whether they
+  // correctly retrieved nothing is `retrievalHit` / oosRefusalRate.
+  const topKHits: EvalTopKHit[] = TOP_K_VALUES.map(k => ({
+    k,
+    hit: grades.slice(0, k).some(g => g >= 2),
+  }));
 
   const failureReasons: string[] = [];
   if (branch.pipelineError) {
@@ -317,7 +321,7 @@ function aggregate(
       ? Math.round(caseResults.reduce((s, c) => s + c.latencyMs, 0) / total)
       : 0,
     cases: caseResults,
-    recallAtK: m.recallAtK,
+    hitAtK: m.hitAtK ?? undefined,
     precisionAtK: m.precisionAtK,
     ndcgAtK: m.ndcgAtK,
     mrr: m.mrr,

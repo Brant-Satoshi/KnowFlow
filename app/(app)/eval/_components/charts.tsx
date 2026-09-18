@@ -42,10 +42,11 @@ const CHART_2 = 'hsl(var(--chart-2))';
 
 const SERIES = [
   { key: 'faithfulness', color: CHART_1, labelKey: 'faithfulness', get: (m: RunMetrics) => m.faithfulness },
-  { key: 'recall', color: CHART_2, labelKey: 'recallAtK', get: (m: RunMetrics) => m.recall },
+  { key: 'hit', color: CHART_2, labelKey: 'hitAtK', get: (m: RunMetrics) => m.hit },
+  { key: 'legacyHit', color: 'hsl(var(--chart-3))', labelKey: 'legacyHitAtK', get: (m: RunMetrics) => m.legacyHit },
 ] as const;
 
-/** Two 0–1 series (faithfulness + context recall) plotted across runs, oldest → newest. */
+/** Separate 0–1 series (faithfulness, Hit@5, legacy score) plotted across runs, oldest → newest. */
 export function TrendChart({
   history,
   evalT,

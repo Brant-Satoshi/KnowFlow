@@ -251,6 +251,8 @@ export interface EvalRunResult {
   avgLatencyMs: number;
   cases: EvalCaseResult[];
   // Curated-mode fields:
+  hitAtK?: Record<number, number>;
+  /** Historical mixed-case hit/refusal score, formerly called Recall@K. */
   recallAtK?: Record<number, number>;
   precisionAtK?: Record<number, number>;
   ndcgAtK?: Record<number, number>;
@@ -298,6 +300,8 @@ export interface EvalRunSummary {
   retrievalHitRate: number;
   citationHitRate: number;
   avgLatencyMs: number;
+  hitAtK: Record<string, number> | null;
+  /** Legacy score preserved verbatim; not comparable to answerable-only Hit@K. */
   recallAtK: Record<string, number> | null;
   precisionAtK: Record<string, number> | null;
   ndcgAtK: Record<string, number> | null;
