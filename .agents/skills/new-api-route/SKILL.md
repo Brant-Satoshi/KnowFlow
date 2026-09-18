@@ -1,40 +1,16 @@
 ---
 name: new-api-route
-description: Create or modify a KnowFlow API route handler. Use for any new endpoint or when editing an existing one — enforces the withAuth wrapper, authz guards, uuid param validation, and the standard response envelope that every endpoint must return.
+description: Implement or change authentication, validation, or responses in KnowFlow API handlers.
 ---
 
-# New / modified API route
+# API handlers
 
-Every business endpoint follows the same skeleton. Deviating from it (hand-rolled auth, ad-hoc JSON shapes, missing guards) has caused rework before — copy the pattern, don't improvise.
+Use nearby handlers and `lib/api/route.ts` as the implementation reference.
 
-## Skeleton
+- Authenticated JSON business routes use `withAuth`. Public authentication endpoints and streaming handlers retain their established auth flow; streaming handlers still require authentication and scoped access checks.
+- Validate UUID route parameters with `parseUuidParam`; return its 400 response on failure. Reuse body validators in `lib/validation.ts` where applicable.
+- Guard scoped resources before reading or mutating them using `lib/authz/access.ts`. Cross-tenant access is 404; an authenticated user's insufficient role can be 403. Unauthenticated business requests are 401.
+- JSON responses use `success` / `error` from `lib/api/response.ts`. Streaming handlers retain their established SSE protocol and validate access before starting the stream.
+- Keep database queries in `lib/db/`. `withAuth` provides the standard error mapping; retain an inner catch only for endpoint-specific behavior.
 
-```typescript
-import { withAuth, parseUuidParam } from '@/lib/api/route';
-import { success, error } from '@/lib/api/response';
-import { requireKnowledgeBaseAccess } from '@/lib/authz/access';
-
-export const GET = withAuth('Failed to <verb> <noun>', async (req, user, ctx: { params: Promise<{ id: string }> }) => {
-  const id = await parseUuidParam(ctx.params, 'id', 'knowledge base id');
-  if (id instanceof Response) return id;
-
-  await requireKnowledgeBaseAccess(user.id, id); // throws → withAuth maps to 404/403
-
-  const data = await someQueryModuleFn(id);      // queries live in lib/db/, not here
-  return Response.json(success(data));
-});
-```
-
-## Checklist
-
-- [ ] `withAuth(fallbackMessage, handler)` from `lib/api/route.ts` — it handles `requireUser()` and the standard error tail (`NotFoundOrForbiddenError`→404, `ForbiddenError`→403 with `code`, else 500). Only keep an inner try/catch for genuinely non-standard error strings.
-- [ ] Dynamic params validated with `parseUuidParam` (returns a ready 400 `Response` on bad input).
-- [ ] Authz guard from `lib/authz/access.ts` for **every** KB-scoped resource: `requireKnowledgeBaseAccess`, `requireConversationAccess`, `requireFileAccess`, `requireEvalRunAccess`, `requireWorkspaceRole`. Never query KB-scoped tables by id without a guard — cross-tenant must be indistinguishable from not-found (404).
-- [ ] Response envelope via `success(data)` / `error(message)` from `lib/api/response.ts` — shape is `{ requestId, ok, data?, error? }`. Never return bare JSON.
-- [ ] Request body validation lives in `lib/validation.ts` (see `parseRetrievalFilter` as the model).
-- [ ] DB access goes through a query module in `lib/db/`.
-- [ ] No new top-level page routes — API routes under existing `/api/*` namespaces only.
-
-## Verify
-
-`pnpm build` (type-check) and, if the route is user-reachable, exercise it through the UI or a `curl` against `pnpm dev`.
+Verify the changed success and failure paths, especially invalid input and cross-workspace access when those paths change.
