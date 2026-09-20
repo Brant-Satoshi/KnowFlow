@@ -1,29 +1,18 @@
 ---
 name: sync-docs
-description: Sync CLAUDE.md, AGENTS.md, README.md, README.zh-CN.md, Architecture.md, and RAG_pipeline.md with the current codebase. Use after any feature/refactor lands, or on demand ("同步文档", "docs drifted"). Doc drift has required at least five dedicated cleanup commits in this repo's history — sync in the same PR instead.
+description: Reconcile KnowFlow documentation with changed behavior, setup, or architecture, or audit reported drift.
 ---
 
-# Sync docs with code
+# Documentation accuracy
 
-The doc set describes the code; the code moves; the docs rot. Run this after any change that touches routes, schema, pipeline stages, env vars, commands, or module layout.
+Use the task's actual diff or requested scope, including relevant working-tree changes. Verify affected claims against code; do not assume a particular base branch or reread every document.
 
-## What to check, per file
+Route changes to the documents that describe them:
 
-- **`CLAUDE.md`** (highest value — it steers every future agent session):
-  - Route list, table list *and count*, RAG stage numbers/params, SSE event types, env vars, "Adding a table" steps, key file paths. Verify each claim by grepping the code, not from memory.
-- **`AGENTS.md`** — mirror of CLAUDE.md for other agents; keep the module map and rules consistent with CLAUDE.md (they have drifted apart before).
-- **`README.md` / `README.zh-CN.md`** — feature list, setup steps, commands. The two languages must say the same thing; update both or neither.
-- **`Architecture.md`** — component diagram prose, data flow, schema description.
-- **`RAG_pipeline.md`** — stage-by-stage pipeline description; must match `lib/rag/retrieve.ts` and the `RETRIEVAL` config values exactly (top-20 / distance 0.6 / topN 8 / top-5 as of writing — re-check, don't copy).
-- **`docs/adr/`** — if the change reverses or extends a recorded decision, update the ADR status or write a new one (`write-adr` skill). Both zh and `en/` copies.
+- `README.md` and `README.zh-CN.md`: features, setup, and commands; keep corresponding content equivalent.
+- `Architecture.md`: components, data flow, and schema.
+- `RAG_pipeline.md`: retrieval stages and parameters; read current values from `lib/rag/retrieve.ts`.
+- `AGENTS.md` and `CLAUDE.md`: durable agent guidance. Keep shared facts consistent without making them mirrors or adding generated inventories.
+- `docs/adr/` and `docs/adr/en/`: recorded decisions; update status or add a superseding ADR when a decision changes.
 
-## Method
-
-1. `git diff main...HEAD --stat` (or the recent merge range) to see what moved.
-2. For each doc claim in scope, verify against the code with Grep/Read. Numbers (table counts, top-K values, route counts) are the usual liars.
-3. Fix bilingual pairs together (README ↔ README.zh-CN, adr ↔ adr/en).
-4. Commit as `docs: sync <files> with <change>`.
-
-## Anti-goal
-
-Do not pad docs with new sections nobody asked for. This skill removes drift; it doesn't grow the doc set.
+Update only affected claims and bilingual counterparts. Avoid duplicating volatile values across documents or prescribing a separate documentation commit.

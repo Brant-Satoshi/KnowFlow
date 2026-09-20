@@ -96,7 +96,7 @@ API 接口在 `app/api/` 下（auth、workspaces、knowledge bases、files、con
 
 SSE 事件顺序：`progress*` → `meta` → `progress` → `token*` → `done`（或 `error`）；会话标题自动生成时额外推送 `title` 事件。每个事件都带 `requestId`。
 
-hybrid 仍是默认关闭的实验功能：可复现的 `olympus-zh` A/B 显示命中率与 Recall@5 都没有提升；原始排序指标有升有降，生产 rerank 后质量基本持平，而本轮平均延迟增加 11.7%、p50 增加 18.7%。详见[实测 A/B 报告](./docs/evals/hybrid-ab-2026-07-10.md)与 [ADR-010](./docs/adr/010.hybrid-search-rrf-gated.md)。
+hybrid 仍是默认关闭的实验功能：可复现的 `olympus-zh` A/B 显示命中率与 Hit@5（旧口径） 都没有提升；原始排序指标有升有降，生产 rerank 后质量基本持平，而本轮平均延迟增加 11.7%、p50 增加 18.7%。详见[实测 A/B 报告](./docs/evals/hybrid-ab-2026-07-10.md)与 [ADR-010](./docs/adr/010.hybrid-search-rrf-gated.md)。
 
 ### 检索 metadata 过滤器
 

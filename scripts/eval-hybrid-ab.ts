@@ -21,7 +21,8 @@ interface CaseMeasurement {
 
 interface ModeSummary {
   retrievalHitRate: number;
-  recallAtK: Record<number, number>;
+  /** null when the dataset holds no answerable case. */
+  hitAtK: Record<number, number> | null;
   precisionAtK: Record<number, number>;
   ndcgAtK: Record<number, number>;
   mrr: number;
@@ -116,8 +117,16 @@ function printReport(options: CliOptions, summaries: Record<RecallMode, ModeSumm
   console.log('| Metric | Vector | Hybrid | Hybrid − Vector |');
   console.log('| --- | ---: | ---: | ---: |');
   console.log(`| Retrieval hit rate | ${formatPercent(vector.retrievalHitRate)} | ${formatPercent(hybrid.retrievalHitRate)} | ${percentDelta(vector.retrievalHitRate, hybrid.retrievalHitRate)} |`);
+  // Hit@K averages over answerable cases only; the rows below keep their
+  // original all-cases denominator, so they are not comparable to it.
   for (const k of [1, 3, 5]) {
-    console.log(`| Recall@${k} | ${formatPercent(vector.recallAtK[k])} | ${formatPercent(hybrid.recallAtK[k])} | ${percentDelta(vector.recallAtK[k], hybrid.recallAtK[k])} |`);
+    const v = vector.hitAtK?.[k];
+    const h = hybrid.hitAtK?.[k];
+    if (v == null || h == null) {
+      console.log(`| Hit@${k} | — | — | — |`);
+      continue;
+    }
+    console.log(`| Hit@${k} | ${formatPercent(v)} | ${formatPercent(h)} | ${percentDelta(v, h)} |`);
   }
   console.log(`| Precision@5 | ${formatNumber(vector.precisionAtK[5])} | ${formatNumber(hybrid.precisionAtK[5])} | ${(hybrid.precisionAtK[5] - vector.precisionAtK[5]).toFixed(3)} |`);
   console.log(`| nDCG@3 | ${formatNumber(vector.ndcgAtK[3])} | ${formatNumber(hybrid.ndcgAtK[3])} | ${(hybrid.ndcgAtK[3] - vector.ndcgAtK[3]).toFixed(3)} |`);

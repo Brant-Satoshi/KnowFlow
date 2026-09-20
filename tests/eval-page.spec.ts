@@ -14,7 +14,7 @@ function makeEvalRunResult(knowledgeBaseId: string, runId: string) {
     retrievalHitRate: 0.5,
     citationHitRate: 0.5,
     avgLatencyMs: 320,
-    recallAtK: { 1: 0.5, 3: 0.5, 5: 0.5 },
+    hitAtK: { 1: 0.5, 3: 0.5, 5: 0.5 },
     precisionAtK: { 1: 0.5, 3: 0.33, 5: 0.2 },
     ndcgAtK: { 1: 0.5, 3: 0.55, 5: 0.6 },
     mrr: 0.75,
@@ -259,7 +259,7 @@ test.describe("/eval page — running evaluation", () => {
 
     // The overview hero cards render the curated metrics from the mock
     await expect(page.getByText("Answer Relevance").first()).toBeVisible()
-    await expect(page.getByText("Recall@5").first()).toBeVisible()
+    await expect(page.getByText("Hit@5").first()).toBeVisible()
   })
 
   test("shows per-case results in the inspector after a run", async ({ page }) => {

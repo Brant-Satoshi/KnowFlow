@@ -68,7 +68,7 @@ Core (`schema/core.ts`):
 Eval (`schema/eval.ts`):
 - `eval_datasets` — id, name (unique), dataset_hash, case_count
 - `eval_cases` — id, dataset_id (FK), case_key, question, expected_keywords, category, difficulty, target_file_names, target_chunk_substrings
-- `eval_runs` — id, knowledge_base_id (FK), dataset_id (FK), mode, use_rerank, retrieval/citation hit rates, recall/precision/ndcg/mrr, LLM-judge metrics (avg_faithfulness, avg_answer_relevance), filter jsonb
+- `eval_runs` — id, knowledge_base_id (FK), dataset_id (FK), mode, use_rerank, retrieval/citation hit rates, hit_at_k (answerable cases only; null when a dataset has none) / precision/ndcg/mrr (all cases, out-of-scope scored 0), recall_at_k (legacy mixed-case score, no longer written, never backfilled), LLM-judge metrics (avg_faithfulness, avg_answer_relevance), filter jsonb
 - `eval_run_items` — id, run_id (FK), case_key, passed, retrieval_hit, citation_hit, retrieved_chunks, faithfulness, answer_relevance
 
 HNSW index on `chunks.embedding` for fast cosine search.

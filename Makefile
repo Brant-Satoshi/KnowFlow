@@ -55,6 +55,9 @@ migrate:
 	docker exec -i $(CONTAINER) \
 		psql -U $(USER) -d $(DB) \
 		< db/migrations/013_add_trgm_keyword_search.sql
+	docker exec -i $(CONTAINER) \
+		psql -U $(USER) -d $(DB) \
+		< db/migrations/017_add_eval_hit_at_k.sql
 
 # Apply all migrations to DATABASE_URL (Supabase / any remote Postgres) via the
 # local psql client instead of `docker exec`. Migrations are idempotent
@@ -74,6 +77,7 @@ migrate-supabase:
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/011_add_workspace_invites.sql
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/012_add_eval_run_filter.sql
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/013_add_trgm_keyword_search.sql
+	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/017_add_eval_hit_at_k.sql
 
 seed:
 	pnpm seed:demo

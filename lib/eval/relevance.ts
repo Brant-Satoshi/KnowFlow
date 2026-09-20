@@ -12,7 +12,7 @@ import type { Chunk, EvalCase } from '@/lib/types';
  *   1 = chunk file is in `targetFileNames` but no keyword overlap.
  *   0 = neither file nor substring match.
  *
- * Relevance threshold for Recall@K / Precision@K is grade >= 2 (see metrics.ts).
+ * Relevance threshold for Hit@K / Precision@K is grade >= 2 (see metrics.ts).
  */
 export function gradeChunk(chunk: Chunk, c: EvalCase): 0 | 1 | 2 | 3 {
   const text = chunk.text ?? '';

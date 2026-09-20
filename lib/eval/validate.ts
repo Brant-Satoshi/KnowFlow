@@ -13,7 +13,7 @@ import type { EvalCase, EvalCaseCategory, EvalCaseDifficulty } from '@/lib/types
  *   - grade 3 = chunk text `.includes(targetChunkSubstrings[i])` (case-sensitive)
  *   - grade 2 = file ∈ targetFileNames AND text (lowercased) includes a lowercased keyword
  * A broken substring/keyword silently caps a case's grade and deflates
- * Recall@K / Precision@K / nDCG / MRR — this linter surfaces that before a run.
+ * Hit@K / Precision@K / nDCG / MRR — this linter surfaces that before a run.
  *
  * Keep the case-sensitivity rules below in lockstep with `gradeChunk`.
  */
