@@ -9,6 +9,66 @@ export function isValidUuid(id: string): boolean {
 export const MAX_UPLOAD_FILE_MB = 25;
 export const MAX_UPLOAD_FILE_BYTES = MAX_UPLOAD_FILE_MB * 1024 * 1024;
 
+/** Extensions the upload route accepts; the file pickers' `accept` is built from the same list. */
+export const UPLOAD_FILE_EXTENSIONS = ['.md', '.txt', '.pdf', '.doc', '.docx'] as const;
+export const UPLOAD_ACCEPT = UPLOAD_FILE_EXTENSIONS.join(',');
+
+/**
+ * Files one selection (or drop) may add to the upload queue. The queue already
+ * bounds how many run at once; this cap only stops a stray drag of a whole folder
+ * from quietly turning into that many parse + embedding runs.
+ */
+export const MAX_UPLOAD_BATCH_FILES = 20;
+
+/** Lower-cased extension including the dot (".pdf"), or "" when the name has none. */
+export function getUploadExtension(fileName: string): string {
+  const dot = fileName.lastIndexOf('.');
+  return dot === -1 ? '' : fileName.slice(dot).toLowerCase();
+}
+
+export function isAllowedUploadExtension(fileName: string): boolean {
+  return (UPLOAD_FILE_EXTENSIONS as readonly string[]).includes(getUploadExtension(fileName));
+}
+
+export type UploadRejectionReason = 'unsupported_type' | 'too_large';
+
+export interface RejectedUpload {
+  name: string;
+  reason: UploadRejectionReason;
+}
+
+export type UploadTriage<T> =
+  | { ok: true; accepted: T[]; rejected: RejectedUpload[] }
+  | { ok: false; reason: 'too_many'; count: number };
+
+/**
+ * Split a selection into files worth sending and files the upload route would
+ * reject anyway (wrong type, over the size limit), so the rejects cost no request
+ * and can be reported together. The batch cap counts accepted files only:
+ * skipping a few images shouldn't push an otherwise valid batch over it.
+ */
+export function triageUploadFiles<T extends { name: string; size: number }>(
+  files: readonly T[],
+): UploadTriage<T> {
+  const accepted: T[] = [];
+  const rejected: RejectedUpload[] = [];
+
+  for (const file of files) {
+    if (!isAllowedUploadExtension(file.name)) {
+      rejected.push({ name: file.name, reason: 'unsupported_type' });
+    } else if (file.size > MAX_UPLOAD_FILE_BYTES) {
+      rejected.push({ name: file.name, reason: 'too_large' });
+    } else {
+      accepted.push(file);
+    }
+  }
+
+  if (accepted.length > MAX_UPLOAD_BATCH_FILES) {
+    return { ok: false, reason: 'too_many', count: accepted.length };
+  }
+  return { ok: true, accepted, rejected };
+}
+
 export const RETRIEVAL_FILE_TYPES: readonly RetrievalFileType[] = ['pdf', 'markdown', 'word', 'text'];
 export const MAX_FILTER_FILE_IDS = 50;
 export const MAX_TITLE_QUERY_LENGTH = 200;
