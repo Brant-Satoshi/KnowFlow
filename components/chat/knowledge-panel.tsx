@@ -8,6 +8,7 @@ import {
   Loader2,
   Trash2,
   Upload,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -19,18 +20,28 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { formatBytes } from "@/lib/format"
+import type { UploadBatchProgress } from "@/lib/hooks/use-file-state"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { useOpenPreview } from "@/lib/preview-context"
 import { FileListItem } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import {
+  MAX_UPLOAD_BATCH_FILES,
+  MAX_UPLOAD_FILE_MB,
+  UPLOAD_ACCEPT,
+  UPLOAD_FILE_EXTENSIONS,
+} from "@/lib/validation"
 
 interface KnowledgePanelProps {
   files: FileListItem[]
-  onUpload: (file: File) => void
+  onUpload: (files: File[]) => void
+  onRetryUpload: (id: string) => void
+  onDiscardUpload: (id: string) => void
   onParse: (id: string) => void
   onDelete: (id: string) => void
   parsingIds: Set<string>
-  uploading: boolean
+  /** Non-null while a batch upload is running. */
+  batchProgress: UploadBatchProgress | null
   collapsed: boolean
   initialLoading?: boolean
   onToggle: () => void
@@ -38,6 +49,9 @@ interface KnowledgePanelProps {
   side?: "left" | "right"
   className?: string
 }
+
+// "MD · TXT · PDF · DOC · DOCX" — format names, the same in every language.
+const UPLOAD_FORMATS_LABEL = UPLOAD_FILE_EXTENSIONS.map((ext) => ext.slice(1).toUpperCase()).join(" · ")
 
 // File extension → accent color token (values in globals.css)
 const EXT_COLORS: Record<string, string> = {
@@ -72,6 +86,7 @@ function FileExtBadge({ name, size = "sm" }: { name: string; size?: "sm" | "md" 
 }
 
 const statusStyles: Record<string, string> = {
+  queued:    "bg-muted text-muted-foreground",
   uploading: "bg-info/10 text-info-ink",
   uploaded:  "bg-info/10 text-info-ink",
   parsing:   "bg-warning/10 text-warning-ink",
@@ -100,10 +115,12 @@ function StatusBadge({ status, label }: { status: string; label: string }) {
 export function KnowledgePanel({
   files,
   onUpload,
+  onRetryUpload,
+  onDiscardUpload,
   onParse,
   onDelete,
   parsingIds,
-  uploading,
+  batchProgress,
   collapsed,
   initialLoading = false,
   onToggle,
@@ -122,10 +139,17 @@ export function KnowledgePanel({
   const CollapseIcon = side === "right" ? ChevronRight : ChevronLeft
   const ExpandIcon = side === "right" ? ChevronLeft : ChevronRight
 
+  const isBatchRunning = batchProgress !== null
+  const batchProgressText = batchProgress
+    ? t.uploadBatchProgress
+        .replace("{completed}", String(batchProgress.completed))
+        .replace("{total}", String(batchProgress.total))
+    : ""
+
   const handleFileSelect = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0]
-      if (file) onUpload(file)
+      const selected = Array.from(event.target.files ?? [])
+      if (selected.length > 0) onUpload(selected)
       if (fileInputRef.current) fileInputRef.current.value = ""
     },
     [onUpload]
@@ -135,8 +159,8 @@ export function KnowledgePanel({
     (event: React.DragEvent) => {
       event.preventDefault()
       setIsDragOver(false)
-      const file = event.dataTransfer.files[0]
-      if (file) onUpload(file)
+      const dropped = Array.from(event.dataTransfer.files)
+      if (dropped.length > 0) onUpload(dropped)
     },
     [onUpload]
   )
@@ -162,12 +186,13 @@ export function KnowledgePanel({
           className
         )}
       >
+        {/* Stays enabled during a batch: new files join the running queue. */}
         <input
           ref={fileInputRef}
           type="file"
-          accept=".md,.txt,.pdf,.doc,.docx"
+          multiple
+          accept={UPLOAD_ACCEPT}
           onChange={handleFileSelect}
-          disabled={uploading}
           className="hidden"
           id="panel-file-upload"
         />
@@ -190,13 +215,12 @@ export function KnowledgePanel({
 
             <Button
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
               variant="outline"
               size="icon"
               className="h-9 w-9 rounded-[9px]"
               aria-label={t.uploadFile}
             >
-              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              {isBatchRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
             </Button>
 
             {files.length > 0 && (
@@ -276,8 +300,7 @@ export function KnowledgePanel({
                       "block cursor-pointer rounded-xl border border-dashed px-3 py-3.5 text-center transition-all",
                       isDragOver
                         ? "border-primary bg-primary/8 ring-2 ring-primary/20"
-                        : "border-border bg-secondary hover:border-primary/40 hover:bg-secondary/80",
-                      uploading && "pointer-events-none opacity-60"
+                        : "border-border bg-secondary hover:border-primary/40 hover:bg-secondary/80"
                     )}
                   >
                     <div className="flex flex-col items-center gap-2">
@@ -285,16 +308,28 @@ export function KnowledgePanel({
                         "flex h-8 w-8 items-center justify-center rounded-[9px] transition-colors",
                         isDragOver ? "bg-primary/15 text-primary" : "bg-card text-muted-foreground"
                       )}>
-                        {uploading
+                        {isBatchRunning
                           ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           : <Upload className="h-3.5 w-3.5" />}
                       </div>
                       <div>
                         <p className={cn("text-[12px] font-medium", isDragOver ? "text-primary" : "text-foreground")}>
-                          {uploading ? t.uploading : isDragOver ? t.panelDropActive : t.panelDropTitle}
+                          {isDragOver ? t.panelDropActive : t.panelDropTitle}
                         </p>
-                        <p className="mt-0.5 text-[10.5px] tracking-wide text-muted-foreground">
-                          MD · TXT · PDF · DOC · DOCX
+                        <p
+                          className={cn(
+                            "mt-0.5 text-[10.5px] tracking-wide tabular-nums",
+                            isBatchRunning ? "font-medium text-primary" : "text-muted-foreground"
+                          )}
+                        >
+                          {isBatchRunning ? batchProgressText : UPLOAD_FORMATS_LABEL}
+                        </p>
+                        {/* Announces progress only; the format list swapping back in isn't news. */}
+                        <span className="sr-only" aria-live="polite">{batchProgressText}</span>
+                        <p className="mt-0.5 text-[10px] text-muted-foreground">
+                          {t.panelDropLimits
+                            .replace("{maxFiles}", String(MAX_UPLOAD_BATCH_FILES))
+                            .replace("{maxMb}", String(MAX_UPLOAD_FILE_MB))}
                         </p>
                       </div>
                     </div>
@@ -320,12 +355,21 @@ export function KnowledgePanel({
                       </div>
                     ) : (
                       files.map((file) => {
-                        const isParsing     = parsingIds.has(file.id)
-                        const isUploading   = file.clientStatus === "uploading"
-                        const isLoading     = isUploading || isParsing || file.status === "parsing"
-                        const displayStatus = isUploading ? "uploading" : file.status
-                        const canRetry      = !isUploading && file.status === "failed"
-                        const canPreview    = !isLoading && file.status === "indexed" && openPreview != null
+                        const isParsing      = parsingIds.has(file.id)
+                        const isQueued       = file.clientStatus === "queued"
+                        const isUploading    = file.clientStatus === "uploading"
+                        const isUploadFailed = file.clientStatus === "upload_failed"
+                        const isLoading      = isUploading || isParsing || file.status === "parsing"
+                        const displayStatus  = isQueued
+                          ? "queued"
+                          : isUploading
+                            ? "uploading"
+                            : isUploadFailed
+                              ? "failed"
+                              : file.status
+                        // Retry parse is for server files only; a failed upload retries the upload.
+                        const canRetryParse  = !file.clientStatus && file.status === "failed"
+                        const canPreview     = !isLoading && !file.clientStatus && file.status === "indexed" && openPreview != null
                         const handleRowClick = canPreview
                           ? () => openPreview({ fileId: file.id, fileName: file.name })
                           : undefined
@@ -333,6 +377,7 @@ export function KnowledgePanel({
                         return (
                           <div
                             key={file.id}
+                            data-testid="file-row"
                             role={canPreview ? "button" : undefined}
                             tabIndex={canPreview ? 0 : undefined}
                             onClick={handleRowClick}
@@ -373,31 +418,63 @@ export function KnowledgePanel({
                                 >
                                   {file.name}
                                 </p>
-                                <div className="mt-1 flex items-center gap-1.5">
-                                  <span className="text-[10.5px] text-muted-foreground">{formatBytes(file.size)}</span>
+                                {/* Wraps so a narrow panel moves the actions onto their own line instead of clipping them. */}
+                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                  {/* A failed row needs the width for its retry button, and the reason below it says more than the size would. */}
+                                  {displayStatus !== "failed" && (
+                                    <span className="shrink-0 whitespace-nowrap text-[10.5px] text-muted-foreground">{formatBytes(file.size)}</span>
+                                  )}
                                   <StatusBadge status={displayStatus} label={t.status[displayStatus as keyof typeof t.status] ?? displayStatus} />
 
                                   <div className="ml-auto flex items-center gap-1.5">
-                                    {canRetry && (
+                                    {canRetryParse && (
                                       <button
                                         onClick={(e) => { e.stopPropagation(); onParse(file.id) }}
                                         disabled={isParsing}
-                                        className="inline-flex h-6 cursor-pointer items-center gap-1 rounded-[6px] border border-border bg-card px-2 text-[10.5px] font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
+                                        className="inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-[6px] border border-border bg-card px-2 text-[10.5px] font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
                                       >
                                         {isParsing ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileCode className="h-3 w-3" />}
                                         {isParsing ? t.retryingParse : t.retryParse}
                                       </button>
                                     )}
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); setDeleteFileId(file.id); setDeleteFileName(file.name) }}
-                                      disabled={isUploading}
-                                      className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-[6px] border border-border bg-card text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:opacity-50"
-                                      aria-label={t.deleteFile}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </button>
+                                    {isUploadFailed && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); onRetryUpload(file.id) }}
+                                        className="inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-[6px] border border-border bg-card px-2 text-[10.5px] font-medium text-foreground transition-colors hover:bg-secondary"
+                                      >
+                                        <Upload className="size-3" />
+                                        {t.retryUpload}
+                                      </button>
+                                    )}
+                                    {isQueued || isUploadFailed ? (
+                                      // Nothing is on the server yet, so no confirmation step.
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); onDiscardUpload(file.id) }}
+                                        className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-[6px] border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
+                                        aria-label={isQueued ? t.cancelUpload : t.dismissUpload}
+                                      >
+                                        <X className="size-3" />
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setDeleteFileId(file.id); setDeleteFileName(file.name) }}
+                                        disabled={isUploading}
+                                        className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-[6px] border border-border bg-card text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:opacity-50"
+                                        aria-label={t.deleteFile}
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
+                                {displayStatus === "failed" && file.errorMessage && (
+                                  <p
+                                    className="mt-1 line-clamp-2 text-[10.5px]/4 text-destructive-ink"
+                                    title={file.errorMessage}
+                                  >
+                                    {file.errorMessage}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </div>
