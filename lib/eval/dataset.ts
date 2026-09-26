@@ -1,4 +1,5 @@
 import type { EvalCase } from '@/lib/types';
+import cmrc2018Mini from './cmrc2018-mini.json';
 
 /**
  * Curated eval datasets registered by name.
@@ -364,6 +365,7 @@ const olympusZh: EvalCase[] = [
 const datasets: Record<string, EvalCase[]> = {
   olympus,
   'olympus-zh': olympusZh,
+  'cmrc2018-mini': cmrc2018Mini as EvalCase[],
 };
 
 /**

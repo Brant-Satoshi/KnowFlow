@@ -68,6 +68,7 @@ make seed        # 固定 demo 账号 + 奥林匹斯双语知识库
 | `pnpm test:e2e` | Playwright 端到端测试（`tests/`） |
 | `pnpm seed:demo` | 幂等创建 demo 登录和已索引的双语 KB |
 | `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>` | 对比 vector / hybrid 的质量与延迟 |
+| `pnpm import:cmrc2018` | 重新生成 100 道 CMRC 中文评测题及原文 |
 
 ---
 
@@ -79,6 +80,8 @@ make seed        # 固定 demo 账号 + 奥林匹斯双语知识库
 - `/knowledge-bases/[id]/chat` —— 单个 KB 内的 RAG 聊天
 - `/eval` —— 离线评测面板
 - `/login`、`/register` —— 认证
+
+使用 `cmrc2018-mini` gold set 时，先把配套的 25 份 TXT 原文上传到知识库，再在 `/eval` 选择该数据集。数据来源、生成方法和操作步骤见[评测集说明](./docs/evals/cmrc2018-mini.zh-CN.md)。
 
 API 接口在 `app/api/` 下（auth、workspaces、knowledge bases、files、conversations、RAG search、chat stream、eval run）。完整清单见 `Architecture.md`。
 

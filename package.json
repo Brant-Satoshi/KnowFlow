@@ -16,6 +16,7 @@
     "seed:demo": "tsx scripts/seed-demo.ts",
     "eval:hybrid-ab": "tsx scripts/eval-hybrid-ab.ts",
     "eval:refusal": "tsx scripts/eval-refusal.ts",
+    "import:cmrc2018": "node --import tsx scripts/import-cmrc2018.ts",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "reembed": "tsx scripts/reembed.ts"

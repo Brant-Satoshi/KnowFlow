@@ -68,6 +68,7 @@ If you're pointing at Supabase / a remote Postgres, run `make migrate-supabase` 
 | `pnpm test:e2e` | Playwright end-to-end tests (`tests/`) |
 | `pnpm seed:demo` | Idempotently create the demo login and indexed bilingual KB |
 | `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>` | Compare vector vs hybrid retrieval quality and latency |
+| `pnpm import:cmrc2018` | Rebuild the 100-question CMRC Chinese evaluation fixture |
 
 ---
 
@@ -79,6 +80,8 @@ Five user-facing pages — do not add more:
 - `/knowledge-bases/[id]/chat` — RAG chat scoped to a single KB
 - `/eval` — offline evaluation dashboard
 - `/login`, `/register` — authentication
+
+For the `cmrc2018-mini` gold set, upload its 25 source TXT files into a knowledge base and select the dataset on `/eval`. See the [fixture guide](./docs/evals/cmrc2018-mini.md) for source attribution, regeneration, and setup.
 
 API surface lives under `app/api/` (auth, workspaces, knowledge bases, files, conversations, RAG search, chat stream, eval run). See `Architecture.md` for the full inventory.
 
