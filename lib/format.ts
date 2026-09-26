@@ -32,3 +32,14 @@ export function formatDuration(ms: number): string {
   if (ms < 1000) return `${Math.max(0, Math.round(ms))}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
 }
+
+/**
+ * File names for a one-line message, e.g. "a.png, b.png, c.png +2". Deliberately
+ * language-neutral: file names aren't translated, and "+2" reads the same in both
+ * UIs.
+ */
+export function formatFileNameList(names: readonly string[], max = 3): string {
+  const shown = names.slice(0, max).join(', ');
+  const rest = names.length - max;
+  return rest > 0 ? `${shown} +${rest}` : shown;
+}
