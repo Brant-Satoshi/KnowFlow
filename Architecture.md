@@ -150,8 +150,9 @@ lib/
 ├── hooks/                      # use-chat-stream、use-file-state、use-error-toast
 ├── i18n/                       # LanguageContext + en/zh translations
 ├── telemetry/requestId.ts      # crypto.randomUUID()
+├── task-queue.ts               # 限并发的 FIFO 队列（批量上传用，见 5.1）
 ├── types.ts                    # 共享类型（见下）
-├── validation.ts               # isValidUuid / parseRetrievalFilter 等
+├── validation.ts               # isValidUuid / parseRetrievalFilter / triageUploadFiles 等
 └── utils.ts
 ```
 
@@ -231,15 +232,21 @@ interface RetrievedChunk {
 
 ### 5.1 上传 → 解析 → 向量化
 
-1. `POST /api/files/upload`：MIME 校验后写入 Supabase Storage（key = `<fileId><ext>`），同时插入 `files` 行（`status='uploaded'`，挂在指定 KB 下）。
+1. `POST /api/files/upload`：校验扩展名（`UPLOAD_FILE_EXTENSIONS`，与前端预检共用）和 25MB 上限后写入 Supabase Storage（key = `<fileId><ext>`），同时插入 `files` 行（`status='uploaded'`，挂在指定 KB 下）。
 2. `POST /api/files/[id]/parse`：状态置 `parsing` → 按 MIME 走解析（PDF→`pdf2json`，DOCX→`mammoth`，MD/TXT→纯文本）→ `chunkSize + overlap` 切片 → 批量 `embedChunk` → 事务里 `replaceFileChunks`（先删后插）→ 状态置 `indexed`。失败置 `failed` 并记原因。
 3. 删除文件走 `/api/files/[id]` DELETE：同时清 Storage blob 与 `chunks`（外键 ON DELETE CASCADE 兜底）。
+
+**批量上传（纯前端，没有批量接口）**：知识面板和空状态都支持一次选择或拖入多个文件，每个文件仍各自走上面的 1、2 步。
+
+* `triageUploadFiles`（`lib/validation.ts`）先在浏览器里剔除类型不支持和超过 25MB 的文件：它们不发请求，汇总成一条提示。合格文件超过 `MAX_UPLOAD_BATCH_FILES`（20）时整批拒绝。
+* 合格文件进入 `createTaskQueue`（`lib/task-queue.ts`）的队列，最多 3 个同时进行（`use-file-state.ts` 的 `UPLOAD_CONCURRENCY`）。每个槽位对一个文件先 upload 再立即 parse，所以 embedding 调用也被限流，不会留下停在 `uploaded` 的文件。
+* 列表行多了三种前端状态：`queued`（可移出队列）、`uploading`、`upload_failed`（保留行和原因，可重新上传或移除）。解析失败的原因也显示在对应行上（toast 同一时间只显示一条，批量时会互相覆盖）。有未上传完的文件时，关闭或刷新标签页会先弹出确认。
 
 **设计要点**
 
 * 分块 id 必须稳定可复现，引用才能持久有效。
 * `meta.page` 是引用的最低保障——MVP 阶段只到 chunk/page 粒度，不做句级对齐。
-* 解析+向量化目前**同步**完成；TODO：抽到队列里做异步重试。
+* 解析+向量化目前在 parse 请求里**同步**完成（上面的批量队列只是前端限流）；TODO：服务端抽到队列里做异步重试。
 
 ---
 
