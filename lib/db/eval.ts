@@ -191,6 +191,8 @@ export async function saveRun(
         gradedHits: item.gradedHits ?? null,
         faithfulness: item.faithfulness ?? null,
         answerRelevance: item.answerRelevance ?? null,
+        answerVerdict: item.answerVerdict ?? null,
+        answerReason: item.answerReason ?? null,
       })),
     );
   });

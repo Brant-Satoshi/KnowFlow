@@ -106,6 +106,8 @@ export function detailToResult(run: EvalRunDetail): EvalRunResult {
       gradedHits: it.gradedHits ?? undefined,
       faithfulness: it.faithfulness ?? null,
       answerRelevance: it.answerRelevance ?? null,
+      answerVerdict: it.answerVerdict ?? undefined,
+      answerReason: it.answerReason ?? undefined,
     })),
   };
 }
@@ -374,9 +376,8 @@ export function AnswerPanel({
     <div className="flex flex-col min-w-0">
       <div className="text-[10.5px] font-mono font-medium uppercase tracking-wide text-muted-foreground mb-2.5">{label}</div>
       <p
-        className={`text-[12.5px] font-sans leading-relaxed whitespace-pre-wrap ${
-          isEmpty ? 'text-muted-foreground/70 italic' : 'text-foreground/85'
-        }`}
+        className={`text-[12.5px] font-sans leading-relaxed whitespace-pre-wrap ${isEmpty ? 'text-muted-foreground/70 italic' : 'text-foreground/85'
+          }`}
       >
         {isEmpty ? emptyText : text}
       </p>

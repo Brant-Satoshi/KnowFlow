@@ -190,6 +190,7 @@ export type EvalCaseCategory =
 
 export type EvalCaseDifficulty = 'easy' | 'medium' | 'hard';
 
+export type EvalAnswerVerdict = 'pass' | 'fail' | 'unscored';
 export interface EvalCase {
   id: string;
   question: string;
@@ -239,6 +240,8 @@ export interface EvalCaseResult {
   refusalReason?: RefusalReason | null;
   /** Best rerank score over the final chunks; null when nothing was scored. Drives threshold calibration. */
   maxRerankScore?: number | null;
+  answerVerdict?: EvalAnswerVerdict;
+  answerReason?: string;
 }
 
 export interface EvalRunResult {
@@ -332,6 +335,8 @@ export interface EvalRunItemRecord {
   gradedHits: number[] | null;
   faithfulness: number | null;
   answerRelevance: number | null;
+  answerVerdict: EvalAnswerVerdict | null;
+  answerReason: string | null;
 }
 
 /** A run plus its per-case items, as returned by `GET /api/eval/runs/[id]`. */
