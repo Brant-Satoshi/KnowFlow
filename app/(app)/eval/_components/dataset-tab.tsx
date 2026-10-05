@@ -289,7 +289,7 @@ function CaseFormDialog({
             {evalT.dsCancel}
           </Button>
           <Button className="rounded-lg cursor-pointer" disabled={!canSubmit} onClick={handleSubmit}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {busy && <Loader2 className="size-4 animate-spin" />}
             {evalT.dsSaveSubmit}
           </Button>
         </DialogFooter>
@@ -368,7 +368,7 @@ function DatasetMetaDialog({
             disabled={busy || name.trim().length === 0}
             onClick={handleSubmit}
           >
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {busy && <Loader2 className="size-4 animate-spin" />}
             {mode === 'create' ? evalT.dsCreateSubmit : evalT.dsSaveSubmit}
           </Button>
         </DialogFooter>
@@ -442,7 +442,7 @@ function ImportDialog({
             {evalT.dsCancel}
           </Button>
           <Button className="rounded-lg cursor-pointer" disabled={busy || text.trim().length === 0} onClick={handleSubmit}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {busy && <Loader2 className="size-4 animate-spin" />}
             {evalT.importSubmit}
           </Button>
         </DialogFooter>
@@ -691,7 +691,7 @@ export function DatasetTab({
           )}
         </div>
         <Button size="sm" className="rounded-lg cursor-pointer" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4" />
+          <Plus className="size-4" />
           {evalT.dsNewButton}
         </Button>
       </div>
@@ -728,7 +728,7 @@ export function DatasetTab({
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" className="rounded-lg cursor-pointer" onClick={() => { setEditingCase(null); setCaseFormOpen(true); }}>
-                <Plus className="h-4 w-4" />
+                <Plus className="size-4" />
                 {evalT.dsAddCaseButton}
               </Button>
               <Button size="sm" variant="outline" className="rounded-lg cursor-pointer" onClick={() => setImportOpen(true)}>
@@ -742,14 +742,14 @@ export function DatasetTab({
                 title={knowledgeBaseId ? undefined : evalT.dsValidateNeedsKb}
                 onClick={handleValidate}
               >
-                {validating && <Loader2 className="h-4 w-4 animate-spin" />}
+                {validating && <Loader2 className="size-4 animate-spin" />}
                 {evalT.dsValidateButton}
               </Button>
               <Button size="sm" variant="outline" className="rounded-lg cursor-pointer" onClick={() => setEditMetaOpen(true)}>
                 {evalT.dsEditMetaButton}
               </Button>
               <Button size="sm" variant="outline" className="rounded-lg cursor-pointer text-destructive hover:text-destructive" onClick={() => setDeleteDatasetOpen(true)}>
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="size-4" />
                 {evalT.dsDeleteButton}
               </Button>
             </div>
@@ -812,7 +812,7 @@ export function DatasetTab({
                       aria-label={`${evalT.caseDeleteTitle} ${c.caseKey}`}
                       onClick={() => setDeletingCase(c)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="size-4" />
                     </Button>
                   </div>
                 </div>
@@ -868,7 +868,7 @@ export function DatasetTab({
         confirmLabel={evalT.dsDeleteConfirm}
         busyLabel={evalT.dsDeleting}
         busy={deleteBusy}
-        icon={<Trash2 className="h-4 w-4" />}
+        icon={<Trash2 className="size-4" />}
         onConfirm={handleDeleteDataset}
       />
       <ConfirmDialog
@@ -880,7 +880,7 @@ export function DatasetTab({
         confirmLabel={evalT.dsDeleteConfirm}
         busyLabel={evalT.dsDeleting}
         busy={deleteBusy}
-        icon={<Trash2 className="h-4 w-4" />}
+        icon={<Trash2 className="size-4" />}
         onConfirm={handleDeleteCase}
       />
     </div>

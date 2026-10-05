@@ -510,10 +510,13 @@ Eval 相关代码在：
 
 | 路径 | 作用 |
 | --- | --- |
-| `app/api/eval/run/route.ts` | 启动评测（curated 数据集，支持 `filter`） |
+| `app/api/eval/run/route.ts` | 启动评测（按 `datasetId` 读取数据库快照，先过两层校验，支持 `filter`） |
 | `app/api/eval/runs/*` | 历史 run 列表 / 详情 |
-| `app/api/eval/validate/route.ts` | 校验数据集 |
-| `lib/eval/dataset.ts` | 数据集加载 |
+| `app/api/eval/datasets/*` | 评测集 CRUD（cases 单条新增 / 批量导入，`expectedRevision` 乐观并发） |
+| `app/api/eval/validate/route.ts` | 校验数据集：结构 lint + 面向 KB 的 preflight |
+| `lib/db/eval-datasets.ts` | 评测集读写（快照、行锁、revision / dataset_hash 维护） |
+| `lib/eval/validate.ts` | `lintGoldset` / `preflightDataset` |
+| `lib/eval/dataset.ts` | 内置评测集 olympus / olympus-zh 的种子模板（仅 `pnpm seed:demo` 使用） |
 | `lib/eval/runner.ts` | 跑 RAG case、对比 rerank 分支 |
 | `lib/eval/metrics.ts` | Hit@K、precision、NDCG、MRR 等指标 |
 | `lib/eval/relevance.ts` | retrieved chunk 相关性打分 |
