@@ -19,3 +19,4 @@ Chinese versions are in the parent directory: [../README.md](../README.md).
 | [009](./009.hand-rolled-i18n.md) | Hand-rolled typed en/zh dictionary | Compile-time-checked keys, zero deps vs no ICU/plurals |
 | [010](./010.hybrid-search-rrf-gated.md) | Hybrid search (RRF vector + keyword), default off | Toggleable capability landed vs eval shows no gain on current dataset, so not default-on |
 | [011](./011.refuse-on-empty-retrieval.md) | Refuse in code on empty retrieval; no rerank-score floor (default 0) | Empty recall can no longer fabricate vs rerank score doesn't encode answerability, so a floor only false-refuses |
+| [012](./012.global-goldsets-hash-concurrency.md) | Global goldsets + revision-based optimistic concurrency (hash = content identity) | One field each for concurrency and comparability, zero new guards vs any user edits any set, no version rollback |

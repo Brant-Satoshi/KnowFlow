@@ -19,3 +19,4 @@
 | [009](./009.hand-rolled-i18n.md) | 手写带类型的 en/zh 字典 | 编译期检查 key、零依赖 vs 无 ICU/复数能力 |
 | [010](./010.hybrid-search-rrf-gated.md) | 混合检索（RRF 融合向量 + 关键词），默认关闭 | 落地可开关的能力 vs eval 在现有数据集上显示零收益，故不默认打开 |
 | [011](./011.refuse-on-empty-retrieval.md) | 检索为空时由代码拒答；rerank 分数下限不采用（默认 0） | 空召回不再可能编造 vs 分数无法区分"可回答性"，下限只会误拒真问题 |
+| [012](./012.global-goldsets-hash-concurrency.md) | 评测集全局归属 + revision 乐观并发（hash 作内容标识） | 并发与可比性各归一字段、零新 guard vs 任何登录用户可改任何集、无版本回溯 |

@@ -1,19 +1,42 @@
 import { success, error } from '@/lib/api/response';
-import { withAuth } from '@/lib/api/route';
-import { listDatasetNames } from '@/lib/eval/dataset';
-import { validateDataset } from '@/lib/eval/validate';
+import { parseJsonBody, withAuth } from '@/lib/api/route';
+import { parseEvalValidateBody } from '@/lib/validation';
+import { getEvalDatasetSnapshot } from '@/lib/db/eval-datasets';
+import { hasGoldsetErrors, lintGoldset, preflightDataset } from '@/lib/eval/validate';
+import { requireKnowledgeBaseAccess } from '@/lib/authz/access';
+import type { GoldsetValidationReport } from '@/lib/types';
 
-export const GET = withAuth('validate_failed', async (req) => {
-  const dataset = new URL(req.url).searchParams.get('dataset');
-  if (!dataset || !listDatasetNames().includes(dataset)) {
-    return Response.json(error('unknown_dataset'), { status: 400 });
+// Two-layer report: structural lint (KB-independent) + filter-aware KB
+// compatibility. `ok` = no errors in either layer = the run gate would open.
+export const POST = withAuth('validate_failed', async (request, user) => {
+  const body = await parseJsonBody(request);
+  if (body instanceof Response) return body;
+  const parsed = parseEvalValidateBody(body.raw);
+  if (!parsed.ok) {
+    return Response.json(error('invalid_request', { reason: parsed.error }), { status: 400 });
   }
+  const { datasetId, knowledgeBaseId, filter } = parsed.value;
 
-  try {
-    const result = await validateDataset(dataset);
-    return Response.json(success(result));
-  } catch (e) {
-    console.error('[eval/validate] error:', e);
-    return Response.json(error('validate_failed'), { status: 500 });
-  }
+  await requireKnowledgeBaseAccess(user.id, knowledgeBaseId);
+
+  const snapshot = await getEvalDatasetSnapshot(datasetId);
+  if (!snapshot) return Response.json(error('dataset_not_found'), { status: 404 });
+
+  const structural = lintGoldset(snapshot.cases);
+  const compatibility = await preflightDataset({
+    datasetSnapshot: snapshot,
+    knowledgeBaseId,
+    filter,
+  });
+
+  const report: GoldsetValidationReport = {
+    datasetId: snapshot.id,
+    datasetName: snapshot.name,
+    knowledgeBaseId,
+    totalCases: snapshot.cases.length,
+    structural,
+    compatibility,
+    ok: !hasGoldsetErrors(structural) && !hasGoldsetErrors(compatibility),
+  };
+  return Response.json(success(report));
 });

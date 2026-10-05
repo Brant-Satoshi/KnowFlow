@@ -12,16 +12,19 @@
  *      answer is a worse failure than the one we are fixing.
  *   2. Subject to (1), take the floor that refuses the most out-of-scope cases.
  *
- * Calibrate on one dataset and validate on the other (`--validate=`): a threshold
- * chosen and blessed on the same handful of negatives is fitted to them. If the
- * validation split disagrees, the honest answer is to keep the floor at 0 and
- * ship only the empty-retrieval refusal.
+ * Calibrate on one dataset and validate on the other (`--validate-dataset-id=`):
+ * a threshold chosen and blessed on the same handful of negatives is fitted to
+ * them. If the validation split disagrees, the honest answer is to keep the
+ * floor at 0 and ship only the empty-retrieval refusal.
  *
- *   pnpm eval:refusal -- --knowledge-base-id=<uuid> --dataset=olympus \
- *                        --validate-knowledge-base-id=<uuid> --validate=olympus-zh
+ * Datasets are read from the database (manage them on /eval, or seed the
+ * built-in olympus / olympus-zh with `pnpm seed:demo`).
+ *
+ *   pnpm eval:refusal -- --knowledge-base-id=<uuid> --dataset-id=<uuid> \
+ *                        --validate-knowledge-base-id=<uuid> --validate-dataset-id=<uuid>
  */
 import { config } from 'dotenv';
-import type { EvalCase } from '@/lib/types';
+import { isValidUuid } from '@/lib/validation';
 
 config({ path: '.env.local', quiet: true });
 
@@ -106,19 +109,25 @@ const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 const score = (v: number | null) => (v === null ? '  —  ' : v.toFixed(4));
 
 async function collect(
-  datasetName: string,
+  datasetId: string,
   knowledgeBaseId: string,
-): Promise<CaseScore[]> {
-  const [datasetModule, retrieveModule, gateModule] = await Promise.all([
+): Promise<{ datasetName: string; scores: CaseScore[] }> {
+  const [datasetModule, datasetsDbModule, retrieveModule, gateModule] = await Promise.all([
     import('@/lib/eval/dataset'),
+    import('@/lib/db/eval-datasets'),
     import('@/lib/rag/retrieve'),
     import('@/lib/rag/refusal-gate'),
   ]);
 
-  const cases: EvalCase[] = datasetModule.loadDataset(datasetName);
+  const snapshot = await datasetsDbModule.getEvalDatasetSnapshot(datasetId);
+  if (!snapshot) {
+    throw new Error(
+      `Eval dataset ${datasetId} not found. Manage datasets on /eval or seed the built-ins with \`pnpm seed:demo\`.`,
+    );
+  }
   const scores: CaseScore[] = [];
 
-  for (const c of cases) {
+  for (const c of snapshot.cases) {
     const recalled = await retrieveModule.recallChunks(c.question, { knowledgeBaseId });
     // 'force': the floor only ever applies to scores a reranker actually produced,
     // so calibrate against a run where it definitely did.
@@ -133,7 +142,7 @@ async function collect(
     });
   }
 
-  return scores;
+  return { datasetName: snapshot.name, scores };
 }
 
 function printScores(label: string, scores: CaseScore[]): void {
@@ -191,8 +200,16 @@ async function main(): Promise<void> {
   if (!knowledgeBaseId) {
     throw new Error('Missing --knowledge-base-id=<uuid>. Seed one with `pnpm seed:demo`.');
   }
-  const datasetName = readFlag('dataset') ?? 'olympus';
-  const validateDataset = readFlag('validate');
+  const datasetId = readFlag('dataset-id');
+  if (!datasetId || !isValidUuid(datasetId)) {
+    throw new Error(
+      'Missing --dataset-id=<uuid>. Datasets live in the database now — manage them on /eval or seed the built-ins with `pnpm seed:demo`.',
+    );
+  }
+  const validateDatasetId = readFlag('validate-dataset-id');
+  if (validateDatasetId !== undefined && !isValidUuid(validateDatasetId)) {
+    throw new Error('--validate-dataset-id must be a UUID.');
+  }
   const validateKbId = readFlag('validate-knowledge-base-id');
 
   const { closePool } = await import('@/lib/db/pg');
@@ -214,7 +231,7 @@ async function main(): Promise<void> {
     // Cohere relevance scores span [0, 1] and cluster high, so sweep the range.
     const thresholds = Array.from({ length: 39 }, (_, i) => i * 0.025);
 
-    const calib = await collect(datasetName, knowledgeBaseId);
+    const { datasetName, scores: calib } = await collect(datasetId, knowledgeBaseId);
     printScores(`${datasetName} (calibration)`, calib);
     printSeparation(calib);
     const calibRows = sweep(calib, thresholds);
@@ -258,8 +275,11 @@ async function main(): Promise<void> {
       );
     }
 
-    if (validateDataset && validateKbId) {
-      const holdout = await collect(validateDataset, validateKbId);
+    if (validateDatasetId && validateKbId) {
+      const { datasetName: validateDataset, scores: holdout } = await collect(
+        validateDatasetId,
+        validateKbId,
+      );
       printScores(`${validateDataset} (held out)`, holdout);
       printSeparation(holdout);
 
@@ -279,7 +299,7 @@ async function main(): Promise<void> {
       }
     } else {
       console.log(
-        '\n(no held-out set: pass --validate=<dataset> --validate-knowledge-base-id=<uuid>' +
+        '\n(no held-out set: pass --validate-dataset-id=<uuid> --validate-knowledge-base-id=<uuid>' +
           '\n to check the floor against negatives it was not chosen on)',
       );
     }
