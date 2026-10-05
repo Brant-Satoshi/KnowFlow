@@ -30,7 +30,7 @@ function ModelLogo({ modelId }: { modelId: string }) {
   const logo = modelLogos[modelId] ?? 'https://models.dev/logos/openrouter.svg';
 
   return (
-    <span className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-background/80 ring-1 ring-border/70 dark:bg-white/90 dark:ring-white/20">
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-background/80 ring-1 ring-border/70 dark:bg-foreground/90 dark:ring-foreground/20">
       <Image
         src={logo}
         alt=""

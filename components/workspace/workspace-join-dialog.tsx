@@ -76,11 +76,11 @@ export function WorkspaceJoinDialog({
     <Dialog open={open} onOpenChange={(next) => !isJoining && onOpenChange(next)}>
       <DialogContent
         disableAnimation
-        className="rounded-[1.1rem] border-black/8 bg-popover dark:border-white/8 dark:bg-popover"
+        className="rounded-[1.1rem] border-border bg-popover"
       >
         <DialogHeader>
           <DialogTitle>{t.joinWorkspaceTitle}</DialogTitle>
-          <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
+          <DialogDescription className="mt-2 text-sm/6 text-muted-foreground">
             {t.joinWorkspaceDescription}
           </DialogDescription>
         </DialogHeader>
@@ -107,7 +107,7 @@ export function WorkspaceJoinDialog({
             disabled={!code.trim() || isJoining}
             className="rounded-lg"
           >
-            {isJoining && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isJoining && <Loader2 className="size-4 animate-spin" />}
             {isJoining ? t.joining : t.joinAction}
           </Button>
         </DialogFooter>

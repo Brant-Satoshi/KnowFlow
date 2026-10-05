@@ -39,19 +39,19 @@ interface KnowledgePanelProps {
   className?: string
 }
 
-// File extension → accent color
+// File extension → accent color token (values in globals.css)
 const EXT_COLORS: Record<string, string> = {
-  md:   "#7C83F7",
-  pdf:  "#F77C7C",
-  doc:  "#7CBEF7",
-  docx: "#7CBEF7",
-  txt:  "#A0A8C0",
-  csv:  "#7FE0B0",
+  md:   "var(--file-md-accent)",
+  pdf:  "var(--file-pdf-accent)",
+  doc:  "var(--file-doc-accent)",
+  docx: "var(--file-doc-accent)",
+  txt:  "var(--file-generic-accent)",
+  csv:  "var(--file-csv-accent)",
 }
 
 function FileExtBadge({ name, size = "sm" }: { name: string; size?: "sm" | "md" }) {
   const ext = name.split(".").pop()?.toLowerCase() ?? ""
-  const color = EXT_COLORS[ext] ?? "#A0A8C0"
+  const color = EXT_COLORS[ext] ?? "var(--file-generic-accent)"
   const sizeClass = size === "md" ? "h-9 w-9 rounded-[9px]" : "h-[30px] w-[30px] rounded-[7px]"
   return (
     <div
@@ -71,28 +71,26 @@ function FileExtBadge({ name, size = "sm" }: { name: string; size?: "sm" | "md" 
   )
 }
 
-const statusStyles: Record<string, { color: string; bg: string }> = {
-  uploading: { color: "hsl(var(--primary))",    bg: "hsl(var(--primary) / 0.12)" },
-  uploaded:  { color: "hsl(var(--primary))",    bg: "hsl(var(--primary) / 0.12)" },
-  parsing:   { color: "#f59e0b",                bg: "rgba(245,158,11,0.12)" },
-  indexed:   { color: "oklch(0.65 0.14 165)",   bg: "oklch(0.65 0.14 165 / 0.13)" },
-  deleting:  { color: "oklch(0.65 0.14 165)",   bg: "oklch(0.65 0.14 165 / 0.10)" },
-  failed:    { color: "hsl(var(--destructive))", bg: "hsl(var(--destructive) / 0.12)" },
+const statusStyles: Record<string, string> = {
+  uploading: "bg-info/10 text-info-ink",
+  uploaded:  "bg-info/10 text-info-ink",
+  parsing:   "bg-warning/10 text-warning-ink",
+  indexed:   "bg-success/10 text-success-ink",
+  deleting:  "bg-warning/10 text-warning-ink",
+  failed:    "bg-destructive/10 text-destructive-ink",
 }
 
 function StatusBadge({ status, label }: { status: string; label: string }) {
-  const s = statusStyles[status] ?? statusStyles.indexed
   const isPulsing = status === "parsing" || status === "uploading"
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-1 rounded-[5px] px-1.75 py-0.5 font-mono text-[10px] font-medium tracking-wider"
-      style={{ color: s.color, background: s.bg }}
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 rounded-[5px] px-1.75 py-0.5 font-mono text-[10px] font-medium tracking-wider",
+        statusStyles[status] ?? statusStyles.indexed,
+      )}
     >
       {isPulsing && (
-        <span
-          className="inline-block h-1.25 w-1.25 animate-pulse rounded-full"
-          style={{ background: s.color }}
-        />
+        <span className="inline-block h-1.25 w-1.25 animate-pulse rounded-full bg-current" />
       )}
       {label}
     </span>
@@ -318,7 +316,7 @@ export function KnowledgePanel({
                     {files.length === 0 ? (
                       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-4 py-8 text-center">
                         <p className="text-[12.5px] font-medium text-foreground">{t.panelEmptyTitle}</p>
-                        <p className="mt-1.5 text-[11.5px] leading-5 text-muted-foreground">{t.panelEmptyDesc}</p>
+                        <p className="mt-1.5 text-[11.5px]/5 text-muted-foreground">{t.panelEmptyDesc}</p>
                       </div>
                     ) : (
                       files.map((file) => {
@@ -363,7 +361,7 @@ export function KnowledgePanel({
                           >
                             {/* Loading shimmer */}
                             {isLoading && (
-                              <span className="file-card-loading-sweep pointer-events-none absolute inset-y-[-18%] left-[-52%] z-1 w-[52%] rounded-full bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.18),rgba(255,255,255,0.85),rgba(255,255,255,0.18),transparent)] dark:bg-[linear-gradient(90deg,transparent,rgba(120,200,100,0.10),rgba(180,240,160,0.45),rgba(120,200,100,0.10),transparent)]" />
+                              <span className="file-card-loading-sweep pointer-events-none absolute inset-y-[-18%] left-[-52%] z-1 w-[52%] rounded-full" />
                             )}
 
                             <div className="relative z-10 flex items-center gap-2.5">

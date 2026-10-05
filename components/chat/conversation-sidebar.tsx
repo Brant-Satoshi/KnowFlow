@@ -151,7 +151,7 @@ export function ConversationSidebar({
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-3 py-8 text-center">
               <MessageSquare className="h-5 w-5 text-muted-foreground" />
               <p className="mt-2 text-[12.5px] font-medium text-foreground">{t.noConversations}</p>
-              <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
+              <p className="mt-1 text-[11px]/5 text-muted-foreground">
                 {t.noConversationsHint}
               </p>
             </div>

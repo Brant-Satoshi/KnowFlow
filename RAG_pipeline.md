@@ -515,9 +515,13 @@ Eval 相关代码在：
 | `app/api/eval/validate/route.ts` | 校验数据集 |
 | `lib/eval/dataset.ts` | 数据集加载 |
 | `lib/eval/runner.ts` | 跑 RAG case、对比 rerank 分支 |
-| `lib/eval/metrics.ts` | recall、precision、NDCG、MRR 等指标 |
+| `lib/eval/metrics.ts` | Hit@K、precision、NDCG、MRR 等指标 |
 | `lib/eval/relevance.ts` | retrieved chunk 相关性打分 |
 | `lib/eval/judge.ts` | LLM judge（faithfulness / answer relevance） |
+
+Hit@K 仅对可回答问题取平均：前 K 条存在 grade ≥ 2 的结果计 1，否则计 0；数据集若无任何可回答问题，Hit@K 为 null（页面显示 “—”），而非 0——0 会被读成"检索全挂"。不可回答问题使用拒答指标。若有 3 段相关证据而前 5 条只找到 1 段，则 Hit@5 = 1、Recall@5 = 1/3、Precision@5 = 1/5；当前缺少完整相关证据标注，暂不计算真正的 Recall。Precision 仍沿用实际返回条数作为分母（不足 K 时不是除以 K），其他排序指标（precision / nDCG / MRR）口径此次不变——仍对全部 case 取平均、不可回答问题计 0，以保持与历史 run 可比；代价是分母与 Hit@K 不同，页面已就此标注，不要横向对照。
+
+历史 `recall_at_k` 原值保留，页面单列为旧口径 Hit@5；新结果写入 `hit_at_k`，上线前运行迁移 017。
 
 Eval 和聊天链路复用 `recallChunks()`、`selectFinalChunks()`、`buildPrompt()`、`generateAnswer()`，因此 hybrid scope/filter 与排序逻辑不会产生两套实现。
 
@@ -527,7 +531,7 @@ Eval 和聊天链路复用 `recallChunks()`、`selectFinalChunks()`、`buildProm
 pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset-id=<uuid> --rerank=on --repetitions=3
 ```
 
-命令输出 retrieval hit rate、Recall/Precision@n、nDCG、MRR，以及从 query embedding 到最终 chunk 的平均/p50/p95 延迟；vector 与 hybrid 按 case 交错执行以减少网络时序偏差。评测集存在数据库中（`--dataset-id` 用 `/eval` 页面或 `pnpm seed:demo` 创建的内置集），脚本跑前会执行与 `/api/eval/run` 相同的 structural + KB preflight 校验，不兼容直接报错退出。当前可复现实测见 `docs/evals/hybrid-ab-2026-07-10.md`。
+命令输出 retrieval hit rate、Hit/Precision@n、nDCG、MRR，以及从 query embedding 到最终 chunk 的平均/p50/p95 延迟；vector 与 hybrid 按 case 交错执行以减少网络时序偏差。评测集存在数据库中（`--dataset-id` 用 `/eval` 页面或 `pnpm seed:demo` 创建的内置集），脚本跑前会执行与 `/api/eval/run` 相同的 structural + KB preflight 校验，不兼容直接报错退出。当前可复现实测见 `docs/evals/hybrid-ab-2026-07-10.md`。
 
 ---
 

@@ -49,8 +49,8 @@ export function EmptyState({
       <div className="mx-auto w-full max-w-3xl">
         {/* Greeting glyph */}
         {isPreparing ? (
-          <div className="flex h-12 w-12 items-center justify-center rounded-[14px] border border-amber-200/60 bg-amber-50 text-amber-600 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400">
-            <Loader2 className="h-5 w-5 animate-spin" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-[14px] border border-warning/25 bg-warning/10 text-warning-ink">
+            <Loader2 className="size-5 animate-spin" />
           </div>
         ) : (
           <div aria-hidden className="wave-hand text-5xl leading-none">👋</div>
@@ -97,14 +97,14 @@ export function EmptyState({
                 className={cn(
                   "flex items-center gap-3 rounded-[11px] border px-3.5 py-2.5",
                   isPreparing
-                    ? "border-amber-200/50 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20"
+                    ? "border-warning/20 bg-warning/5"
                     : "border-border bg-secondary"
                 )}
               >
                 <div
                   className={cn(
                     "flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] font-mono text-[11px] font-semibold text-foreground",
-                    isPreparing ? "bg-white/70 dark:bg-white/6" : "bg-card"
+                    isPreparing ? "bg-card/70 dark:bg-foreground/6" : "bg-card"
                   )}
                 >
                   0{i + 1}
@@ -128,7 +128,7 @@ export function EmptyState({
               onClick={() => fileInputRef.current?.click()}
               className="cursor-pointer rounded-xl px-5"
             >
-              <Upload className="h-4 w-4" />
+              <Upload className="size-4" />
               {t.uploadFile}
             </Button>
           </div>

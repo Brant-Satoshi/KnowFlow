@@ -8,19 +8,17 @@ import {
   METRIC_SPECS,
   metricsFromSummary,
   datasetRunStatus,
-  GOOD,
-  GOLD,
   type RunMetrics,
   type MetricSpec,
 } from './shared';
 import { formatDateTime } from '@/lib/format';
 
-const RUN_COLORS = [GOOD, GOLD, 'hsl(var(--muted-foreground))'];
+const RUN_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))'];
 const RUN_LETTERS = ['A', 'B', 'C'];
 const MAX_RUNS = 3;
 
 /** Curated metric rows (mirrors the design's compact compare view). */
-const COMPARE_KEYS = ['faithfulness', 'answerRelevance', 'recall', 'precision', 'mrr', 'latency'];
+const COMPARE_KEYS = ['faithfulness', 'answerRelevance', 'hit', 'legacyHit', 'precision', 'mrr', 'latency'];
 const COMPARE_SPECS = COMPARE_KEYS.map(k => METRIC_SPECS.find(s => s.key === k)).filter((s): s is MetricSpec => !!s);
 
 /** Bar width fraction (0–1) for a metric value, normalised per metric kind. */

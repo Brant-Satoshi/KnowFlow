@@ -29,7 +29,12 @@ import type {
   GoldsetValidationReport,
   RetrievalFilter,
 } from '@/lib/types';
-import { BAD, GOOD, GoldsetIssuesPanel, ScanSkeleton } from './shared';
+import {
+  EVAL_NEGATIVE_INK,
+  EVAL_POSITIVE_INK,
+  GoldsetIssuesPanel,
+  ScanSkeleton,
+} from './shared';
 
 /* ───────────────────── API plumbing ───────────────────── */
 
@@ -277,7 +282,7 @@ function CaseFormDialog({
             <FieldLabel htmlFor="case-notes">{evalT.caseNotesLabel}</FieldLabel>
             <Textarea id="case-notes" rows={2} value={form.notes} onChange={(e) => set('notes')(e.target.value)} />
           </div>
-          {formError && <p className="text-[12.5px] font-sans" style={{ color: BAD }}>{formError}</p>}
+          {formError && <p className="text-[12.5px] font-sans" style={{ color: EVAL_NEGATIVE_INK }}>{formError}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" className="rounded-lg cursor-pointer" disabled={busy} onClick={() => onOpenChange(false)}>
@@ -352,7 +357,7 @@ function DatasetMetaDialog({
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
-          {formError && <p className="text-[12.5px] font-sans" style={{ color: BAD }}>{formError}</p>}
+          {formError && <p className="text-[12.5px] font-sans" style={{ color: EVAL_NEGATIVE_INK }}>{formError}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" className="rounded-lg cursor-pointer" disabled={busy} onClick={() => onOpenChange(false)}>
@@ -431,7 +436,7 @@ function ImportDialog({
           className="font-mono text-[12px]"
           placeholder={evalT.importPlaceholder}
         />
-        {formError && <p className="text-[12.5px] font-sans" style={{ color: BAD }}>{formError}</p>}
+        {formError && <p className="text-[12.5px] font-sans" style={{ color: EVAL_NEGATIVE_INK }}>{formError}</p>}
         <DialogFooter>
           <Button variant="outline" className="rounded-lg cursor-pointer" disabled={busy} onClick={() => onOpenChange(false)}>
             {evalT.dsCancel}
@@ -673,7 +678,7 @@ export function DatasetTab({
                     background: active
                       ? 'color-mix(in srgb, hsl(var(--primary)) 8%, transparent)'
                       : 'transparent',
-                    color: active ? GOOD : 'hsl(var(--foreground))',
+                    color: active ? 'hsl(var(--primary))' : 'hsl(var(--foreground))',
                   }}
                 >
                   <span className="font-medium">{d.name}</span>
@@ -691,7 +696,7 @@ export function DatasetTab({
         </Button>
       </div>
 
-      {tabError && <p className="text-[13px] font-sans" style={{ color: BAD }}>{tabError}</p>}
+      {tabError && <p className="text-[13px] font-sans" style={{ color: EVAL_NEGATIVE_INK }}>{tabError}</p>}
 
       {!selected ? (
         <div className="py-14 text-center">
@@ -757,7 +762,7 @@ export function DatasetTab({
           {/* validation report */}
           {report && (
             <div className="flex flex-col gap-3">
-              <p className="text-[13px] font-sans font-semibold" style={{ color: report.ok ? GOOD : BAD }}>
+              <p className="text-[13px] font-sans font-semibold" style={{ color: report.ok ? EVAL_POSITIVE_INK : EVAL_NEGATIVE_INK }}>
                 {report.ok ? `✓ ${evalT.validateOk}` : evalT.validateBlocked}
               </p>
               <GoldsetIssuesPanel structural={report.structural} compatibility={report.compatibility} evalT={evalT} />

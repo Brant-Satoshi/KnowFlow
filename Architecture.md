@@ -179,7 +179,7 @@ messages        (id uuid PK, conversation_id FK, role, content, retrieved_chunks
 -- eval（lib/db/schema/eval.ts）
 eval_datasets   (id uuid PK, name UNIQUE, description, dataset_hash, revision, case_count, created_at, updated_at)
 eval_cases      (id uuid PK, dataset_id FK, case_key, question, expected_keywords jsonb, category, difficulty, target_file_names jsonb, target_chunk_substrings jsonb, expected_answer, notes, idx)
-eval_runs       (id uuid PK, knowledge_base_id FK, dataset_id FK NULL, dataset_name, dataset_hash, mode, use_rerank, total_cases, passed_cases, retrieval_hit_rate, citation_hit_rate, avg_latency_ms, recall_at_k jsonb, precision_at_k jsonb, ndcg_at_k jsonb, mrr, avg_faithfulness, avg_answer_relevance, filter jsonb)
+eval_runs       (id uuid PK, knowledge_base_id FK, dataset_id FK NULL, dataset_name, dataset_hash, mode, use_rerank, total_cases, passed_cases, retrieval_hit_rate, citation_hit_rate, avg_latency_ms, hit_at_k jsonb, recall_at_k jsonb (legacy), precision_at_k jsonb, ndcg_at_k jsonb, mrr, avg_faithfulness, avg_answer_relevance, filter jsonb)
 eval_run_items  (id uuid PK, run_id FK, idx, case_key, question, passed, failure_reasons jsonb, retrieval_hit, citation_hit, latency_ms, retrieved_chunks jsonb, top_k_hits jsonb, answer, expected_answer, graded_hits jsonb, faithfulness, answer_relevance)
 
 INDEX chunks_file_idx          ON chunks(file_id, idx)
@@ -292,11 +292,13 @@ interface RetrievedChunk {
 `POST /api/eval/run` 接收 `datasetId`：**一次快照**贯穿整个请求（断言存量 hash 与 cases 一致，不一致 → 500 `dataset_hash_mismatch`），先过两层校验（structural lint + filter 感知的 KB preflight，`lib/eval/validate.ts`），任一 error → 422 `dataset_incompatible` 拒跑；运行期间的编辑/删除不影响本次 run（删除后 run 以 `dataset_id = NULL` 保存，快照 name/hash 保留，孤儿 run 之间按 `dataset_hash` 相等仍可互比——`canCompare`，`lib/eval/goldset.ts`）；`saveRun` 失败整个 API 返回 500。可选叠加 `RetrievalFilter`，**双跑** with/without rerank，同时打分：
 
 * `retrievalHit` —— 目标 chunk（target_file_names / target_chunk_substrings）是否出现在最终 top-5
-* `topKHits` —— 在召回阶段 top-1 / top-3 / top-5 命中情况
+* `topKHits` —— 逐 case 的 top-1 / top-3 / top-5 是否命中相关 chunk，口径与聚合 `hit@k` 一致（不可回答问题一律 false，不参与该平均）
 * `citationHit` —— 答案里同时存在 `[n]` 引用 **且** 命中至少一个 expected keyword
-* 排序指标 —— `recall@k` / `precision@k` / `ndcg@k` / `mrr`
+* 排序指标 —— `hit@k`（只对可回答问题平均，grade ≥ 2 视为相关） / `precision@k` / `ndcg@k` / `mrr`
 * LLM judge（`lib/eval/judge.ts`）—— 逐 case 打 `faithfulness` / `answerRelevance`，聚合为 `avg_faithfulness` / `avg_answer_relevance`
 * `latencyMs`、`avgLatencyMs`、`retrievalHitRate`、`citationHitRate`、`passedCases`
+
+`hit_at_k` 保存新口径（数据集若无任何可回答问题则为 null，页面显示 “—”，不是 0%）；`recall_at_k` 保留旧口径原值（含不可回答问题，空检索计 1），不回填、不直接比较。`precision@k` / `ndcg@k` / `mrr` 沿用旧聚合口径（对全部 case 取平均、不可回答问题计 0），以保持与历史 run 可比 —— 因此分母与 `hit@k` 不同，不要横向对照。
 
 run 与逐 case 结果持久化到 `eval_runs` / `eval_run_items`（含所用 filter），历史可在 `/eval` 页面回看（`/api/eval/runs`）。
 
@@ -354,7 +356,7 @@ run 与逐 case 结果持久化到 `eval_runs` / `eval_run_items`（含所用 fi
 ### 7.2 RAG 质量指标（`/eval` 直接产出）
 
 * `retrievalHitRate`、`citationHitRate`、`passedCases`、`avgLatencyMs`
-* `topKHits`（top-1/3/5）：判断"模型答错"是召回问题还是排序问题
+* `topKHits`（top-1/3/5，与 `hit@k` 同口径）：判断"模型答错"是召回问题还是排序问题
 
 ### 7.3 成本指标（待补）
 

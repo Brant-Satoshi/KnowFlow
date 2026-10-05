@@ -35,7 +35,7 @@ export function CitationHoverCardBody({ chunk, t }: { chunk: RetrievedChunk; t: 
       : null
   return (
     <HoverCardContent
-      className="w-80 rounded-[10px] text-xs leading-6 text-muted-foreground"
+      className="w-80 rounded-[10px] text-xs/6 text-muted-foreground"
       side="top"
     >
       <div className="mb-2 flex items-center gap-1.5 border-b border-border pb-2">

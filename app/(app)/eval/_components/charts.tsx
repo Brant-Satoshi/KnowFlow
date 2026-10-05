@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import type { EvalRunSummary } from '@/lib/types';
 import type { EvalTranslationKeys } from '@/lib/i18n/translations';
-import { metricsFromSummary, GOOD, GOLD, type RunMetrics } from './shared';
+import { metricsFromSummary, EVAL_POSITIVE, EVAL_WARNING, type RunMetrics } from './shared';
 
 /* ───────────────────────── chart shell ───────────────────────── */
 
@@ -37,12 +37,16 @@ function EmptyPlot({ text }: { text: string }) {
 
 /* ───────────────────────── trend chart ───────────────────────── */
 
+const CHART_1 = 'hsl(var(--chart-1))';
+const CHART_2 = 'hsl(var(--chart-2))';
+
 const SERIES = [
-  { key: 'faithfulness', color: GOOD, labelKey: 'faithfulness', get: (m: RunMetrics) => m.faithfulness },
-  { key: 'recall', color: GOLD, labelKey: 'recallAtK', get: (m: RunMetrics) => m.recall },
+  { key: 'faithfulness', color: CHART_1, labelKey: 'faithfulness', get: (m: RunMetrics) => m.faithfulness },
+  { key: 'hit', color: CHART_2, labelKey: 'hitAtK', get: (m: RunMetrics) => m.hit },
+  { key: 'legacyHit', color: 'hsl(var(--chart-3))', labelKey: 'legacyHitAtK', get: (m: RunMetrics) => m.legacyHit },
 ] as const;
 
-/** Two 0–1 series (faithfulness + context recall) plotted across runs, oldest → newest. */
+/** Separate 0–1 series (faithfulness, Hit@5, legacy score) plotted across runs, oldest → newest. */
 export function TrendChart({
   history,
   evalT,
@@ -88,8 +92,8 @@ export function TrendChart({
         <svg width="100%" height="190" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={evalT.trendAcrossRuns}>
           <defs>
             <linearGradient id="trend-area" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={GOOD} stopOpacity={0.22} />
-              <stop offset="100%" stopColor={GOOD} stopOpacity={0} />
+              <stop offset="0%" stopColor={CHART_1} stopOpacity={0.22} />
+              <stop offset="100%" stopColor={CHART_1} stopOpacity={0} />
             </linearGradient>
           </defs>
 
@@ -180,7 +184,7 @@ export function ScatterChart({
           {points.map((p, i) => {
             const best = i === bestIdx;
             const r = 6 + p.size * 9;
-            const color = best ? GOOD : i === bestIdx - 1 ? GOLD : 'hsl(var(--muted-foreground))';
+            const color = best ? EVAL_POSITIVE : i === bestIdx - 1 ? EVAL_WARNING : 'hsl(var(--muted-foreground))';
             return (
               <g key={i}>
                 <circle

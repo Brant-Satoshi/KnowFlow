@@ -1,11 +1,31 @@
 import { claimFileForParsing, updateFileStatus } from '@/lib/db/files';
 import { parseUuidParam, withAuth } from '@/lib/api/route';
+import { EmbeddingError } from '@/lib/llm/errors';
 import { reindexFile } from '@/lib/rag/reindex';
-import { ParseUserError } from '@/lib/rag/parse';
+import { ParseUserError, type ParseErrorCode } from '@/lib/rag/parse';
 import { success, error } from '@/lib/api/response';
 import { isNotFoundOrForbiddenError, requireFileAccess } from '@/lib/authz/access';
 
 export const runtime = "nodejs";
+
+/**
+ * Storage and provider internals never reach the user; a code does. It tells the
+ * UI which sentence to show, in the reader's language, and it tells the log which
+ * failure this was — both stamped with the same requestId, so "my upload says
+ * failed" can be traced to an actual line in the log.
+ */
+function classifyParseFailure(e: unknown): { code: ParseErrorCode; message: string } {
+    if (e instanceof ParseUserError) {
+        return { code: e.code, message: e.message };
+    }
+    if (e instanceof EmbeddingError) {
+        return {
+            code: 'embedding_failed',
+            message: 'The file was read, but indexing it failed. Please try again.',
+        };
+    }
+    return { code: 'parse_failed', message: 'Parse failed' };
+}
 
 // buffer → parse → clean → chunk → embed → replace (see reindexFile)
 export const POST = withAuth(
@@ -43,11 +63,14 @@ export const POST = withAuth(
             if (claimed) {
                 await updateFileStatus(id, 'failed');
             }
-            console.error(`[api/files/parse] Parse failed for file ${id}:`, e);
-            // Keep storage/provider internals server-side; only deliberately
-            // user-facing messages (ParseUserError) pass through.
-            const message = e instanceof ParseUserError ? e.message : 'Parse failed';
-            return Response.json(error(message), { status: 500 });
+
+            const { code, message } = classifyParseFailure(e);
+            const payload = error(message, { code });
+            console.error(
+                `[api/files/parse][${payload.requestId}] parse failed for file ${id} (${code}):`,
+                e,
+            );
+            return Response.json(payload, { status: 500 });
         }
     },
 );

@@ -4,9 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowRight, BookmarkPlus, Edit3, Loader2, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react"
-import { HomeSidebar, HomeSidebarNav, type HomeSection } from "./_components/home-sidebar"
 import { PublicKnowledgeBases } from "./_components/home-public-kbs"
-import { MobileNav } from "@/components/mobile-nav"
+import { useAppShell } from "./_components/app-shell-context"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -170,7 +169,7 @@ function KBCard({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-full transition-opacity hover:bg-black/8 md:opacity-0 md:group-hover:opacity-100 dark:hover:bg-white/10"
+              className="h-7 w-7 rounded-full transition-opacity hover:bg-foreground/8 md:opacity-0 md:group-hover:opacity-100 dark:hover:bg-foreground/10"
               aria-label={t.actions}
             >
               <MoreHorizontal className="size-4" />
@@ -230,7 +229,7 @@ function NewKBCard({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
       onClick={onClick}
-      className="flex h-40 w-full cursor-pointer flex-col items-center justify-center gap-2.5 rounded-2xl border border-dashed border-black/15 bg-transparent text-muted-foreground transition-colors hover:border-black/25 hover:bg-card/60 sm:h-55 dark:border-white/10 dark:hover:border-white/20 dark:hover:bg-card/60"
+      className="flex h-40 w-full cursor-pointer flex-col items-center justify-center gap-2.5 rounded-2xl border border-dashed border-foreground/15 bg-transparent text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-card/60 sm:h-55 dark:border-foreground/10 dark:hover:border-foreground/20 dark:hover:bg-card/60"
     >
       <span className="font-display text-[44px] font-light italic leading-none text-muted-foreground/50">+</span>
       <span className="font-mono text-[10px] font-medium uppercase tracking-widest text-muted-foreground/70">
@@ -277,10 +276,10 @@ export default function HomePage() {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null)
   const [isMembersOpen, setIsMembersOpen] = useState(false)
   const [isJoinOpen, setIsJoinOpen] = useState(false)
-  const [activeSection, setActiveSection] = useState<HomeSection>("workspace")
   const router = useRouter()
-  const { home: t, evalT, language } = useLanguage()
+  const { home: t, language } = useLanguage()
   const { user } = useAuth()
+  const { setWorkspaceLabel, intent, clearIntent } = useAppShell()
   const showErrorToast = useErrorToast()
 
   const activeWorkspace = useMemo(
@@ -322,16 +321,31 @@ export default function HomePage() {
     setStoredWorkspaceId(id)
   }, [])
 
-  const handleSelectSection = useCallback((section: HomeSection) => {
-    setActiveSection(section)
-    // Clearing search re-mounts the public section (hidden during search) so the
-    // active nav item always points at visible content; scroll after that render.
-    setSearchQuery("")
-    const id = section === "workspace" ? "my-knowledge-bases" : "public-knowledge-bases"
-    requestAnimationFrame(() =>
-      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })
+  // Keep the shared sidebar footer's workspace subtitle in sync.
+  useEffect(() => {
+    setWorkspaceLabel(
+      activeWorkspace ? displayWorkspaceName(activeWorkspace.name, t) : t.allWorkspaces
     )
-  }, [])
+  }, [activeWorkspace, t, setWorkspaceLabel])
+
+  // Consume one-shot intents raised by the shared sidebar (which owns the nav but
+  // not this page's create dialog / scrollable sections). Cleared after handling,
+  // so arriving fresh from /eval fires exactly once.
+  useEffect(() => {
+    if (!intent) return
+    if (intent.kind === "create") {
+      setIsCreating(true)
+    } else {
+      // Clearing search re-mounts the public section (hidden during search) so the
+      // active nav item always points at visible content; scroll after that render.
+      setSearchQuery("")
+      const id = intent.section === "workspace" ? "my-knowledge-bases" : "public-knowledge-bases"
+      requestAnimationFrame(() =>
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })
+      )
+    }
+    clearIntent()
+  }, [intent, clearIntent])
 
   const fetchKnowledgeBases = useCallback(async (workspaceId: string | null) => {
     try {
@@ -478,43 +492,7 @@ export default function HomePage() {
   }, [knowledgeBases, searchQuery])
 
   return (
-    <div className="min-h-screen bg-background md:grid md:grid-cols-[232px_1fr]">
-      {/* ── Mobile top bar (< md) ──────────────────────────────────── */}
-      <MobileNav appName={t.title} menuLabel={t.openMenu} navTitle={t.navLabel}>
-        {(close) => (
-          <HomeSidebarNav
-            activeSection={activeSection}
-            onSelectSection={(section) => {
-              handleSelectSection(section)
-              close()
-            }}
-            onCreate={() => {
-              setIsCreating(true)
-              close()
-            }}
-            userEmail={user?.email}
-            workspaceLabel={
-              activeWorkspace ? displayWorkspaceName(activeWorkspace.name, t) : t.allWorkspaces
-            }
-            t={t}
-            evalT={evalT}
-          />
-        )}
-      </MobileNav>
-
-      {/* ── Sidebar (md+) ──────────────────────────────────────────── */}
-      <HomeSidebar
-        activeSection={activeSection}
-        onSelectSection={handleSelectSection}
-        onCreate={() => setIsCreating(true)}
-        userEmail={user?.email}
-        workspaceLabel={
-          activeWorkspace ? displayWorkspaceName(activeWorkspace.name, t) : t.allWorkspaces
-        }
-        t={t}
-        evalT={evalT}
-      />
-
+    <>
       {/* ── Main ───────────────────────────────────────────────────── */}
       <main className="min-w-0 max-w-310 px-4 py-6 sm:px-6 md:py-10 lg:px-8">
         {/* Inline editorial search */}
@@ -625,8 +603,8 @@ export default function HomePage() {
         open={isCreating}
         onOpenChange={(open) => !isSubmitting && (open ? setIsCreating(true) : resetCreateState())}
       >
-        <DialogContent className="overflow-hidden rounded-[1.8rem] border-black/8 bg-popover p-0 sm:max-w-xl dark:border-white/8 dark:bg-popover">
-          <div className="bg-[linear-gradient(180deg,rgba(255,248,230,0.6)_0%,rgba(255,248,230,0)_100%)] p-6 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0)_100%)]">
+        <DialogContent className="overflow-hidden rounded-[1.8rem] border-border bg-popover p-0 sm:max-w-xl">
+          <div className="dialog-header-tint p-6">
             <DialogHeader className="text-left">
               <DialogTitle className="text-[22px] font-semibold tracking-tight">
                 {t.createKnowledgeBase}
@@ -643,7 +621,7 @@ export default function HomePage() {
                   value={newKbName}
                   onChange={(e) => setNewKbName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleCreateKnowledgeBase() }}
-                  className="h-11 rounded-2xl border-black/10 bg-white/80 focus-visible:ring-offset-0 dark:border-white/10 dark:bg-white/6"
+                  className="h-11 rounded-2xl border-input bg-background/80 focus-visible:ring-offset-0"
                 />
               </div>
               <div className="flex flex-col gap-5">
@@ -653,7 +631,7 @@ export default function HomePage() {
                   value={newKbDesc}
                   onChange={(e) => setNewKbDesc(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleCreateKnowledgeBase() }}
-                  className="min-h-25 resize-none rounded-2xl border-black/10 bg-white/80 focus-visible:ring-offset-0 dark:border-white/10 dark:bg-white/6"
+                  className="min-h-25 resize-none rounded-2xl border-input bg-background/80 focus-visible:ring-offset-0"
                 />
               </div>
             </div>
@@ -662,7 +640,7 @@ export default function HomePage() {
                 variant="outline"
                 onClick={resetCreateState}
                 disabled={isSubmitting}
-                className="rounded-full border-black/10 bg-white/70 px-5 dark:border-white/10 dark:bg-white/6"
+                className="rounded-full border-input bg-background/70 px-5"
               >
                 {t.cancel}
               </Button>
@@ -685,8 +663,8 @@ export default function HomePage() {
         open={editingKnowledgeBase !== null}
         onOpenChange={(open) => !isUpdating && !open && resetEditState()}
       >
-        <DialogContent className="overflow-hidden rounded-[1.8rem] border-black/8 bg-popover p-0 sm:max-w-xl dark:border-white/8 dark:bg-popover">
-          <div className="bg-[linear-gradient(180deg,rgba(255,248,230,0.6)_0%,rgba(255,248,230,0)_100%)] p-6 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0)_100%)]">
+        <DialogContent className="overflow-hidden rounded-[1.8rem] border-border bg-popover p-0 sm:max-w-xl">
+          <div className="dialog-header-tint p-6">
             <DialogHeader className="text-left">
               <DialogTitle className="text-[22px] font-semibold tracking-tight">
                 {t.editKnowledgeBase}
@@ -703,7 +681,7 @@ export default function HomePage() {
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleUpdateKnowledgeBase() }}
-                  className="h-11 rounded-2xl border-black/10 bg-white/80 focus-visible:ring-offset-0 dark:border-white/10 dark:bg-white/6"
+                  className="h-11 rounded-2xl border-input bg-background/80 focus-visible:ring-offset-0"
                 />
               </div>
               <div className="flex flex-col gap-5">
@@ -713,7 +691,7 @@ export default function HomePage() {
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleUpdateKnowledgeBase() }}
-                  className="min-h-25 resize-none rounded-2xl border-black/10 bg-white/80 focus-visible:ring-offset-0 dark:border-white/10 dark:bg-white/6"
+                  className="min-h-25 resize-none rounded-2xl border-input bg-background/80 focus-visible:ring-offset-0"
                 />
               </div>
             </div>
@@ -722,7 +700,7 @@ export default function HomePage() {
                 variant="outline"
                 onClick={resetEditState}
                 disabled={isUpdating}
-                className="rounded-full border-black/10 bg-white/70 px-5 dark:border-white/10 dark:bg-white/6"
+                className="rounded-full border-input bg-background/70 px-5"
               >
                 {t.cancel}
               </Button>
@@ -777,6 +755,6 @@ export default function HomePage() {
         }}
         t={t}
       />
-    </div>
+    </>
   )
 }

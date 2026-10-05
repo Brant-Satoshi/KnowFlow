@@ -86,6 +86,8 @@ export const evalRuns = pgTable(
 
     avgLatencyMs: integer("avg_latency_ms").notNull(),
 
+    hitAtK: jsonb("hit_at_k").$type<Record<string, number> | null>(),
+    // Legacy mixed-case hit/refusal score; never backfill into hit_at_k.
     recallAtK: jsonb("recall_at_k").$type<Record<string, number> | null>(),
     precisionAtK: jsonb("precision_at_k").$type<Record<string, number> | null>(),
     ndcgAtK: jsonb("ndcg_at_k").$type<Record<string, number> | null>(),

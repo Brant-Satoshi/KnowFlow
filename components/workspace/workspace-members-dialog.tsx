@@ -225,11 +225,11 @@ export function WorkspaceMembersDialog({
       <Dialog open={open} onOpenChange={(next) => !isRemoving && !isLeaving && onOpenChange(next)}>
         <DialogContent
           disableAnimation
-          className="max-h-[85vh] overflow-y-auto rounded-[1.1rem] border-black/8 bg-popover sm:max-w-lg dark:border-white/8 dark:bg-popover"
+          className="max-h-[85vh] overflow-y-auto rounded-[1.1rem] border-border bg-popover sm:max-w-lg"
         >
           <DialogHeader>
             <DialogTitle>{t.membersTitle}</DialogTitle>
-            <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
+            <DialogDescription className="mt-2 text-sm/6 text-muted-foreground">
               {t.membersDescription.replace(
                 "{workspaceName}",
                 workspace ? displayWorkspaceName(workspace.name, t) : "",

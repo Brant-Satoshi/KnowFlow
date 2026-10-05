@@ -107,7 +107,7 @@ export function PublicKnowledgeBases({
                   className="flex-1 cursor-pointer bg-primary/10 text-primary shadow-none hover:bg-primary/15"
                   onClick={showComingSoon}
                 >
-                  <Copy className="h-3 w-3" />
+                  <Copy className="size-3" />
                   {t.cloneAction}
                 </Button>
               </div>

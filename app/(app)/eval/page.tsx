@@ -23,10 +23,10 @@ import {
   detailToResult,
   baselineLabel,
   GoldsetIssuesPanel,
-  GOLD,
+  EVAL_NEGATIVE_INK,
+  EVAL_WARNING,
 } from './_components/shared';
-import { EvalSidebar, EvalSidebarNav, type EvalTab } from './_components/eval-sidebar';
-import { MobileNav } from '@/components/mobile-nav';
+import { useAppShell, type EvalTab } from '../_components/app-shell-context';
 import { OverviewTab } from './_components/overview-tab';
 import { CompareTab } from './_components/compare-tab';
 import { InspectorTab } from './_components/inspector-tab';
@@ -51,7 +51,8 @@ export default function EvalPage() {
 function EvalPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { evalT, home, language } = useLanguage();
+  const { evalT, language } = useLanguage();
+  const { setEvalTab } = useAppShell();
 
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [loadingKbs, setLoadingKbs] = useState(true);
@@ -73,6 +74,11 @@ function EvalPageContent() {
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const activeTab = parseTab(searchParams.get('tab'));
+  // Mirror the URL-derived tab into the shared shell so the persistent sidebar
+  // (rendered by the (app) layout) can highlight the active tab.
+  useEffect(() => {
+    setEvalTab(activeTab);
+  }, [activeTab, setEvalTab]);
   const selectTab = useCallback(
     (tab: EvalTab) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -250,31 +256,7 @@ function EvalPageContent() {
   return (
     <>
       <style>{EVAL_STYLES}</style>
-      <div className="min-h-screen md:grid md:grid-cols-[232px_1fr] bg-background text-foreground">
-        {/* ── Mobile top bar (< md) ── */}
-        <MobileNav appName={home.title} menuLabel={evalT.openMenu} navTitle={evalT.navSectionEvaluate}>
-          {(close) => (
-            <EvalSidebarNav
-              activeTab={activeTab}
-              onSelect={(tab) => {
-                selectTab(tab);
-                close();
-              }}
-              kbLabel={selectedKb ? selectedKb.name : null}
-              evalT={evalT}
-            />
-          )}
-        </MobileNav>
-
-        <EvalSidebar
-          activeTab={activeTab}
-          onSelect={selectTab}
-          appName={home.title}
-          kbLabel={selectedKb ? selectedKb.name : null}
-          evalT={evalT}
-        />
-
-        <main className="min-w-0 flex flex-col">
+      <main className="min-w-0 flex flex-col text-foreground">
           {/* ── Topbar ── */}
           <div className="z-20 border-b border-border bg-background/90 backdrop-blur px-4 py-2.5 md:sticky md:top-0 md:px-5">
             <div className="flex flex-col gap-2.5 md:flex-row md:flex-wrap md:items-center md:gap-3">
@@ -344,9 +326,9 @@ function EvalPageContent() {
                 disabled={!canRun}
                 className="h-9 w-full md:w-auto cursor-pointer px-4 rounded-lg text-[12.5px] font-sans font-semibold disabled:cursor-not-allowed hover:opacity-90 transition-opacity focus:outline-none flex items-center justify-center gap-2"
                 style={{
-                  background: canRun ? `linear-gradient(135deg, ${GOLD}, color-mix(in srgb, ${GOLD} 80%, black))` : 'hsl(var(--muted))',
-                  color: canRun ? '#fff' : 'hsl(var(--muted-foreground))',
-                  boxShadow: canRun ? `0 2px 10px color-mix(in srgb, ${GOLD} 30%, transparent)` : 'none',
+                  background: canRun ? `linear-gradient(135deg, ${EVAL_WARNING}, color-mix(in srgb, ${EVAL_WARNING} 80%, black))` : 'hsl(var(--muted))',
+                  color: canRun ? 'hsl(var(--warning-foreground))' : 'hsl(var(--muted-foreground))',
+                  boxShadow: canRun ? `0 2px 10px color-mix(in srgb, ${EVAL_WARNING} 30%, transparent)` : 'none',
                 }}
               >
                 {isRunning ? (
@@ -391,7 +373,7 @@ function EvalPageContent() {
 
           {/* ── Content ── */}
           <div className="p-5 space-y-4">
-            {runError && <p className="text-[14px] font-sans" style={{ color: 'var(--card-accent-2)' }}>{runError}</p>}
+            {runError && <p className="text-[14px] font-sans" style={{ color: EVAL_NEGATIVE_INK }}>{runError}</p>}
             {runIssues && (
               <GoldsetIssuesPanel
                 structural={runIssues.structural}
@@ -402,7 +384,7 @@ function EvalPageContent() {
 
             {viewingHistorical && result && (
               <p className="text-[12px] font-sans text-muted-foreground flex items-center gap-2">
-                <span aria-hidden className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: GOLD }} />
+                <span aria-hidden className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: EVAL_WARNING }} />
                 {evalT.viewingSavedRun}
               </p>
             )}
@@ -443,7 +425,6 @@ function EvalPageContent() {
             )}
           </div>
         </main>
-      </div>
     </>
   );
 }

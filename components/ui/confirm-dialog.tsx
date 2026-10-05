@@ -45,11 +45,11 @@ export function ConfirmDialog({
     <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
       <DialogContent
         disableAnimation
-        className="rounded-[1.1rem] border-black/8 bg-popover dark:border-white/8 dark:bg-popover"
+        className="rounded-[1.1rem] border-border bg-popover"
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground">
+          <DialogDescription className="mt-2 text-sm/6 text-muted-foreground">
             {description}
           </DialogDescription>
         </DialogHeader>

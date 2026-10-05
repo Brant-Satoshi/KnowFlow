@@ -28,6 +28,21 @@ export function parseSseEvent(rawEvent: string): ParsedSseEvent | null {
   }
 }
 
+/**
+ * The connection went quiet for longer than the watchdog allows.
+ *
+ * Note this can only catch a *dead* connection: the server keepalives every 15s,
+ * so a live connection whose upstream LLM has stalled still looks busy from here.
+ * That case is caught server-side (see streamLlmAnswer's idle watchdog), which is
+ * why a stall surfaces as a `timeout` error event rather than through this class.
+ */
+export class SseIdleTimeoutError extends Error {
+  constructor() {
+    super("Connection timed out")
+    this.name = "SseIdleTimeoutError"
+  }
+}
+
 // The server emits a keepalive comment every 15s, so an idle gap of several
 // multiples of that means the connection is dead, not the stage slow.
 async function readWithIdleTimeout(
@@ -44,7 +59,7 @@ async function readWithIdleTimeout(
         timer = setTimeout(() => {
           // Reject first: cancel() settles the pending read() with
           // { done: true }, which would otherwise win the race.
-          reject(new Error("Connection timed out"))
+          reject(new SseIdleTimeoutError())
           reader.cancel().catch(() => {})
         }, idleTimeoutMs)
       }),

@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { httpClient } from "@/lib/http/client"
+import { httpClient, HttpError } from "@/lib/http/client"
+import type { ParseErrorCode } from "@/lib/rag/parse"
 import { FileDoc, FileListItem } from "@/lib/types"
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/validation"
 
@@ -13,6 +14,9 @@ type ErrorToast = (
   }
 ) => void
 
+/** Localized copy per ParseErrorCode — `t.parseErrors`. */
+type ParseErrorMessages = Record<ParseErrorCode, string>
+
 interface UseFileStateParams {
   knowledgeBaseId?: string
   showErrorToast: ErrorToast
@@ -20,8 +24,16 @@ interface UseFileStateParams {
   uploadFailedMessage: string
   fileTooLargeMessage: string
   parseFailedMessage: string
+  parseErrorMessages: ParseErrorMessages
   deleteFailedTitle: string
   deleteFailedDesc: string
+}
+
+function isParseErrorCode(
+  value: unknown,
+  messages: ParseErrorMessages,
+): value is ParseErrorCode {
+  return typeof value === "string" && value in messages
 }
 
 export function useFileState({
@@ -31,6 +43,7 @@ export function useFileState({
   uploadFailedMessage,
   fileTooLargeMessage,
   parseFailedMessage,
+  parseErrorMessages,
   deleteFailedTitle,
   deleteFailedDesc,
 }: UseFileStateParams) {
@@ -77,7 +90,19 @@ export function useFileState({
         const data = await httpClient.post<{ file: FileDoc }>(`/api/files/${id}/parse`, undefined)
         setFiles((prev) => prev.map((file) => (file.id === id ? data.file : file)))
       } catch (error) {
-        showErrorToast(error instanceof Error ? error.message : parseFailedMessage)
+        // The server says *which* failure it was; say it in the user's language.
+        // The English message on the error is the fallback for an older server.
+        const code =
+          error instanceof HttpError
+            ? (error.data as { code?: unknown } | undefined)?.code
+            : undefined
+        const message = isParseErrorCode(code, parseErrorMessages)
+          ? parseErrorMessages[code]
+          : error instanceof Error
+            ? error.message
+            : parseFailedMessage
+
+        showErrorToast(message)
 
         if (knowledgeBaseId) {
           await refreshFiles()
@@ -90,7 +115,7 @@ export function useFileState({
         })
       }
     },
-    [knowledgeBaseId, parseFailedMessage, refreshFiles, showErrorToast]
+    [knowledgeBaseId, parseErrorMessages, parseFailedMessage, refreshFiles, showErrorToast]
   )
 
   const handleUpload = useCallback(

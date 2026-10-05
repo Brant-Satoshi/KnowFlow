@@ -19,6 +19,17 @@
   --color-accent-foreground: hsl(var(--accent-foreground));
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-ink: hsl(var(--destructive-ink));
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-success-ink: hsl(var(--success-ink));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-warning-ink: hsl(var(--warning-ink));
+  --color-info: hsl(var(--info));
+  --color-info-foreground: hsl(var(--info-foreground));
+  --color-info-ink: hsl(var(--info-ink));
+  --color-overlay: hsl(var(--overlay));
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
@@ -30,6 +41,9 @@
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
+  --color-chat-orb-gold: var(--chat-orb-gold);
+  --color-chat-orb-sage: var(--chat-orb-sage);
+  --color-chat-orb-terracotta: var(--chat-orb-terracotta);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -42,9 +56,9 @@
 
 @layer base {
   /* —— Animations ——————————————————————————————— */
-  @keyframes streaming-cursor-blink {
-    0%, 49% { opacity: 1; }
-    50%, 100% { opacity: 0; }
+  @keyframes stream-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   @keyframes home-orb-float {
@@ -100,6 +114,23 @@
     --accent-foreground:     0 0% 100%;
     --destructive:           0 84% 60%;
     --destructive-foreground:0 0% 98%;
+    --success:               160 64% 34%;
+    --success-foreground:    0 0% 100%;
+    --warning:               38 92% 44%;
+    --warning-foreground:    32 40% 12%;
+    --info:                  215 72% 52%;
+    --info-foreground:       0 0% 100%;
+
+    /* Status hue as *text* on a neutral surface (card/popover). The plain
+       --success/--warning/--info/--destructive values are tuned as fills and
+       only reach 2.7–4.4:1 as text on a light surface, so text call sites use
+       these instead. Kept dark enough to hold ≥4.5:1 even at 80% opacity. */
+    --success-ink:           160 64% 22%;
+    --warning-ink:           38 92% 24%;
+    --info-ink:              215 72% 38%;
+    --destructive-ink:       0 70% 35%;
+
+    --overlay:               0 0% 0%;
     --border:                189 9% 84%;
     --input:                 189 9% 84%;
     --ring:                  175 84% 32%;
@@ -123,12 +154,39 @@
     --inline-code-border:    190 10% 84%;
     --inline-code-text:      0 63% 35%;
 
+    /* Dialog header wash — warm cream fading out downward */
+    --dialog-header-tint:        42 100% 95%;
+    --dialog-header-tint-alpha:  0.6;
+
+    /* File card loading sweep — plain white highlight in light mode */
+    --file-sweep-edge:           0 0% 100%;
+    --file-sweep-edge-alpha:     0.18;
+    --file-sweep-core:           0 0% 100%;
+    --file-sweep-core-alpha:     0.85;
+
     /* Card accent bars — 5 hues */
     --card-accent-0: #D9A441;  /* amber */
     --card-accent-1: #4E8C5A;  /* sage */
     --card-accent-2: #C8612C;  /* terracotta */
     --card-accent-3: #3D6B8E;  /* slate */
     --card-accent-4: #7D5BA6;  /* plum */
+
+    /* Chart series — data palette, decoupled from status colours */
+    --chart-1: 175 84% 32%;   /* teal */
+    --chart-2: 39 67% 55%;    /* amber */
+    --chart-3: 172 7% 46%;    /* grey */
+
+    /* Chat ambient orbs (same hue in dark; alpha varies at call site) */
+    --chat-orb-gold:       #C49A2E;
+    --chat-orb-sage:       #4A8A5C;
+    --chat-orb-terracotta: #C05B3C;
+
+    /* File-type accents (knowledge panel ext badges) */
+    --file-md-accent:      #7C83F7;
+    --file-pdf-accent:     #F77C7C;
+    --file-doc-accent:     #7CBEF7;
+    --file-csv-accent:     #7FE0B0;
+    --file-generic-accent: #A0A8C0;
   }
 
   /* —— Dark tokens —————————————————————————————— */
@@ -155,6 +213,21 @@
     --accent-foreground:     0 0% 100%;
     --destructive:           0 72% 51%;
     --destructive-foreground:0 0% 98%;
+    --success:               155 58% 55%;
+    --success-foreground:    160 35% 10%;
+    --warning:               42 90% 62%;
+    --warning-foreground:    38 45% 12%;
+    --info:                  215 85% 70%;
+    --info-foreground:       215 40% 12%;
+
+    /* On dark surfaces the fill values are already bright enough to double as
+       text; only --destructive needs lifting (it lands at 3.9:1 on --card). */
+    --success-ink:           155 58% 55%;
+    --warning-ink:           42 90% 62%;
+    --info-ink:              215 85% 70%;
+    --destructive-ink:       0 88% 74%;
+
+    --overlay:               0 0% 0%;
     --border:                165 6% 14%;
     --input:                 165 6% 14%;
     --ring:                  172 66% 50%;
@@ -177,12 +250,27 @@
     --inline-code-border:    168 6% 24%;
     --inline-code-text:      2 73% 81%;
 
+    /* Dialog header wash — barely-there light lift on carbon */
+    --dialog-header-tint:        0 0% 100%;
+    --dialog-header-tint-alpha:  0.04;
+
+    /* File card loading sweep — sage glow reads better than white on carbon */
+    --file-sweep-edge:           108 48% 59%;
+    --file-sweep-edge-alpha:     0.1;
+    --file-sweep-core:           105 73% 78%;
+    --file-sweep-core-alpha:     0.45;
+
     /* Card accent bars — brighter in dark mode */
     --card-accent-0: #D4A847;  /* amber */
     --card-accent-1: #6EC687;  /* sage */
     --card-accent-2: #E07A5F;  /* terracotta */
     --card-accent-3: #6B9AB8;  /* slate */
     --card-accent-4: #B07AC0;  /* plum */
+
+    /* Chart series — brighter in dark mode */
+    --chart-1: 172 66% 50%;
+    --chart-2: 41 62% 55%;
+    --chart-3: 170 5% 50%;
   }
 
   * { @apply border-border; }
@@ -228,19 +316,18 @@
     line-height: 1.35;
     padding: 0.05rem 0.4rem 0.1rem;
   }
-  .streaming-cursor      { animation: streaming-cursor-blink 1s steps(1, end) infinite; }
-  .streaming-active > *:last-child::after {
-    content: '';
-    display: inline-block;
-    width: 0.125rem;
-    height: 1.05em;
-    background-color: hsl(var(--primary));
-    border-radius: 9999px;
-    transform: translateY(0.125rem);
-    vertical-align: -0.1em;
-    margin-left: 0.25rem;
-    animation: streaming-cursor-blink 1s steps(1, end) infinite;
+  /* Newly streamed words fade in (spans mounted by fadeStreamingText). */
+  .stream-fade { animation: stream-fade-in 0.4s ease-out; }
+  @media (prefers-reduced-motion: reduce) {
+    .stream-fade { animation: none; }
   }
+  /* Status tint layered over the toast's bg-popover/95 base. Written as a
+     background-image utility rather than `bg-linear-to-b from-… to-…` because
+     tailwind-merge (v2) groups `bg-linear-*` with `bg-<color>` and would drop
+     the popover base, leaving the toast transparent. */
+  .toast-tint-success     { background-image: linear-gradient(hsl(var(--success) / 0.1), hsl(var(--success) / 0.1)); }
+  .toast-tint-destructive { background-image: linear-gradient(hsl(var(--destructive) / 0.1), hsl(var(--destructive) / 0.1)); }
+
   .theme-user-msg-bg     { background-color: hsl(var(--theme-user-msg-bg)); }
   .theme-user-msg-text   { color: hsl(var(--theme-user-msg-text)); }
   .chat-surface-border   { border-color: hsl(var(--chat-surface-border)); }
@@ -256,8 +343,26 @@
     animation: home-card-enter 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 
+  /* Header wash on dialogs. Written as background-image so tailwind-merge
+     can't collapse it against a `bg-<color>` base, same as the toast tints. */
+  .dialog-header-tint {
+    background-image: linear-gradient(
+      180deg,
+      hsl(var(--dialog-header-tint) / var(--dialog-header-tint-alpha)) 0%,
+      hsl(var(--dialog-header-tint) / 0) 100%
+    );
+  }
+
   .file-card-loading-sweep {
     animation: file-card-loading-sweep 1.75s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--file-sweep-edge) / var(--file-sweep-edge-alpha)),
+      hsl(var(--file-sweep-core) / var(--file-sweep-core-alpha)),
+      hsl(var(--file-sweep-edge) / var(--file-sweep-edge-alpha)),
+      transparent
+    );
     filter: blur(10px);
     mix-blend-mode: screen;
     will-change: transform, opacity;

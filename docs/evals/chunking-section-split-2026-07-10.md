@@ -1,5 +1,8 @@
 # Section-bounded chunking A/B — 2026-07-10
 
+> Metric clarification (2026-09-05): historical Recall@K/recall@K below is binary Hit@K averaged over all cases, including unanswerable cases (empty retrieval = 1; nonempty = 0). Original values and experiment conclusions are preserved. This is neither true Recall nor directly comparable to the new answerable-only Hit@K.
+
+
 ## Change under test
 
 `chunkText` (`lib/rag/chunks.ts`) now treats section headings (`一、` / markdown `#`) as hard chunk boundaries: the sliding window runs per section segment, overlap never crosses a heading, and every chunk's `sectionTitle` (used in `embedding_text` for the vector, keyword, and rerank legs) is exactly the section its text belongs to. Before the change, chunks straddled headings, so content after a mid-chunk heading was embedded and reranked under the *previous* section's label.

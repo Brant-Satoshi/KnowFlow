@@ -96,7 +96,7 @@ API surface lives under `app/api/` (auth, workspaces, knowledge bases, files, co
 
 SSE event order: `progress*` → `meta` → `progress` → `token*` → `done` (or `error`), plus a `title` event when a conversation title is auto-generated. Every event carries the `requestId`.
 
-Hybrid remains experimental and defaults off: the reproducible `olympus-zh` A/B found no hit-rate or Recall@5 gain. Raw ranking signals were mixed; production rerank made quality effectively flat while this run measured +11.7% average and +18.7% p50 latency. See the [recorded A/B report](./docs/evals/hybrid-ab-2026-07-10.md) and [ADR-010](./docs/adr/en/010.hybrid-search-rrf-gated.md).
+Hybrid remains experimental and defaults off: the reproducible `olympus-zh` A/B found no hit-rate or Hit@5 (legacy) gain. Raw ranking signals were mixed; production rerank made quality effectively flat while this run measured +11.7% average and +18.7% p50 latency. See the [recorded A/B report](./docs/evals/hybrid-ab-2026-07-10.md) and [ADR-010](./docs/adr/en/010.hybrid-search-rrf-gated.md).
 
 ### Retrieval metadata filter
 

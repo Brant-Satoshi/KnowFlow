@@ -3,27 +3,38 @@
 import { useMemo, useState } from 'react';
 import type { EvalRunResult, EvalRunSummary, EvalCaseResult } from '@/lib/types';
 import type { EvalTranslationKeys, Language } from '@/lib/i18n/translations';
-import { AnswerPanel, RetrievedChunks, baselineLabel, GOOD, BAD, GOLD } from './shared';
+import {
+  AnswerPanel,
+  RetrievedChunks,
+  baselineLabel,
+  EVAL_POSITIVE,
+  EVAL_NEGATIVE,
+  EVAL_WARNING,
+  EVAL_POSITIVE_INK,
+  EVAL_NEGATIVE_INK,
+  EVAL_WARNING_INK,
+} from './shared';
 
 type Filter = 'all' | 'pass' | 'fail';
 
-function scoreColor(value: number | null): string {
-  if (value == null) return 'hsl(var(--muted-foreground))';
-  if (value < 0.5) return BAD;
-  if (value < 0.7) return GOLD;
-  return GOOD;
+/** Ink for the printed score, fill for the bar underneath it. */
+function scoreTone(value: number | null): { ink: string; fill: string } {
+  if (value == null) return { ink: 'hsl(var(--muted-foreground))', fill: 'hsl(var(--muted-foreground))' };
+  if (value < 0.5) return { ink: EVAL_NEGATIVE_INK, fill: EVAL_NEGATIVE };
+  if (value < 0.7) return { ink: EVAL_WARNING_INK, fill: EVAL_WARNING };
+  return { ink: EVAL_POSITIVE_INK, fill: EVAL_POSITIVE };
 }
 
 function ScoreCell({ label, value, notJudged }: { label: string; value: number | null; notJudged: string }) {
-  const color = scoreColor(value);
+  const tone = scoreTone(value);
   return (
     <div>
       <div className="text-[11px] font-sans text-muted-foreground mb-1.5">{label}</div>
-      <div className="text-[20px] font-mono font-semibold tabular-nums" style={{ color }} title={value == null ? notJudged : undefined}>
+      <div className="text-[20px] font-mono font-semibold tabular-nums" style={{ color: tone.ink }} title={value == null ? notJudged : undefined}>
         {value == null ? '—' : value.toFixed(2)}
       </div>
       <div className="h-1.5 mt-1.5 bg-muted rounded overflow-hidden">
-        <div className="h-full rounded" style={{ width: `${(value ?? 0) * 100}%`, background: color }} />
+        <div className="h-full rounded" style={{ width: `${(value ?? 0) * 100}%`, background: tone.fill }} />
       </div>
     </div>
   );
@@ -33,14 +44,15 @@ function HitCell({ label, hit, yes, no }: { label: string; hit: boolean; yes: st
   return (
     <div>
       <div className="text-[11px] font-sans text-muted-foreground mb-1.5">{label}</div>
-      <div className="text-[20px] font-mono font-semibold" style={{ color: hit ? GOOD : BAD }}>{hit ? '✓' : '✗'}</div>
+      <div className="text-[20px] font-mono font-semibold" style={{ color: hit ? EVAL_POSITIVE_INK : EVAL_NEGATIVE_INK }}>{hit ? '✓' : '✗'}</div>
       <div className="text-[11px] font-sans text-muted-foreground mt-1">{hit ? yes : no}</div>
     </div>
   );
 }
 
 function QueryDetail({ c, evalT }: { c: EvalCaseResult; evalT: EvalTranslationKeys }) {
-  const accent = c.passed ? GOOD : BAD;
+  const accent = c.passed ? EVAL_POSITIVE : EVAL_NEGATIVE;
+  const accentInk = c.passed ? EVAL_POSITIVE_INK : EVAL_NEGATIVE_INK;
   return (
     <div className="flex flex-col gap-4">
       <div className="bg-card border border-border rounded-xl p-4.5">
@@ -53,7 +65,7 @@ function QueryDetail({ c, evalT }: { c: EvalCaseResult; evalT: EvalTranslationKe
           </div>
           <span
             className="flex items-center gap-2 px-2.5 py-1.5 rounded-full text-[11.5px] whitespace-nowrap"
-            style={{ color: accent, border: `1px solid color-mix(in srgb, ${accent} 35%, transparent)`, background: `color-mix(in srgb, ${accent} 9%, transparent)` }}
+            style={{ color: accentInk, border: `1px solid color-mix(in srgb, ${accent} 35%, transparent)`, background: `color-mix(in srgb, ${accent} 9%, transparent)` }}
           >
             <span className="w-1.75 h-1.75 rounded-full" style={{ background: accent }} />
             {c.passed ? evalT.pass : evalT.fail}
@@ -177,7 +189,7 @@ export function InspectorTab({
       className="cursor-pointer text-[12px] font-sans px-2.5 py-1 rounded-lg border transition-colors focus:outline-none"
       style={{
         borderColor: filter === f ? 'color-mix(in srgb, hsl(var(--primary)) 40%, transparent)' : 'hsl(var(--border))',
-        color: filter === f ? GOOD : 'hsl(var(--muted-foreground))',
+        color: filter === f ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
         background: filter === f ? 'color-mix(in srgb, hsl(var(--primary)) 8%, transparent)' : 'transparent',
       }}
     >
@@ -212,7 +224,8 @@ export function InspectorTab({
           ) : (
             filtered.map((c, i) => {
               const active = c.caseId === selected?.caseId;
-              const accent = c.passed ? GOOD : BAD;
+              const accent = c.passed ? EVAL_POSITIVE : EVAL_NEGATIVE;
+              const accentInk = c.passed ? EVAL_POSITIVE_INK : EVAL_NEGATIVE_INK;
               const score = c.faithfulness;
               return (
                 <button
@@ -226,7 +239,7 @@ export function InspectorTab({
                     #{String(i + 1).padStart(3, '0')}
                   </span>
                   <span className="flex-1 text-[13px] font-sans text-foreground line-clamp-1">{c.question}</span>
-                  <span className="font-mono text-[11px] font-semibold tabular-nums shrink-0" style={{ color: score != null ? scoreColor(score) : accent }}>
+                  <span className="font-mono text-[11px] font-semibold tabular-nums shrink-0" style={{ color: score != null ? scoreTone(score).ink : accentInk }}>
                     {score != null ? score.toFixed(2) : c.passed ? '✓' : '✗'}
                   </span>
                 </button>

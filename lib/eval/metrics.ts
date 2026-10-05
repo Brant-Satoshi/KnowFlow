@@ -2,13 +2,20 @@
  * RAG retrieval metrics over a ranked list of relevance grades.
  *
  * Grades are integers in [0, 3] (see lib/eval/relevance.ts). The "relevant"
- * threshold for Recall/Precision/MRR is grade >= 2 (a chunk that's both in the
+ * threshold for Hit/Precision/MRR is grade >= 2 (a chunk that's both in the
  * right file and has keyword overlap, OR contains a target substring).
  * NDCG uses raw 0–3 gains.
  *
- * For "out-of-scope" cases that have no ground truth (no targetFileNames and
- * no targetChunkSubstrings), Recall@K is defined as 1 when the system returns
- * zero chunks (correct refusal) and 0 otherwise. Other metrics return 0.
+ * Hit@K is binary: at least one grade >= 2 in the first K results.
+ * It is not Recall@K: complete relevant-evidence counts are not annotated.
+ * Out-of-scope cases are excluded from aggregate Hit@K and evaluated by
+ * oosRefusalRate / inScopeFalseRefusalRate in the runner. Other metrics retain
+ * their existing aggregation (all cases, out-of-scope forced to 0) so their
+ * historical values stay comparable — the denominators therefore differ, which
+ * the Overview tab spells out.
+ *
+ * With no answerable case at all (an empty or refusal-only dataset) aggregate
+ * Hit@K is null, not 0: a 0 would render as total retrieval failure.
  */
 
 const RELEVANT_THRESHOLD = 2;
@@ -19,10 +26,10 @@ export interface CaseMetricInputs {
   outOfScope: boolean;
 }
 
-export function recallAtK(input: CaseMetricInputs, k: number): number {
+export function hitAtK(input: CaseMetricInputs, k: number): number {
   const ranked = input.grades.slice(0, k);
   if (input.outOfScope) {
-    return ranked.length === 0 ? 1 : 0;
+    return 0;
   }
   return ranked.some(g => g >= RELEVANT_THRESHOLD) ? 1 : 0;
 }
@@ -61,7 +68,8 @@ export interface AggregateInput {
 }
 
 export interface AggregatedMetrics {
-  recallAtK: Record<number, number>;
+  /** null when the dataset holds no answerable case. */
+  hitAtK: Record<number, number> | null;
   precisionAtK: Record<number, number>;
   ndcgAtK: Record<number, number>;
   mrr: number;
@@ -72,19 +80,25 @@ export function aggregateMetrics(cases: AggregateInput[], ks: number[]): Aggrega
   if (n === 0) {
     const empty: Record<number, number> = {};
     for (const k of ks) empty[k] = 0;
-    return { recallAtK: empty, precisionAtK: { ...empty }, ndcgAtK: { ...empty }, mrr: 0 };
+    return { hitAtK: null, precisionAtK: empty, ndcgAtK: { ...empty }, mrr: 0 };
   }
 
-  const recall: Record<number, number> = {};
+  const answerable = cases.filter(c => !c.outOfScope);
+  const hit: Record<number, number> = {};
   const precision: Record<number, number> = {};
   const ndcg: Record<number, number> = {};
   for (const k of ks) {
-    recall[k] = mean(cases.map(c => recallAtK(c, k)));
+    hit[k] = mean(answerable.map(c => hitAtK(c, k)));
     precision[k] = mean(cases.map(c => precisionAtK(c, k)));
     ndcg[k] = mean(cases.map(c => ndcgAtK(c, k)));
   }
   const mrrAvg = mean(cases.map(c => mrr(c)));
-  return { recallAtK: recall, precisionAtK: precision, ndcgAtK: ndcg, mrr: mrrAvg };
+  return {
+    hitAtK: answerable.length > 0 ? hit : null,
+    precisionAtK: precision,
+    ndcgAtK: ndcg,
+    mrr: mrrAvg,
+  };
 }
 
 function mean(xs: number[]): number {

@@ -69,6 +69,7 @@ function runSummary(overrides: Partial<EvalRunSummary>): EvalRunSummary {
     retrievalHitRate: 0.8,
     citationHitRate: 0.8,
     avgLatencyMs: 100,
+    hitAtK: null,
     recallAtK: null,
     precisionAtK: null,
     ndcgAtK: null,

@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { UIMessage } from "ai"
-import { readSseStream } from "@/lib/chat/sse"
+import { readSseStream, SseIdleTimeoutError } from "@/lib/chat/sse"
+import { trailingSegmentStart } from "@/components/markdown/stream-fade"
 import { httpClient } from "@/lib/http/client"
+import { isChatErrorCode, type ChatErrorCode } from "@/lib/llm/errors"
 import type { RetrievalFilter, RetrievedChunk, StoredMessage } from "@/lib/types"
 
 interface UseChatStreamParams {
@@ -49,7 +51,21 @@ export interface AssistantProgress {
   currentStage: ProgressStage
   failedStage?: ActiveProgressStage
   rerankSkipped?: boolean
+  /** Raw server/network text. Kept for debugging; the UI prefers `errorCode`. */
   errorMessage?: string
+  /** What the UI actually renders, via t.errors[code]. */
+  errorCode?: ChatErrorCode
+}
+
+/** Carries the server's error code out of the stream callback and into the catch. */
+class ChatStreamError extends Error {
+  readonly code?: ChatErrorCode
+
+  constructor(message: string, code?: ChatErrorCode) {
+    super(message)
+    this.name = "ChatStreamError"
+    this.code = code
+  }
 }
 
 function isObject(x: unknown): x is Record<string, unknown> {
@@ -170,6 +186,10 @@ export function useChatStream({
   const [progressMap, setProgressMap] = useState<Map<string, AssistantProgress>>(new Map())
 
   const abortRef = useRef<AbortController | null>(null)
+  // Mirror of `messages` so regenerateFrom can read the latest list without
+  // depending on `messages` state — that dep would change its identity on
+  // every streaming flush and defeat AssistantMessageCard's memo.
+  const messagesRef = useRef<UIMessage[]>([])
   const streamBufferRef = useRef("")
   const fullTextRef = useRef("")
   const flushRafRef = useRef<number | null>(null)
@@ -179,6 +199,10 @@ export function useChatStream({
   const lastUserTextRef = useRef<string | null>(null)
   const isRegeneratingRef = useRef(false)
   const skipNextHydrationRef = useRef(false)
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   const updateProgress = useCallback(
     (assistantId: string, mutator: (prev: AssistantProgress) => AssistantProgress) => {
@@ -206,19 +230,37 @@ export function useChatStream({
     [updateProgress]
   )
 
-  const flushAssistantBuffer = useCallback(() => {
+  const flushAssistantBuffer = useCallback((opts?: { final?: boolean }) => {
     const assistantId = streamingAssistantIdRef.current
-    const delta = streamBufferRef.current
+    let delta = streamBufferRef.current
 
     if (!assistantId || !delta) {
       flushRafRef.current = null
       return
     }
 
+    // Hold the trailing partial word back so committed text always ends on a
+    // word boundary: the stream-fade animation plays on mount only, so a word
+    // must arrive complete to fade in — growing an already-mounted tail span
+    // in place would pop the appended characters in without animating. The
+    // held word commits with the flush after its boundary arrives (one delta
+    // gap, ~12ms typ.); final flushes (done/abort) commit everything.
+    if (opts?.final) {
+      streamBufferRef.current = ""
+    } else {
+      const boundary = trailingSegmentStart(delta)
+      if (boundary === 0) {
+        // The whole buffer is one still-growing word; wait for its boundary.
+        flushRafRef.current = null
+        return
+      }
+      streamBufferRef.current = delta.slice(boundary)
+      delta = delta.slice(0, boundary)
+    }
+
     const element = scrollRef.current
     const shouldScroll = element ? isNearBottom(element) : true
 
-    streamBufferRef.current = ""
     setMessages((prev) => {
       const next = [...prev]
       const assistantIndex = next.findIndex((message) => message.id === assistantId)
@@ -440,7 +482,7 @@ export function useChatStream({
           throw new Error("Empty stream response")
         }
 
-        let streamError: string | null = null
+        let streamError: ChatStreamError | null = null
         let firstTokenSeen = false
         let generatingSeen = false
 
@@ -511,7 +553,7 @@ export function useChatStream({
 
           if (event === "done") {
             doneSeen = true
-            flushAssistantBuffer()
+            flushAssistantBuffer({ final: true })
             updateProgress(assistantId, (prev) => ({
               ...prev,
               completedAt: Date.now(),
@@ -525,13 +567,18 @@ export function useChatStream({
           }
 
           if (event === "error") {
-            streamError =
+            // The code decides what the user reads; the message is only a
+            // fallback for a server old enough not to send one.
+            const code =
+              isObject(data) && isChatErrorCode(data.code) ? data.code : undefined
+            const message =
               isObject(data) && typeof data.message === "string" ? data.message : "Stream error"
+            streamError = new ChatStreamError(message, code)
           }
         }, { idleTimeoutMs: 45_000 })
 
         if (streamError) {
-          throw new Error(streamError)
+          throw streamError
         }
 
         // Legacy path for streams that close without a `done` event; when
@@ -549,12 +596,20 @@ export function useChatStream({
         if (!doneSeen) {
           const isStopped = error instanceof DOMException && error.name === "AbortError"
           const errorMessage = error instanceof Error ? error.message : "Stream error"
+          const errorCode =
+            error instanceof ChatStreamError
+              ? error.code
+              : // A dead connection reads as a timeout to the person waiting on it.
+                error instanceof SseIdleTimeoutError
+                ? ("timeout" as const)
+                : undefined
           updateProgress(assistantId, (prev) => ({
             ...prev,
             completedAt: Date.now(),
             currentStage: isStopped ? "stopped" : "error",
             failedStage: getLastActiveStage(prev),
             errorMessage: isStopped ? undefined : errorMessage,
+            errorCode: isStopped ? undefined : errorCode,
           }))
         }
       } finally {
@@ -566,7 +621,7 @@ export function useChatStream({
       }
 
       if (streamBufferRef.current) {
-        flushAssistantBuffer()
+        flushAssistantBuffer({ final: true })
       }
 
       const usedIndices = parseUsedIndices(fullTextRef.current)
@@ -592,26 +647,27 @@ export function useChatStream({
     async (assistantId: string) => {
       if (isLoading || !conversationId || isRegeneratingRef.current) return
 
-      const assistantIndex = messages.findIndex(
+      const currentMessages = messagesRef.current
+      const assistantIndex = currentMessages.findIndex(
         (m) => m.id === assistantId && m.role === "assistant"
       )
       if (assistantIndex === -1) return
 
       let userIndex = -1
       for (let i = assistantIndex - 1; i >= 0; i--) {
-        if (messages[i].role === "user") {
+        if (currentMessages[i].role === "user") {
           userIndex = i
           break
         }
       }
       if (userIndex === -1) return
 
-      const userText = getMessageText(messages[userIndex])
+      const userText = getMessageText(currentMessages[userIndex])
       if (!userText) return
 
-      const idsToDelete = messages.slice(userIndex).map((m) => m.id)
+      const idsToDelete = currentMessages.slice(userIndex).map((m) => m.id)
       const idsToDeleteSet = new Set(idsToDelete)
-      const assistantIdsToClear = messages
+      const assistantIdsToClear = currentMessages
         .slice(assistantIndex)
         .filter((m) => m.role === "assistant")
         .map((m) => m.id)
@@ -645,7 +701,7 @@ export function useChatStream({
         isRegeneratingRef.current = false
       }
     },
-    [conversationId, isLoading, messages, sendMessage]
+    [conversationId, isLoading, sendMessage]
   )
 
   return {

@@ -14,10 +14,19 @@ import { formatDateTime } from '@/lib/format';
 
 /* ───────────────────────── palette (token-mapped) ───────────────────────── */
 
-export const GOOD = 'hsl(var(--primary))';        // forest green
-export const BAD = 'var(--card-accent-2)';        // terracotta
-export const GOLD = 'var(--card-accent-0)';       // amber/gold — KPI numbers
-export const MUTED = 'hsl(var(--muted-foreground))';
+/* Fills — dots, bars, chart marks, tinted backgrounds and borders. */
+export const EVAL_POSITIVE = 'hsl(var(--success))';
+export const EVAL_NEGATIVE = 'hsl(var(--destructive))';
+export const EVAL_WARNING = 'hsl(var(--warning))';   // weak grades, runner-up, KPI numbers
+export const EVAL_MUTED = 'hsl(var(--muted-foreground))';
+
+/* Ink — text only. The fills above are tuned as backgrounds and land at
+   2.75–4.08:1 on the 10–14px copy this page is made of; the -ink tokens are
+   the same hues pushed past 4.5:1 in both themes. Never use a fill as a
+   text colour here, and never an ink as a fill. */
+export const EVAL_POSITIVE_INK = 'hsl(var(--success-ink))';
+export const EVAL_NEGATIVE_INK = 'hsl(var(--destructive-ink))';
+export const EVAL_WARNING_INK = 'hsl(var(--warning-ink))';
 
 /* ───────────────────────── animation keyframes ───────────────────────── */
 
@@ -75,6 +84,7 @@ export function detailToResult(run: EvalRunDetail): EvalRunResult {
     retrievalHitRate: run.retrievalHitRate,
     citationHitRate: run.citationHitRate,
     avgLatencyMs: run.avgLatencyMs,
+    hitAtK: run.hitAtK ?? undefined,
     recallAtK: run.recallAtK ?? undefined,
     precisionAtK: run.precisionAtK ?? undefined,
     ndcgAtK: run.ndcgAtK ?? undefined,
@@ -113,7 +123,8 @@ export interface RunMetrics {
   answerRelevance: number | null;
   retrievalHitRate: number;
   citationHitRate: number;
-  recall: number | null;
+  hit: number | null;
+  legacyHit: number | null;
   precision: number | null;
   ndcg: number | null;
   mrr: number | null;
@@ -129,7 +140,8 @@ export function metricsFromSummary(s: EvalRunSummary): RunMetrics {
     answerRelevance: s.avgAnswerRelevance,
     retrievalHitRate: s.retrievalHitRate,
     citationHitRate: s.citationHitRate,
-    recall: at5(s.recallAtK),
+    hit: at5(s.hitAtK),
+    legacyHit: at5(s.recallAtK),
     precision: at5(s.precisionAtK),
     ndcg: at5(s.ndcgAtK),
     mrr: s.mrr,
@@ -146,7 +158,8 @@ export function metricsFromResult(r: EvalRunResult): RunMetrics {
     answerRelevance: r.avgAnswerRelevance ?? null,
     retrievalHitRate: r.retrievalHitRate,
     citationHitRate: r.citationHitRate,
-    recall: at5(r.recallAtK),
+    hit: at5(r.hitAtK),
+    legacyHit: at5(r.recallAtK),
     precision: at5(r.precisionAtK),
     ndcg: at5(r.ndcgAtK),
     mrr: r.mrr ?? null,
@@ -178,7 +191,8 @@ export const METRIC_SPECS: MetricSpec[] = [
   { key: 'answerRelevance', labelKey: 'answerRelevance', value: m => m.answerRelevance, display: m => scalar2(m.answerRelevance), higherIsBetter: true, kind: 'scalar' },
   { key: 'retrieval', labelKey: 'retrievalHitRate', value: m => m.retrievalHitRate, display: m => pct(m.retrievalHitRate), higherIsBetter: true, kind: 'rate' },
   { key: 'citation', labelKey: 'citationHitRate', value: m => m.citationHitRate, display: m => pct(m.citationHitRate), higherIsBetter: true, kind: 'rate' },
-  { key: 'recall', labelKey: 'recallAtK', value: m => m.recall, display: m => pct(m.recall), higherIsBetter: true, kind: 'rate' },
+  { key: 'hit', labelKey: 'hitAtK', value: m => m.hit, display: m => pct(m.hit), higherIsBetter: true, kind: 'rate' },
+  { key: 'legacyHit', labelKey: 'legacyHitAtK', value: m => m.legacyHit, display: m => pct(m.legacyHit), higherIsBetter: true, kind: 'rate' },
   { key: 'precision', labelKey: 'precisionAtK', value: m => m.precision, display: m => pct(m.precision), higherIsBetter: true, kind: 'rate' },
   { key: 'ndcg', labelKey: 'ndcgAtK', value: m => m.ndcg, display: m => pct(m.ndcg), higherIsBetter: true, kind: 'rate' },
   { key: 'mrr', labelKey: 'mrr', value: m => m.mrr, display: m => scalar2(m.mrr), higherIsBetter: true, kind: 'scalar' },
@@ -216,7 +230,7 @@ export function metricDelta(
 }
 
 export function DeltaTag({ delta, label }: { delta: MetricDelta; label: string }) {
-  const color = delta.tone === 'good' ? GOOD : delta.tone === 'bad' ? BAD : MUTED;
+  const color = delta.tone === 'good' ? EVAL_POSITIVE_INK : delta.tone === 'bad' ? EVAL_NEGATIVE_INK : EVAL_MUTED;
   return (
     <span className="text-[11.5px] font-sans font-semibold tabular-nums" style={{ color }} title={label}>
       {delta.text}
@@ -229,7 +243,7 @@ export function DeltaTag({ delta, label }: { delta: MetricDelta; label: string }
 /** Tiny inline trend line + soft gradient fill; values normalised by their own min/max. */
 export function Sparkline({
   values,
-  color = GOOD,
+  color = 'hsl(var(--chart-1))',
   gradId,
   height = 30,
 }: {
@@ -272,7 +286,7 @@ export function MetricPanel({
   delta,
   deltaLabel,
   spark,
-  sparkColor = GOOD,
+  sparkColor = 'hsl(var(--chart-1))',
   gradId,
   delay = 0,
 }: {
@@ -289,7 +303,7 @@ export function MetricPanel({
     <div className="eval-reveal bg-card border border-border rounded-xl p-4 flex flex-col" style={{ animationDelay: `${delay}ms` }}>
       <span className="text-[11.5px] font-sans text-muted-foreground mb-2.5">{label}</span>
       <div className="flex items-baseline gap-1.5">
-        <span className="text-[26px] leading-none font-mono font-semibold tracking-[-0.02em] tabular-nums" style={{ color: GOLD }}>
+        <span className="text-[26px] leading-none font-mono font-semibold tracking-[-0.02em] tabular-nums" style={{ color: EVAL_WARNING_INK }}>
           {value}
         </span>
         {delta && deltaLabel && <DeltaTag delta={delta} label={deltaLabel} />}
@@ -308,17 +322,17 @@ export function MetricPanel({
 export function GradeBadge({ grade, label }: { grade: number; label: string }) {
   const palette: Record<number, { fg: string; bg: string; bd: string }> = {
     3: {
-      fg: GOOD,
-      bg: 'color-mix(in srgb, hsl(var(--primary)) 12%, transparent)',
-      bd: 'color-mix(in srgb, hsl(var(--primary)) 40%, transparent)',
+      fg: EVAL_POSITIVE_INK,
+      bg: 'color-mix(in srgb, hsl(var(--success)) 12%, transparent)',
+      bd: 'color-mix(in srgb, hsl(var(--success)) 40%, transparent)',
     },
     2: {
-      fg: GOOD,
-      bg: 'color-mix(in srgb, hsl(var(--primary)) 7%, transparent)',
-      bd: 'color-mix(in srgb, hsl(var(--primary)) 25%, transparent)',
+      fg: EVAL_POSITIVE_INK,
+      bg: 'color-mix(in srgb, hsl(var(--success)) 7%, transparent)',
+      bd: 'color-mix(in srgb, hsl(var(--success)) 25%, transparent)',
     },
-    1: { fg: GOLD, bg: 'color-mix(in srgb, var(--card-accent-0) 10%, transparent)', bd: 'color-mix(in srgb, var(--card-accent-0) 35%, transparent)' },
-    0: { fg: 'hsl(var(--muted-foreground))', bg: 'transparent', bd: 'hsl(var(--border))' },
+    1: { fg: EVAL_WARNING_INK, bg: 'color-mix(in srgb, hsl(var(--warning)) 10%, transparent)', bd: 'color-mix(in srgb, hsl(var(--warning)) 35%, transparent)' },
+    0: { fg: EVAL_MUTED, bg: 'transparent', bd: 'hsl(var(--border))' },
   };
   const c = palette[grade] ?? palette[0];
   return (
@@ -339,7 +353,7 @@ export function TopKRow({ hits }: { hits: { k: number; hit: boolean }[] }) {
         <span
           key={k}
           className="text-[12px] font-mono tabular-nums"
-          style={{ color: hit ? GOOD : 'hsl(var(--muted-foreground))', fontWeight: hit ? 600 : 400 }}
+          style={{ color: hit ? EVAL_POSITIVE_INK : EVAL_MUTED, fontWeight: hit ? 600 : 400 }}
         >
           {hit ? '✓' : '–'}&thinsp;k={k}
         </span>
@@ -372,23 +386,23 @@ export function AnswerPanel({
   );
 }
 
-/** Grade colour for a retrieved chunk: high relevance = green, weak = gold, none = muted. */
+/** Grade colour for a retrieved chunk: high relevance = success, weak = warning, none = muted. */
 function chunkTone(grade: number | undefined): { bg: string; bd: string; score: string } {
   if (grade != null && grade >= 2) {
     return {
-      bg: 'color-mix(in srgb, hsl(var(--primary)) 8%, transparent)',
-      bd: 'color-mix(in srgb, hsl(var(--primary)) 30%, transparent)',
-      score: GOOD,
+      bg: 'color-mix(in srgb, hsl(var(--success)) 8%, transparent)',
+      bd: 'color-mix(in srgb, hsl(var(--success)) 30%, transparent)',
+      score: EVAL_POSITIVE_INK,
     };
   }
   if (grade === 1) {
     return {
-      bg: 'color-mix(in srgb, var(--card-accent-0) 8%, transparent)',
-      bd: 'color-mix(in srgb, var(--card-accent-0) 30%, transparent)',
-      score: GOLD,
+      bg: 'color-mix(in srgb, hsl(var(--warning)) 8%, transparent)',
+      bd: 'color-mix(in srgb, hsl(var(--warning)) 30%, transparent)',
+      score: EVAL_WARNING_INK,
     };
   }
-  return { bg: 'hsl(var(--muted) / 0.4)', bd: 'hsl(var(--border))', score: MUTED };
+  return { bg: 'hsl(var(--muted) / 0.4)', bd: 'hsl(var(--border))', score: EVAL_MUTED };
 }
 
 /** Retrieved-chunk list with relevance grades; collapsible. */
@@ -469,18 +483,19 @@ export function goldsetIssueMessage(evalT: EvalTranslationKeys, issue: GoldsetIs
 
 function GoldsetIssueRow({ issue, evalT }: { issue: GoldsetIssue; evalT: EvalTranslationKeys }) {
   const isError = issue.severity === 'error';
-  const accent = isError ? BAD : GOLD;
+  const fill = isError ? EVAL_NEGATIVE : EVAL_WARNING;
+  const ink = isError ? EVAL_NEGATIVE_INK : EVAL_WARNING_INK;
   return (
     <div
       className="flex flex-wrap items-start gap-2.5 p-3 rounded-[10px] border"
       style={{
-        background: `color-mix(in srgb, ${accent} 7%, transparent)`,
-        borderColor: `color-mix(in srgb, ${accent} 30%, transparent)`,
+        background: `color-mix(in srgb, ${fill} 7%, transparent)`,
+        borderColor: `color-mix(in srgb, ${fill} 30%, transparent)`,
       }}
     >
       <span
         className="text-[10px] font-mono font-medium uppercase tracking-wide px-1.5 py-0.5 rounded-md shrink-0"
-        style={{ color: accent, border: `1px solid color-mix(in srgb, ${accent} 35%, transparent)` }}
+        style={{ color: ink, border: `1px solid color-mix(in srgb, ${fill} 35%, transparent)` }}
       >
         {isError ? evalT.datasetSeverityError : evalT.datasetSeverityWarning}
       </span>
@@ -511,7 +526,7 @@ function GoldsetIssueLayer({
     <div className="bg-card border border-border rounded-xl p-4">
       <div className="text-[11px] font-mono uppercase tracking-wide text-muted-foreground mb-3">{title}</div>
       {sorted.length === 0 ? (
-        <p className="text-[12.5px] font-sans" style={{ color: GOOD }}>✓ {evalT.validateLayerClean}</p>
+        <p className="text-[12.5px] font-sans" style={{ color: EVAL_POSITIVE_INK }}>✓ {evalT.validateLayerClean}</p>
       ) : (
         <div className="flex flex-col gap-2">
           {sorted.map((issue, i) => (

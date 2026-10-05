@@ -2,6 +2,10 @@
   "name": "knowflow",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,6 +15,7 @@
     "test:unit": "node --import tsx --test \"lib/**/*.test.ts\"",
     "seed:demo": "tsx scripts/seed-demo.ts",
     "eval:hybrid-ab": "tsx scripts/eval-hybrid-ab.ts",
+    "eval:refusal": "tsx scripts/eval-refusal.ts",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "reembed": "tsx scripts/reembed.ts"

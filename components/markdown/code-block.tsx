@@ -76,7 +76,7 @@ export const CodeBlock: Components["pre"] = ({ children, className, node, ...res
           <span>{copied ? t.messageActions.copied : t.messageActions.copy}</span>
         </button>
       </div>
-      <pre className={cn("font-code overflow-x-auto p-4 text-sm leading-6", className)} {...rest}>
+      <pre className={cn("font-code overflow-x-auto p-4 text-sm/6", className)} {...rest}>
         {children}
       </pre>
     </div>
