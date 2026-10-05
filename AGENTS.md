@@ -24,8 +24,8 @@ pnpm build         # production build, including type-check
 pnpm lint
 pnpm test:unit     # node:test via tsx, lib/**/*.test.ts
 pnpm test:e2e      # Playwright
-pnpm seed:demo     # writes demo login and indexed bilingual KB
-pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>
+pnpm seed:demo     # writes demo login, indexed bilingual KB, and built-in eval datasets
+pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset-id=<uuid>
 ```
 
 Complete the requested change through relevant verification and fix failures it introduces. Choose checks for the affected behavior; documentation-only edits do not need application builds. Report results and any checks blocked by the environment. Do not commit or publish unless requested.

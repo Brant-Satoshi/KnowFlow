@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { config } from 'dotenv';
 import { chunkText } from '@/lib/rag/chunks';
 import { cleanText } from '@/lib/rag/text';
+import { SEED_EVAL_DATASETS } from '@/lib/eval/dataset';
 
 const DEMO_USER_ID = '00000000-0000-4000-8000-000000000101';
 const DEMO_WORKSPACE_ID = '00000000-0000-4000-8000-000000000102';
@@ -121,10 +122,33 @@ async function main(): Promise<void> {
       }
     });
 
+    // Built-in eval datasets: created only when the name is absent — a
+    // user-edited dataset of the same name is never restored to the template.
+    const evalDatasetsModule = await import('@/lib/db/eval-datasets');
+    for (const seed of SEED_EVAL_DATASETS) {
+      const existing = await evalDatasetsModule.findEvalDatasetByName(seed.name);
+      if (existing) {
+        console.log(`Eval dataset "${seed.name}" already exists (${existing.caseCount} cases) — left untouched.`);
+        continue;
+      }
+      const created = await evalDatasetsModule.createEvalDataset({
+        name: seed.name,
+        description: seed.description,
+        cases: seed.cases,
+      });
+      if (created.kind === 'duplicate_name') {
+        console.log(`Eval dataset "${seed.name}" already exists — left untouched.`);
+      } else if (created.kind !== 'ok') {
+        throw new Error(`Failed to seed eval dataset "${seed.name}": ${created.kind}`);
+      } else {
+        console.log(`Seeded eval dataset "${seed.name}" (${created.dataset.caseCount} cases).`);
+      }
+    }
+
     console.log(`Seeded ${embeddedFiles.length} files and ${embeddedFiles.reduce((sum, file) => sum + file.chunks.length, 0)} chunks.`);
     console.log(`Login: ${email} / ${password}`);
     console.log(`Knowledge base id: ${DEMO_KNOWLEDGE_BASE_ID}`);
-    console.log('Re-running this command replaces only this demo account and leaves all other data untouched.');
+    console.log('Re-running this command replaces only this demo account, seeds missing built-in eval datasets, and leaves all other data untouched.');
   } finally {
     await pgModule.closePool();
   }

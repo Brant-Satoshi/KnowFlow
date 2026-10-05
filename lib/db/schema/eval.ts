@@ -22,6 +22,9 @@ export const evalDatasets = pgTable(
 
         datasetHash: text("dataset_hash").notNull(),
         caseCount: integer("case_count").notNull(),
+        // Optimistic-concurrency token, bumped on every dataset write
+        // (dataset_hash stays a pure case-content identity).
+        revision: integer("revision").notNull().default(0),
 
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -57,6 +60,7 @@ export const evalCases = pgTable(
   },
   (table) => [
     index("eval_cases_dataset_idx").on(table.datasetId, table.idx),
+    uniqueIndex("eval_cases_dataset_case_key_unique").on(table.datasetId, table.caseKey),
   ],
 );
 

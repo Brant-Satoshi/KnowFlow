@@ -46,13 +46,13 @@ pnpm dev                            # http://localhost:3000
 migrations 在 `db/migrations/` 下。迁移目标默认走名为 `knowflow-postgres` 的本地 Docker Postgres 容器；demo seed 直接使用 `DATABASE_URL`，所以本地或远程 Postgres 都可以使用同一命令：
 
 ```bash
-make migrate     # 把 001_init … 013_add_trgm_keyword_search 跑到容器里
-make seed        # 固定 demo 账号 + 奥林匹斯双语知识库
+make migrate     # 把 001_init … 014_managed_eval_datasets 跑到容器里
+make seed        # 固定 demo 账号 + 奥林匹斯双语知识库 + 内置评测集
 ```
 
 如果指向 Supabase / 远程 Postgres，跑 `make migrate-supabase`（用 `psql` 对 `DATABASE_URL` 应用同一批文件；migrations 幂等，可重复执行）。
 
-`make seed` 会向量化仓库内的 `sample.txt` / `sample-zh.txt`，并且只替换 `demo@knowflow.local`，不会清空其他账号。完成后会打印登录信息和固定 KB id；可用 `DEMO_SEED_EMAIL`、`DEMO_SEED_PASSWORD` 覆盖 demo 凭据。`pnpm seed:demo -- --dry-run` 只校验 fixture/chunk 数，不访问网络也不写数据库。
+`make seed` 会向量化仓库内的 `sample.txt` / `sample-zh.txt`，并且只替换 `demo@knowflow.local`，不会清空其他账号。它还会创建内置评测集 `olympus` / `olympus-zh`——仅在同名评测集不存在时创建，已被编辑过的评测集绝不会被还原成模板。完成后会打印登录信息和固定 KB id；可用 `DEMO_SEED_EMAIL`、`DEMO_SEED_PASSWORD` 覆盖 demo 凭据。`pnpm seed:demo -- --dry-run` 只校验 fixture/chunk 数，不访问网络也不写数据库。
 
 ---
 
@@ -66,8 +66,8 @@ make seed        # 固定 demo 账号 + 奥林匹斯双语知识库
 | `pnpm lint` | ESLint |
 | `pnpm test:unit` | Node 内置单元测试（`lib/**/*.test.ts`） |
 | `pnpm test:e2e` | Playwright 端到端测试（`tests/`） |
-| `pnpm seed:demo` | 幂等创建 demo 登录和已索引的双语 KB |
-| `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid>` | 对比 vector / hybrid 的质量与延迟 |
+| `pnpm seed:demo` | 幂等创建 demo 登录、已索引的双语 KB 和内置评测集 |
+| `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset-id=<uuid>` | 对比 vector / hybrid 的质量与延迟 |
 
 ---
 
@@ -77,10 +77,10 @@ make seed        # 固定 demo 账号 + 奥林匹斯双语知识库
 
 - `/` —— 知识库列表（CRUD），含 workspace 切换器 / 成员 / 加入对话框
 - `/knowledge-bases/[id]/chat` —— 单个 KB 内的 RAG 聊天
-- `/eval` —— 离线评测面板
+- `/eval` —— 离线评测面板，含可管理的评测集（新建/编辑/JSON 导入、对知识库校验、按内容 hash 对比运行）
 - `/login`、`/register` —— 认证
 
-API 接口在 `app/api/` 下（auth、workspaces、knowledge bases、files、conversations、RAG search、chat stream、eval run）。完整清单见 `Architecture.md`。
+API 接口在 `app/api/` 下（auth、workspaces、knowledge bases、files、conversations、RAG search、chat stream、eval datasets 与 runs）。完整清单见 `Architecture.md`。
 
 ---
 
