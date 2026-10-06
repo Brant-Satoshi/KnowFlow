@@ -229,13 +229,14 @@ flowchart TD
 
 ### 8.1 数据集
 
-[dataset.ts](../../lib/eval/dataset.ts) 在代码中内置三个数据集：
+[dataset.ts](../../lib/eval/dataset.ts) 提供内置评测集的种子模板，由 `pnpm seed:demo` 写入数据库（运行时只从数据库读取）：
 
 | 名称 | 语言 | 对应 fixture | 题数 |
 | --- | --- | --- | --- |
 | `olympus` | EN | `tests/fixtures/sample.txt` | 16 = 9 可回答 + 7 不可回答 |
 | `olympus-zh` | ZH | `tests/fixtures/sample-zh.txt` | 16 = 9 可回答 + 7 不可回答 |
-| `cmrc2018-mini` | ZH | `tests/fixtures/cmrc2018-dev-*.txt`（25 篇） | 100，全部可回答 |
+| `cmrc2018-mini-a` | ZH | `tests/fixtures/cmrc2018-dev-*.txt`（25 篇，每篇前 2 题） | 50，全部可回答 |
+| `cmrc2018-mini-b` | ZH | 同上（每篇后 2 题） | 50，全部可回答 |
 
 每道题（`EvalCase`，定义在 `lib/types.ts`）的字段和用途：
 

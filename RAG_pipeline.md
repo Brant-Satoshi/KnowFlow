@@ -510,10 +510,13 @@ Eval 相关代码在：
 
 | 路径 | 作用 |
 | --- | --- |
-| `app/api/eval/run/route.ts` | 启动评测（curated 数据集，支持 `filter`） |
+| `app/api/eval/run/route.ts` | 启动评测（按 `datasetId` 读取数据库快照，先过两层校验，支持 `filter`） |
 | `app/api/eval/runs/*` | 历史 run 列表 / 详情 |
-| `app/api/eval/validate/route.ts` | 校验数据集 |
-| `lib/eval/dataset.ts` | 数据集加载 |
+| `app/api/eval/datasets/*` | 评测集 CRUD（cases 单条新增 / 批量导入，`expectedRevision` 乐观并发） |
+| `app/api/eval/validate/route.ts` | 校验数据集：结构 lint + 面向 KB 的 preflight |
+| `lib/db/eval-datasets.ts` | 评测集读写（快照、行锁、revision / dataset_hash 维护） |
+| `lib/eval/validate.ts` | `lintGoldset` / `preflightDataset` |
+| `lib/eval/dataset.ts` | 内置评测集 olympus / olympus-zh 的种子模板（仅 `pnpm seed:demo` 使用） |
 | `lib/eval/runner.ts` | 跑 RAG case、对比 rerank 分支 |
 | `lib/eval/metrics.ts` | Hit@K、precision、NDCG、MRR 等指标 |
 | `lib/eval/relevance.ts` | retrieved chunk 相关性打分 |
@@ -528,10 +531,10 @@ Eval 和聊天链路复用 `recallChunks()`、`selectFinalChunks()`、`buildProm
 检索级 vector / hybrid A/B 使用：
 
 ```bash
-pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset=olympus-zh --rerank=on --repetitions=3
+pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset-id=<uuid> --rerank=on --repetitions=3
 ```
 
-命令输出 retrieval hit rate、Hit/Precision@n、nDCG、MRR，以及从 query embedding 到最终 chunk 的平均/p50/p95 延迟；vector 与 hybrid 按 case 交错执行以减少网络时序偏差。当前可复现实测见 `docs/evals/hybrid-ab-2026-07-10.md`。
+命令输出 retrieval hit rate、Hit/Precision@n、nDCG、MRR，以及从 query embedding 到最终 chunk 的平均/p50/p95 延迟；vector 与 hybrid 按 case 交错执行以减少网络时序偏差。评测集存在数据库中（`--dataset-id` 用 `/eval` 页面或 `pnpm seed:demo` 创建的内置集），脚本跑前会执行与 `/api/eval/run` 相同的 structural + KB preflight 校验，不兼容直接报错退出。当前可复现实测见 `docs/evals/hybrid-ab-2026-07-10.md`。
 
 ---
 
