@@ -5,12 +5,13 @@ import { Loader2, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { cn } from "@/lib/utils"
+import { UPLOAD_ACCEPT } from "@/lib/validation"
 
 interface EmptyStateProps {
   hasKnowledge: boolean
   isPreparingKnowledge?: boolean
   onSuggestionClick: (text: string) => void
-  onUpload?: (file: File) => void
+  onUpload?: (files: File[]) => void
 }
 
 export function EmptyState({
@@ -25,8 +26,8 @@ export function EmptyState({
 
   const handleFileSelect = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0]
-      if (file && onUpload) onUpload(file)
+      const selected = Array.from(event.target.files ?? [])
+      if (selected.length > 0 && onUpload) onUpload(selected)
       if (fileInputRef.current) fileInputRef.current.value = ""
     },
     [onUpload]
@@ -120,7 +121,8 @@ export function EmptyState({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".md,.txt,.pdf,.doc,.docx"
+              multiple
+              accept={UPLOAD_ACCEPT}
               onChange={handleFileSelect}
               className="hidden"
             />

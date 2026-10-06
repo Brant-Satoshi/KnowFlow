@@ -24,7 +24,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext"
 import { PreviewContext, type OpenPreview } from "@/lib/preview-context"
 import type { ConversationSummary, KnowledgeBase, RetrievalFilter } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { MAX_UPLOAD_FILE_MB } from "@/lib/validation"
+import { MAX_UPLOAD_BATCH_FILES, MAX_UPLOAD_FILE_MB } from "@/lib/validation"
 
 const chatSurfaceClass =
   "border border-border bg-card shadow-[0_1px_8px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.28)]"
@@ -90,9 +90,12 @@ export default function ChatPage() {
   const {
     files,
     uploading,
+    batchProgress,
     parsingIds,
     isInitialLoading: isFilesLoading,
     handleUpload,
+    handleRetryUpload,
+    handleDiscardUpload,
     handleParse,
     handleDelete,
   } = useFileState({
@@ -100,11 +103,15 @@ export default function ChatPage() {
     showErrorToast,
     noKnowledgeBaseSelectedMessage: t.noKnowledgeBaseSelected,
     uploadFailedMessage: t.uploadFailed,
-    fileTooLargeMessage: t.fileTooLarge.replace("{maxMb}", String(MAX_UPLOAD_FILE_MB)),
     parseFailedMessage: t.parseFailed,
     parseErrorMessages: t.parseErrors,
     deleteFailedTitle: t.deleteFailedTitle,
     deleteFailedDesc: t.deleteFailedDesc,
+    skippedTitle: t.uploadSkippedTitle,
+    skippedTitlePlural: t.uploadSkippedTitlePlural,
+    skippedUnsupportedMessage: t.uploadSkippedUnsupported,
+    skippedTooLargeMessage: t.uploadSkippedTooLarge.replace("{maxMb}", String(MAX_UPLOAD_FILE_MB)),
+    tooManyFilesMessage: t.uploadTooManyFiles.replace("{max}", String(MAX_UPLOAD_BATCH_FILES)),
   })
 
   const {
@@ -518,10 +525,12 @@ export default function ChatPage() {
   const knowledgePanelProps = {
     files,
     onUpload: handleUpload,
+    onRetryUpload: handleRetryUpload,
+    onDiscardUpload: handleDiscardUpload,
     onParse: handleParse,
     onDelete: handleDelete,
     parsingIds,
-    uploading,
+    batchProgress,
     initialLoading: isInitialLoading,
   }
 

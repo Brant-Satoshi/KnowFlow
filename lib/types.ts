@@ -80,7 +80,11 @@ export interface KnowledgeBase {
 
 // Files / RAG
 export type FileDocStatus = 'uploaded' | 'parsing' | 'indexed' | 'failed';
-export type FileDocClientStatus = 'uploading';
+/**
+ * Browser-only states of a file that has no server row yet: waiting in the batch
+ * upload queue, being uploaded, or failed to upload (kept so it can be retried).
+ */
+export type FileDocClientStatus = 'queued' | 'uploading' | 'upload_failed';
 
 export interface FileDoc {
   id: string;
@@ -94,6 +98,8 @@ export interface FileDoc {
 
 export interface FileListItem extends FileDoc {
   clientStatus?: FileDocClientStatus;
+  /** Why the last upload or parse attempt failed, shown on the row. Session-only, never persisted. */
+  errorMessage?: string;
 }
 
 export interface ChunkMeta {

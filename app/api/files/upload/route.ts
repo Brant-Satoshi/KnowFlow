@@ -4,7 +4,12 @@ import { success, error } from '@/lib/api/response';
 import { withAuth } from '@/lib/api/route';
 import { addFile } from '@/lib/db/files';
 import { supabase, STORAGE_BUCKET } from '@/lib/db/supabase';
-import { isValidUuid, MAX_UPLOAD_FILE_BYTES, MAX_UPLOAD_FILE_MB } from '@/lib/validation';
+import {
+  isAllowedUploadExtension,
+  isValidUuid,
+  MAX_UPLOAD_FILE_BYTES,
+  MAX_UPLOAD_FILE_MB,
+} from '@/lib/validation';
 import { requireKnowledgeBaseAccess } from '@/lib/authz/access';
 
 // Multipart framing (boundaries, part headers, the knowledgeBaseId field) adds
@@ -38,9 +43,8 @@ export const POST = withAuth(
 
     await requireKnowledgeBaseAccess(user.id, knowledgeBaseId);
 
-    const allowedExtensions = ['.md', '.txt', '.pdf', '.doc', '.docx'];
-    const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
-    if (!allowedExtensions.includes(ext)) {
+    // Same list the client pre-checks a batch against (UPLOAD_FILE_EXTENSIONS).
+    if (!isAllowedUploadExtension(file.name)) {
       return Response.json(error('Only .pdf, .md, .txt, .doc, and .docx files are allowed'), { status: 400 });
     }
 
