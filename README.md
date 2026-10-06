@@ -52,7 +52,7 @@ make seed        # deterministic demo account + bilingual Olympus KB + built-in 
 
 If you're pointing at Supabase / a remote Postgres, run `make migrate-supabase` (applies the same files via `psql` against `DATABASE_URL`; migrations are idempotent).
 
-`make seed` embeds the tracked `sample.txt` / `sample-zh.txt` fixtures and replaces only `demo@knowflow.local`; it never clears other accounts. It also creates the built-in `olympus` / `olympus-zh` eval datasets, but only when a dataset of that name is absent — an edited dataset is never restored to the template. It prints the login and fixed KB id when complete. Override the demo credentials with `DEMO_SEED_EMAIL` and `DEMO_SEED_PASSWORD`. Use `pnpm seed:demo -- --dry-run` to verify fixture/chunk counts without network or database writes.
+`make seed` embeds the tracked `sample.txt` / `sample-zh.txt` fixtures and replaces only `demo@knowflow.local`; it never clears other accounts. It also creates the built-in `olympus` / `olympus-zh` / `cmrc2018-mini-a` / `cmrc2018-mini-b` eval datasets, but only when a dataset of that name is absent — an edited dataset is never restored to the template. It prints the login and fixed KB id when complete. Override the demo credentials with `DEMO_SEED_EMAIL` and `DEMO_SEED_PASSWORD`. Use `pnpm seed:demo -- --dry-run` to verify fixture/chunk counts without network or database writes.
 
 ---
 
@@ -68,6 +68,7 @@ If you're pointing at Supabase / a remote Postgres, run `make migrate-supabase` 
 | `pnpm test:e2e` | Playwright end-to-end tests (`tests/`) |
 | `pnpm seed:demo` | Idempotently create the demo login, indexed bilingual KB, and built-in eval datasets |
 | `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset-id=<uuid>` | Compare vector vs hybrid retrieval quality and latency |
+| `pnpm import:cmrc2018` | Rebuild the 100-question CMRC Chinese evaluation fixture |
 
 ---
 
@@ -79,6 +80,8 @@ Five user-facing pages — do not add more:
 - `/knowledge-bases/[id]/chat` — RAG chat scoped to a single KB
 - `/eval` — offline evaluation dashboard with managed golden sets (create/edit/import datasets, validate against a KB, compare runs by content hash)
 - `/login`, `/register` — authentication
+
+For the CMRC 2018 gold sets (`cmrc2018-mini-a` and `cmrc2018-mini-b`, 50 questions each, created by `pnpm seed:demo`), upload the 25 source TXT files into a knowledge base of their own and pick either set on `/eval`. See the [fixture guide](./docs/evals/cmrc2018-mini.md) for source attribution, regeneration, and setup.
 
 API surface lives under `app/api/` (auth, workspaces, knowledge bases, files, conversations, RAG search, chat stream, eval datasets and runs). See `Architecture.md` for the full inventory.
 

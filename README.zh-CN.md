@@ -52,7 +52,7 @@ make seed        # 固定 demo 账号 + 奥林匹斯双语知识库 + 内置评�
 
 如果指向 Supabase / 远程 Postgres，跑 `make migrate-supabase`（用 `psql` 对 `DATABASE_URL` 应用同一批文件；migrations 幂等，可重复执行）。
 
-`make seed` 会向量化仓库内的 `sample.txt` / `sample-zh.txt`，并且只替换 `demo@knowflow.local`，不会清空其他账号。它还会创建内置评测集 `olympus` / `olympus-zh`——仅在同名评测集不存在时创建，已被编辑过的评测集绝不会被还原成模板。完成后会打印登录信息和固定 KB id；可用 `DEMO_SEED_EMAIL`、`DEMO_SEED_PASSWORD` 覆盖 demo 凭据。`pnpm seed:demo -- --dry-run` 只校验 fixture/chunk 数，不访问网络也不写数据库。
+`make seed` 会向量化仓库内的 `sample.txt` / `sample-zh.txt`，并且只替换 `demo@knowflow.local`，不会清空其他账号。它还会创建内置评测集 `olympus` / `olympus-zh` / `cmrc2018-mini-a` / `cmrc2018-mini-b`——仅在同名评测集不存在时创建，已被编辑过的评测集绝不会被还原成模板。完成后会打印登录信息和固定 KB id；可用 `DEMO_SEED_EMAIL`、`DEMO_SEED_PASSWORD` 覆盖 demo 凭据。`pnpm seed:demo -- --dry-run` 只校验 fixture/chunk 数，不访问网络也不写数据库。
 
 ---
 
@@ -68,6 +68,7 @@ make seed        # 固定 demo 账号 + 奥林匹斯双语知识库 + 内置评�
 | `pnpm test:e2e` | Playwright 端到端测试（`tests/`） |
 | `pnpm seed:demo` | 幂等创建 demo 登录、已索引的双语 KB 和内置评测集 |
 | `pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset-id=<uuid>` | 对比 vector / hybrid 的质量与延迟 |
+| `pnpm import:cmrc2018` | 重新生成 100 道 CMRC 中文评测题及原文 |
 
 ---
 
@@ -79,6 +80,8 @@ make seed        # 固定 demo 账号 + 奥林匹斯双语知识库 + 内置评�
 - `/knowledge-bases/[id]/chat` —— 单个 KB 内的 RAG 聊天
 - `/eval` —— 离线评测面板，含可管理的评测集（新建/编辑/JSON 导入、对知识库校验、按内容 hash 对比运行）
 - `/login`、`/register` —— 认证
+
+使用 CMRC 2018 评测集（`cmrc2018-mini-a` 与 `cmrc2018-mini-b`，各 50 题，由 `pnpm seed:demo` 创建）时，先把配套的 25 份 TXT 原文上传到一个单独的知识库，再在 `/eval` 选择其中一个评测集。数据来源、生成方法和操作步骤见[评测集说明](./docs/evals/cmrc2018-mini.zh-CN.md)。
 
 API 接口在 `app/api/` 下（auth、workspaces、knowledge bases、files、conversations、RAG search、chat stream、eval datasets 与 runs）。完整清单见 `Architecture.md`。
 
