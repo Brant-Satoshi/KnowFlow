@@ -1,4 +1,6 @@
 fastapi==0.150.0
 httpx2==2.15.1
+psycopg==3.3.6
+psycopg-binary==3.3.6
 pytest==9.1.1
 uvicorn==0.54.0
