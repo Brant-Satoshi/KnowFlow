@@ -1,27 +1,14 @@
-import os
-import secrets
 import uuid
-from urllib.parse import urlparse
 
-import psycopg
 import pytest
 from fastapi import Depends, Request
 from fastapi.testclient import TestClient
 
 from main import create_app, require_user, success
 from test_password import TS_HASH
+from testdata import insert_session
 
-
-@pytest.fixture
-def conn():
-    """连到本地数据库。没导出 DATABASE_URL 就跳过；不是本地数据库就拒绝运行。"""
-    url = os.environ.get("DATABASE_URL")
-    if not url:
-        pytest.skip("先在终端里 export DATABASE_URL")
-    if urlparse(url).hostname not in ("localhost", "127.0.0.1"):
-        pytest.fail(f"测试会写数据库，只允许连本地：{urlparse(url).hostname}")
-    with psycopg.connect(url, autocommit=True) as connection:
-        yield connection
+# conn 这个 fixture 在 conftest.py 里，pytest 会自动找到它。
 
 
 @pytest.fixture
@@ -49,16 +36,6 @@ def login_user(conn):
     ).fetchone()[0]
     yield {"id": str(user_id), "email": email}
     conn.execute("delete from users where id = %s", (user_id,))
-
-
-def insert_session(conn, user_id: str, expires_in: str = "1 day") -> str:
-    """给用户插入一条会话，返回 token，也就是 cookie 的值。expires_in 写成 "-1 minute" 就是一条已经过期的会话。"""
-    token = secrets.token_urlsafe(32)
-    conn.execute(
-        "insert into sessions (id, user_id, expires_at) values (%s, %s, now() + %s::interval)",
-        (token, user_id, expires_in),
-    )
-    return token
 
 
 def make_client() -> TestClient:
