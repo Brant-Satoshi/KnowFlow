@@ -1,3 +1,4 @@
+from datetime import timezone
 import os
 import secrets
 import uuid
@@ -41,6 +42,7 @@ SESSION_COOKIE = "rag_session"
 SESSION_MAX_AGE = 60 * 60 * 24 * 30
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE") == "1"
 
+
 def get_db():
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
         yield conn
@@ -67,6 +69,45 @@ def require_user(user=Depends(get_current_user)):
     if user is None:
         raise ApiError(401, "Unauthorized", {"code": "UNAUTHORIZED"})
     return user
+
+
+def to_iso(t):
+    return (
+        t.astimezone(timezone.utc)
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
+    )
+
+def to_knowledge_base(row):
+    kb_id, name, description, created_at, updated_at = row
+    kb = {
+        "id": str(kb_id),
+        "name": name,
+        "createdAt": to_iso(created_at),
+        "updatedAt": to_iso(updated_at),
+    }
+    if description is not None:
+        kb["description"] = description
+    return kb
+
+
+def require_knowledge_base(
+    knowledge_base_id: str, user=Depends(require_user), conn=Depends(get_db)
+):
+    try:
+        kb_id = uuid.UUID(knowledge_base_id)
+    except ValueError:
+        raise ApiError(400, "Invalid knowledge base id")
+    if kb_id is None:
+        raise ValueError("knowledge_base_id is required")
+    user_id = user["id"]
+    row = conn.execute(
+        "select id, name, description, created_at, updated_at from knowledge_bases where id = %s and workspace_id in (select workspace_id from workspace_members where user_id=%s)",
+        (kb_id, user_id),
+    ).fetchone()
+    if not row:
+        raise ApiError(404, "Knowledge base not found")
+    return to_knowledge_base(row)
 
 
 def create_app() -> FastAPI:
@@ -168,6 +209,10 @@ def create_app() -> FastAPI:
             conn.execute("delete from sessions where id=%s", (token,))
         response.delete_cookie(SESSION_COOKIE, path="/")
         return success(request, {"ok": True})
+
+    @app.get("/api/knowledge-bases/{knowledge_base_id}")
+    def get_knowledgebases_by_id(request: Request, kb=Depends(require_knowledge_base)):
+        return success(request, {"knowledgeBase": kb})
 
     return app
 
