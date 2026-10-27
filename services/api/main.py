@@ -98,8 +98,6 @@ def require_knowledge_base(
         kb_id = uuid.UUID(knowledge_base_id)
     except ValueError:
         raise ApiError(400, "Invalid knowledge base id")
-    if kb_id is None:
-        raise ValueError("knowledge_base_id is required")
     user_id = user["id"]
     row = conn.execute(
         "select id, name, description, created_at, updated_at from knowledge_bases where id = %s and workspace_id in (select workspace_id from workspace_members where user_id=%s)",
