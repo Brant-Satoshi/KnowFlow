@@ -2,46 +2,10 @@ import re
 import uuid
 from datetime import datetime, timedelta
 
-import pytest
 from fastapi.testclient import TestClient
 
 from main import create_app
-from testdata import add_member, insert_knowledge_base, insert_session, insert_user, insert_workspace
-
-
-@pytest.fixture
-def tenants(conn):
-    """两个互不相干的租户，加一个被邀请进 alice 工作区的普通成员 carol：
-
-    - alice：自己的工作区里有知识库 kb_alice
-    - bob：自己的工作区里有知识库 kb_bob
-    - carol：没有自己的工作区，是 alice 工作区的 member
-
-    测完删掉三个用户，工作区、成员关系、知识库随外键一起删掉。
-    """
-    alice, bob, carol = insert_user(conn), insert_user(conn), insert_user(conn)
-    alice_ws = insert_workspace(conn, alice["id"])
-    bob_ws = insert_workspace(conn, bob["id"])
-    add_member(conn, alice_ws, carol["id"], role="member")
-    data = {
-        "alice": alice,
-        "bob": bob,
-        "carol": carol,
-        "kb_alice": insert_knowledge_base(conn, alice_ws, alice["id"], "Alice 的知识库", "测试用"),
-        "kb_bob": insert_knowledge_base(conn, bob_ws, bob["id"], "Bob 的知识库"),
-    }
-    yield data
-    conn.execute(
-        "delete from users where id = any(%s)",
-        ([alice["id"], bob["id"], carol["id"]],),
-    )
-
-
-def client_for(conn, user: dict) -> TestClient:
-    """以某个用户的身份发请求：给他插入一条会话，把 token 设成 cookie。"""
-    client = TestClient(create_app(), raise_server_exceptions=False)
-    client.cookies.set("rag_session", insert_session(conn, user["id"]))
-    return client
+from testdata import client_for
 
 
 def test_owner_can_get_own_knowledge_base(conn, tenants):
