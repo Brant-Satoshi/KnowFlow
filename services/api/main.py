@@ -340,6 +340,8 @@ def create_app() -> FastAPI:
             "insert into sessions (id, user_id, expires_at) values (%s, %s, now() + interval '30 days')",
             (token, user_id),
         )
+        # get_db 收尾时才提交的话，客户端可能已经拿着 cookie 发下一个请求了
+        conn.commit()
         response.set_cookie(
             SESSION_COOKIE,
             token,
@@ -356,6 +358,7 @@ def create_app() -> FastAPI:
         token = request.cookies.get(SESSION_COOKIE)
         if token:
             conn.execute("delete from sessions where id=%s", (token,))
+            conn.commit()
         response.delete_cookie(SESSION_COOKIE, path="/")
         return success(request, {"ok": True})
 

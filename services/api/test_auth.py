@@ -1,10 +1,12 @@
+import os
 import uuid
 
+import psycopg
 import pytest
 from fastapi import Depends, Request
 from fastapi.testclient import TestClient
 
-from main import create_app, require_user, success
+from main import create_app, get_db, require_user, success
 from test_password import TS_HASH
 from testdata import insert_session
 
@@ -239,3 +241,54 @@ def test_logout_without_login_returns_200(conn):
 
     assert response.status_code == 200
     assert response.json()["data"] == {"ok": True}
+
+
+def client_observing_before_teardown(observe):
+    """observe 在路由返回之后、get_db 退出 with 块（隐式提交）之前运行。
+
+    客户端可能在 get_db 收尾之前就收到响应，所以这个时间点必须已经提交。
+    conn 是另一条连接，只看得到已提交的数据；不依赖时序，每次结果都一样。
+    """
+
+    def get_db_then_observe():
+        with psycopg.connect(os.environ["DATABASE_URL"]) as db:
+            yield db
+            observe()
+
+    app = create_app()
+    app.dependency_overrides[get_db] = get_db_then_observe
+    return TestClient(app)
+
+
+def test_login_commits_session_before_returning(conn, login_user):
+    sessions = []
+
+    def observe():
+        sessions.append(
+            conn.execute(
+                "select count(*) from sessions where user_id = %s", (login_user["id"],)
+            ).fetchone()[0]
+        )
+
+    with client_observing_before_teardown(observe) as client:
+        response = login(client, login_user["email"], LOGIN_PASSWORD)
+
+    assert response.status_code == 200
+    assert sessions == [1]
+
+
+def test_logout_commits_delete_before_returning(conn, login_user):
+    token = insert_session(conn, login_user["id"])
+    sessions = []
+
+    def observe():
+        sessions.append(
+            conn.execute("select count(*) from sessions where id = %s", (token,)).fetchone()[0]
+        )
+
+    with client_observing_before_teardown(observe) as client:
+        client.cookies.set("rag_session", token)
+        response = client.post("/api/auth/logout")
+
+    assert response.status_code == 200
+    assert sessions == [0]
