@@ -4,14 +4,17 @@ import secrets
 import uuid
 import logging
 
+import anyio.from_thread
 from fastapi import Body, Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 import psycopg
+from starlette.datastructures import MutableHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
 
 from auth import verify_password
 import embeddings
+import rerank
 
 logger = logging.getLogger(__name__)
 
@@ -168,8 +171,24 @@ def get_embed_query():
     return embeddings.embed_query
 
 
+def get_rerank(request: Request):
+    """依赖：返回"重排"函数，和 get_embed_query 一样不在这里调用。
+
+    路由是同步函数、跑在线程池里，而检查客户端断开要在事件循环里做，所以把异步的重排切回事件循环执行。
+    """
+
+    def run(query: str, documents: list[str], top_n: int):
+        return anyio.from_thread.run(
+            rerank.rerank_documents, query, documents, top_n, request.is_disconnected
+        )
+
+    return run
+
+
 DEFAULT_TOP_K = 5  # TS 的 RETRIEVAL.finalTopK
 DEFAULT_MAX_DISTANCE = 0.6  # TS 的 RETRIEVAL.maxDistance
+RECALL_TOP_K = 20  # TS 的 RETRIEVAL.recallTopK
+RERANK_TOP_N = 8  # TS 的 RETRIEVAL.rerankTopN
 
 
 def is_number(value) -> bool:
@@ -192,6 +211,7 @@ def parse_search_request(body) -> dict:
     # 和 JS 的解构默认值一样：字段不存在时才用默认值，传了 null 不算不存在
     top_k = body.get("topK", DEFAULT_TOP_K)
     max_distance = body.get("maxDistance", DEFAULT_MAX_DISTANCE)
+    use_rerank = body.get("rerank", False)
 
     if not isinstance(query, str) or not query.strip():
         raise ApiError(400, "Missing query")
@@ -207,6 +227,8 @@ def parse_search_request(body) -> dict:
         raise ApiError(400, "topK must be between 1 and 20")
     if not is_number(max_distance) or not 0 <= max_distance <= 1:
         raise ApiError(400, "maxDistance must be between 0 and 1")
+    if not isinstance(use_rerank, bool):
+        raise ApiError(400, "rerank must be a boolean")
     if body.get("filter") is not None:
         raise ApiError(400, "filter is not supported yet")
     if file_id:
@@ -222,8 +244,9 @@ def parse_search_request(body) -> dict:
     return {
         "query": query,
         "knowledge_base_id": kb_id,
-        "top_k": top_k,
+        "top_k": int(top_k),
         "max_distance": max_distance,
+        "rerank": use_rerank,
     }
 
 
@@ -259,16 +282,91 @@ def to_search_chunk(row) -> dict:
     }
 
 
+def rerank_candidates(request_id: str, query: str, chunks: list[dict], rerank_fn) -> tuple[list[dict], dict]:
+    """重排召回的片段，返回 (排好的片段, 重排状态)。
+
+    和 TS 的 rerankChunks 一样：没拿到结果的片段排在后面，保持召回顺序。不同的是状态写进响应：
+    没有 _rerankScore 既可能是重排失败，也可能是根本没调用，只看分数分不清。
+    """
+    if not rerank.is_rerank_enabled():
+        return chunks, {"status": "skipped", "reason": "disabled"}
+    if len(chunks) == 1:
+        return chunks, {"status": "skipped", "reason": "single_candidate"}
+
+    documents = [chunk["embeddingText"] for chunk in chunks]
+    try:
+        results = rerank_fn(query.strip(), documents, min(RERANK_TOP_N, len(chunks)))
+    except rerank.RerankCancelled:
+        raise ApiError(499, "request_cancelled")
+    except rerank.RerankFailed as exc:
+        logger.warning("rerank fallback to recall order: %s, requestId=%s", exc.reason, request_id)
+        return chunks, {"status": "fallback", "reason": exc.reason}
+
+    ordered = []
+    for index, score in results:
+        chunk = chunks[index]
+        if score is not None:
+            chunk = {**chunk, "meta": {**chunk["meta"], "_rerankScore": score}}
+        ordered.append(chunk)
+    used = {index for index, _ in results}
+    ordered.extend(chunk for index, chunk in enumerate(chunks) if index not in used)
+    return ordered, {"status": "applied"}
+
+
+def retrieve(request_id: str, conn, params: dict, embed, rerank_fn) -> dict:
+    """召回 → 重排 → 取前 topK → 拒答判断。召回宽度固定，topK 只决定最后留几个。
+
+    召回为空就拒答（TS 的 assessRetrieval 里 'empty' 那一支），不调用重排。不做低分拒答：
+    重排分数高低不等于能不能回答，TS 里这个阈值也一直关闭（ADR-011）。
+    """
+    query_vector = embed(params["query"])
+    rows = vector_search_chunks(
+        conn,
+        query_vector=query_vector,
+        kb_id=params["knowledge_base_id"],
+        top_k=RECALL_TOP_K,
+        max_distance=params["max_distance"],
+    )
+    recalled = [to_search_chunk(row) for row in rows]
+    if not recalled:
+        return {
+            "chunks": [],
+            "refusal": "empty",
+            "rerank": {"status": "skipped", "reason": "no_candidates"},
+        }
+    ordered, outcome = rerank_candidates(request_id, params["query"], recalled, rerank_fn)
+    return {"chunks": ordered[: params["top_k"]], "refusal": None, "rerank": outcome}
+
+
+class RequestIdMiddleware:
+    """给每个请求生成 requestId，写进 request.state 和响应头 X-Request-Id。
+
+    写成纯 ASGI 中间件，不用 @app.middleware("http")：后者包过的 receive 收不到客户端断开，
+    路由里的 request.is_disconnected() 会一直是 False（2026-10-31 实测）。
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request_id = str(uuid.uuid4())
+        scope.setdefault("state", {})["request_id"] = request_id
+
+        async def send_with_request_id(message):
+            if message["type"] == "http.response.start":
+                MutableHeaders(scope=message)["X-Request-Id"] = request_id
+            await send(message)
+
+        await self.app(scope, receive, send_with_request_id)
+
+
 def create_app() -> FastAPI:
     app = FastAPI()
-
-    @app.middleware("http")
-    async def add_request_id(request, call_next):
-        request_id = str(uuid.uuid4())
-        request.state.request_id = request_id
-        response = await call_next(request)
-        response.headers["X-Request-Id"] = request_id
-        return response
+    app.add_middleware(RequestIdMiddleware)
 
     @app.exception_handler(StarletteHTTPException)
     async def handle_http_error(request, exc: StarletteHTTPException):
@@ -372,10 +470,13 @@ def create_app() -> FastAPI:
         body=Body(),
         user=Depends(require_user),
         embed=Depends(get_embed_query),
+        rerank_fn=Depends(get_rerank),
         conn=Depends(get_db),
     ):
         params = parse_search_request(body)
         require_knowledge_base_access(conn, kb_id=params["knowledge_base_id"], user_id=user["id"])
+        if params["rerank"]:
+            return success(request, retrieve(request.state.request_id, conn, params, embed, rerank_fn))
         # 权限检查通过，才生成问题向量
         query_vector = embed(params["query"])
         rows = vector_search_chunks(
