@@ -64,6 +64,9 @@ migrate:
 	docker exec -i $(CONTAINER) \
 		psql -U $(USER) -d $(DB) \
 		< db/migrations/017_add_eval_hit_at_k.sql
+	docker exec -i $(CONTAINER) \
+		psql -U $(USER) -d $(DB) -v ON_ERROR_STOP=1 \
+		< db/migrations/018_add_eval_answer_judgement.sql
 
 # Apply all migrations to DATABASE_URL (Supabase / any remote Postgres) via the
 # local psql client instead of `docker exec`. Migrations are idempotent
@@ -86,6 +89,7 @@ migrate-supabase:
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/014_managed_eval_datasets.sql
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/015_add_eval_dataset_revision.sql
 	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/017_add_eval_hit_at_k.sql
+	psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f db/migrations/018_add_eval_answer_judgement.sql
 
 seed:
 	pnpm seed:demo

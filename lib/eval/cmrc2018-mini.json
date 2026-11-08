@@ -1,0 +1,1757 @@
+[
+  {
+    "id": "cmrc2018-dev-18-query-0",
+    "question": "龙烟铁路位于哪里？",
+    "expectedAnswer": "胶东半岛北侧海岸",
+    "expectedKeywords": [
+      "胶东半岛北侧海岸"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-18.txt"
+    ],
+    "targetChunkSubstrings": [
+      "龙烟铁路\n龙烟铁路位于胶东半岛北侧海岸。西起大莱龙铁路龙口西站，东至蓝烟铁"
+    ],
+    "notes": "CMRC 2018 development set: DEV_18, DEV_18_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-18-query-1",
+    "question": "龙烟铁路是哪条铁路的重要组成部分？",
+    "expectedAnswer": "德龙烟铁路",
+    "expectedKeywords": [
+      "德龙烟铁路"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-18.txt"
+    ],
+    "targetChunkSubstrings": [
+      "铁路龙口西站，东至蓝烟铁路珠玑站，是德龙烟铁路的重要组成部分，正线全长112.7公"
+    ],
+    "notes": "CMRC 2018 development set: DEV_18, DEV_18_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-18-query-2",
+    "question": "龙烟铁路项目工程投资总额约为多少？",
+    "expectedAnswer": "28亿元",
+    "expectedKeywords": [
+      "28亿元"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-18.txt"
+    ],
+    "targetChunkSubstrings": [
+      "公司”。龙烟铁路项目工程投资总额约为28亿元，由中国铁路总公司、山东省和烟台港集"
+    ],
+    "notes": "CMRC 2018 development set: DEV_18, DEV_18_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-18-query-4",
+    "question": "龙烟铁路什么时候开通运营？",
+    "expectedAnswer": "2017年12月19日18时",
+    "expectedKeywords": [
+      "2017年12月19日18时"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-18.txt"
+    ],
+    "targetChunkSubstrings": [
+      "至此全线6个隧道全部打通。龙烟铁路于2017年12月19日18时顺利开通运营。"
+    ],
+    "notes": "CMRC 2018 development set: DEV_18, DEV_18_QUERY_4."
+  },
+  {
+    "id": "cmrc2018-dev-33-query-0",
+    "question": "固始站隶属于什么公司？",
+    "expectedAnswer": "武汉铁路局",
+    "expectedKeywords": [
+      "武汉铁路局"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-33.txt"
+    ],
+    "targetChunkSubstrings": [
+      "车站，位于河南省固始县段集镇，隶属于武汉铁路局，现为三等站。车站距固始县城约30公"
+    ],
+    "notes": "CMRC 2018 development set: DEV_33, DEV_33_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-33-query-1",
+    "question": "固始站位于哪里？",
+    "expectedAnswer": "河南省固始县段集镇",
+    "expectedKeywords": [
+      "河南省固始县段集镇"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-33.txt"
+    ],
+    "targetChunkSubstrings": [
+      "固始站是宁西铁路上的一座车站，位于河南省固始县段集镇，隶属于武汉铁路局，现为三等站。车站"
+    ],
+    "notes": "CMRC 2018 development set: DEV_33, DEV_33_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-33-query-2",
+    "question": "固始站可以办理什么业务？",
+    "expectedAnswer": "旅客乘降、行包托运、货运整车到发等业务",
+    "expectedKeywords": [
+      "旅客乘降",
+      "行包托运",
+      "货运整车到发等业务"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-33.txt"
+    ],
+    "targetChunkSubstrings": [
+      "包房及卫生间等服务设施。固始站可办理旅客乘降、行包托运、货运整车到发等业务。客运方面，现有18趟列车停车办客，"
+    ],
+    "notes": "CMRC 2018 development set: DEV_33, DEV_33_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-33-query-3",
+    "question": "固始站的年发送、到达旅客可以达到多少人次？",
+    "expectedAnswer": "6.5万、8.5万",
+    "expectedKeywords": [
+      "6.5万",
+      "8.5万"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-33.txt"
+    ],
+    "targetChunkSubstrings": [
+      "－信阳等临客。年发送、到达旅客分别为6.5万、8.5万人次。自2016年9月17日起，固始"
+    ],
+    "notes": "CMRC 2018 development set: DEV_33, DEV_33_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-38-query-0",
+    "question": "河茂铁路全长有多少公里？",
+    "expectedAnswer": "61公里",
+    "expectedKeywords": [
+      "61公里"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-38.txt"
+    ],
+    "targetChunkSubstrings": [
+      "路河唇站出岔，经化州到茂名西站，全长61公里，共设7座车站。该线路为单线铁路，按"
+    ],
+    "notes": "CMRC 2018 development set: DEV_38, DEV_38_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-38-query-2",
+    "question": "河茂铁路营运初期是为什么服务的？",
+    "expectedAnswer": "为开发茂名的石油工业服务",
+    "expectedKeywords": [
+      "为开发茂名的石油工业服务"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-38.txt"
+    ],
+    "targetChunkSubstrings": [
+      "959年3月正式交付运营，营运初期是为开发茂名的石油工业服务，性质属工业支线。三茂铁路（今广茂铁"
+    ],
+    "notes": "CMRC 2018 development set: DEV_38, DEV_38_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-38-query-3",
+    "question": "河茂铁路沿线在地理位置有什么特点？",
+    "expectedAnswer": "位于亚热带，地势平坦，局部为丘陵，沿线多稻田。",
+    "expectedKeywords": [
+      "位于亚热带",
+      "地势平坦",
+      "局部为丘陵",
+      "沿线多稻田"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-38.txt"
+    ],
+    "targetChunkSubstrings": [
+      "其次为硫铁矿、花岗岩、白矾土等。该线位于亚热带，地势平坦，局部为丘陵，沿线多稻田。2014年12月，河茂铁路电气化工程"
+    ],
+    "notes": "CMRC 2018 development set: DEV_38, DEV_38_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-38-query-4",
+    "question": "河茂铁路电气化改造后可实现什么功能？",
+    "expectedAnswer": "区域内南宁往柳州、湛江、茂名、昆明方向机车牵引吨位全部统一",
+    "expectedKeywords": [
+      "区域内南宁往柳州",
+      "昆明方向机车牵引吨位全部统一"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-38.txt"
+    ],
+    "targetChunkSubstrings": [
+      "000吨提高到4500吨的重量，实现区域内南宁往柳州、湛江、茂名、昆明方向机车牵引吨位全部统一，改造工程已于2017年12月28日"
+    ],
+    "notes": "CMRC 2018 development set: DEV_38, DEV_38_QUERY_4."
+  },
+  {
+    "id": "cmrc2018-dev-39-query-0",
+    "question": "吴淞路闸桥原来的地址在哪里？",
+    "expectedAnswer": "接近苏州河与黄浦江交汇处",
+    "expectedKeywords": [
+      "接近苏州河与黄浦江交汇处"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-39.txt"
+    ],
+    "targetChunkSubstrings": [
+      "路闸桥是中国上海市已拆除的桥梁，原址接近苏州河与黄浦江交汇处，外白渡桥西侧，南端连接外滩（中山东"
+    ],
+    "notes": "CMRC 2018 development set: DEV_39, DEV_39_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-39-query-1",
+    "question": "为什么要修建吴淞路闸桥？",
+    "expectedAnswer": "20世纪80年代，上海车辆猛增，经济活跃，外白渡桥车辆严重堵塞，加上当时苏州河环境整治需要",
+    "expectedKeywords": [
+      "20世纪80年代",
+      "上海车辆猛增",
+      "经济活跃",
+      "外白渡桥车辆严重堵塞",
+      "加上当时苏州河环境整治需要"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-39.txt"
+    ],
+    "targetChunkSubstrings": [
+      "外滩（中山东一路），北端连接吴淞路。20世纪80年代，上海车辆猛增，经济活跃，外白渡桥车辆严重堵塞，加上当时苏州河环境整治需要，1989年吴淞路闸桥动工兴建，19"
+    ],
+    "notes": "CMRC 2018 development set: DEV_39, DEV_39_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-39-query-2",
+    "question": "吴淞路闸桥起到了什么作用？",
+    "expectedAnswer": "大大减轻了外白渡桥的交通压力。",
+    "expectedKeywords": [
+      "大大减轻了外白渡桥的交通压力。"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-39.txt"
+    ],
+    "targetChunkSubstrings": [
+      "91年4月完工，建成时为双向5车道，大大减轻了外白渡桥的交通压力。闸桥既是公路桥，也是苏州河口的水闸，"
+    ],
+    "notes": "CMRC 2018 development set: DEV_39, DEV_39_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-39-query-3",
+    "question": "吴淞路闸桥拆除后它的运输功能由什么代替？",
+    "expectedAnswer": "外滩隧道",
+    "expectedKeywords": [
+      "外滩隧道"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-39.txt"
+    ],
+    "targetChunkSubstrings": [
+      "历史。拆除后，吴淞路闸桥的运输功能由外滩隧道代替，水闸功能则由金山路水闸代替。"
+    ],
+    "notes": "CMRC 2018 development set: DEV_39, DEV_39_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-41-query-0",
+    "question": "武穴酥糖原名是什么？",
+    "expectedAnswer": "桂花董糖",
+    "expectedKeywords": [
+      "桂花董糖"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-41.txt"
+    ],
+    "targetChunkSubstrings": [
+      "武穴酥糖\n武穴酥糖，原名“桂花董糖”，也称“广济酥糖”。后八十年代广济"
+    ],
+    "notes": "CMRC 2018 development set: DEV_41, DEV_41_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-41-query-1",
+    "question": "阻碍武穴酥糖产业发展的原因是什么？",
+    "expectedAnswer": "被仿冒者假冒、企业间相互杀价和市场竞争力薄弱等",
+    "expectedKeywords": [
+      "被仿冒者假冒",
+      "企业间相互杀价和市场竞争力薄弱等"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-41.txt"
+    ],
+    "targetChunkSubstrings": [
+      "500万元。但在其发展过程中，出现了被仿冒者假冒、企业间相互杀价和市场竞争力薄弱等问题，这些问题成为了阻碍武穴酥糖产业"
+    ],
+    "notes": "CMRC 2018 development set: DEV_41, DEV_41_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-41-query-2",
+    "question": "武穴酥糖一般只在什么时候生产销售？",
+    "expectedAnswer": "春节时期",
+    "expectedKeywords": [
+      "春节时期"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-41.txt"
+    ],
+    "targetChunkSubstrings": [
+      "产业发展的重要因素。武穴酥糖一般只在春节时期生产销售，其他时间无法买到。当地人互"
+    ],
+    "notes": "CMRC 2018 development set: DEV_41, DEV_41_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-41-query-3",
+    "question": "1983年9月武穴酥糖获得了什么奖？",
+    "expectedAnswer": "被湖北省商业厅评为全省商业优良名特传统产品奖",
+    "expectedKeywords": [
+      "被湖北省商业厅评为全",
+      "业优良名特传统产品奖"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-41.txt"
+    ],
+    "targetChunkSubstrings": [
+      "入《湖北糕点》名录；1983年9月，被湖北省商业厅评为全省商业优良名特传统产品奖；"
+    ],
+    "notes": "CMRC 2018 development set: DEV_41, DEV_41_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-49-query-0",
+    "question": "陈荣捷是哪里人？",
+    "expectedAnswer": "广东开平",
+    "expectedKeywords": [
+      "广东开平"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-49.txt"
+    ],
+    "targetChunkSubstrings": [
+      "陈荣捷\n陈荣捷（），广东开平人。美籍华裔哲学家、朱子学专家。早年"
+    ],
+    "notes": "CMRC 2018 development set: DEV_49, DEV_49_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-49-query-1",
+    "question": "1929年，陈荣捷在哈佛大学获得什么学位？",
+    "expectedAnswer": "哲学博士",
+    "expectedKeywords": [
+      "哲学博士"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-49.txt"
+    ],
+    "targetChunkSubstrings": [
+      "。后赴美国留学，1929年获哈佛大学哲学博士学位。1930年，任岭南大学教务长。"
+    ],
+    "notes": "CMRC 2018 development set: DEV_49, DEV_49_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-49-query-2",
+    "question": "陈荣捷的主要著作有哪些？",
+    "expectedAnswer": "《朱学论集》、《中国和西方对仁的解说》、《西方对儒学的研究》、《现代中国的宗教趋势》等",
+    "expectedKeywords": [
+      "《朱学论集》",
+      "《中国和西方对仁的解说》",
+      "《西方对儒学的研究》",
+      "《现代中国的宗教趋势》等"
+    ],
+    "category": "list_extraction",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-49.txt"
+    ],
+    "targetChunkSubstrings": [
+      "哲学研究方面的国际性权威。主要著作有《朱学论集》、《中国和西方对仁的解说》、《西方对儒学的研究》、《现代中国的宗教趋势》等。陈荣捷与著名工程师、慈善家叶葆定为"
+    ],
+    "notes": "CMRC 2018 development set: DEV_49, DEV_49_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-49-query-3",
+    "question": "陈荣捷卒于哪一年？",
+    "expectedAnswer": "1994年",
+    "expectedKeywords": [
+      "1994年"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-49.txt"
+    ],
+    "targetChunkSubstrings": [
+      "986年，任北美华裔学人协会副会长。1994年病逝于美国。在陈荣捷对儒学有相当的研"
+    ],
+    "notes": "CMRC 2018 development set: DEV_49, DEV_49_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-53-query-0",
+    "question": "海宁西站位于哪里？",
+    "expectedAnswer": "浙江省嘉兴市海宁市许村镇报国村沈士大道以西",
+    "expectedKeywords": [
+      "浙江省嘉兴市海宁市许",
+      "镇报国村沈士大道以西"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-53.txt"
+    ],
+    "targetChunkSubstrings": [
+      "西站，是沪昆客运专线的一个车站，位于浙江省嘉兴市海宁市许村镇报国村沈士大道以西。车站于2010年10月26日随沪昆"
+    ],
+    "notes": "CMRC 2018 development set: DEV_53, DEV_53_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-53-query-1",
+    "question": "海宁西站哪一年启用？",
+    "expectedAnswer": "2010年",
+    "expectedKeywords": [
+      "2010年"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-53.txt"
+    ],
+    "targetChunkSubstrings": [
+      "宁市许村镇报国村沈士大道以西。车站于2010年10月26日随沪昆客运专线沪杭段开通"
+    ],
+    "notes": "CMRC 2018 development set: DEV_53, DEV_53_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-53-query-2",
+    "question": "海宁西站总建筑面积有多少平方米？",
+    "expectedAnswer": "1.7万平方米",
+    "expectedKeywords": [
+      "1.7万平方米"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-53.txt"
+    ],
+    "targetChunkSubstrings": [
+      "G7417次列车。海宁西站总建筑面积1.7万平方米，其中站房面积4,933平方米。站房"
+    ],
+    "notes": "CMRC 2018 development set: DEV_53, DEV_53_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-53-query-3",
+    "question": "海宁西站由哪个公司建设？",
+    "expectedAnswer": "浙江省一建建设集团有限公司",
+    "expectedKeywords": [
+      "浙江省一建建设集团有限公司"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-53.txt"
+    ],
+    "targetChunkSubstrings": [
+      "向，插入了粉墙黛瓦的江南民居元素，由浙江省一建建设集团有限公司建设。站台位于站房南侧，高于候车室6"
+    ],
+    "notes": "CMRC 2018 development set: DEV_53, DEV_53_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-54-query-0",
+    "question": "余杭站位于哪里？",
+    "expectedAnswer": "浙江省杭州市余杭区南苑街道联胜社区以东",
+    "expectedKeywords": [
+      "浙江省杭州市余杭区南",
+      "南苑街道联胜社区以东"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-54.txt"
+    ],
+    "targetChunkSubstrings": [
+      "余杭站是沪昆客运专线的一个车站，位于浙江省杭州市余杭区南苑街道联胜社区以东。余杭火车站（简称余杭站），是沪杭客"
+    ],
+    "notes": "CMRC 2018 development set: DEV_54, DEV_54_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-54-query-1",
+    "question": "余杭站的建筑有什么特点？",
+    "expectedAnswer": "充分运用良渚文化元素，外立面主打横线条，打造一座“玉琮城”",
+    "expectedKeywords": [
+      "充分运用良渚文化元素",
+      "外立面主打横线条",
+      "打造一座“玉琮城”"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-54.txt"
+    ],
+    "targetChunkSubstrings": [
+      "余杭站站房总长度约174米。车站设计充分运用良渚文化元素，外立面主打横线条，打造一座“玉琮城”。车站主体为地上二层岛式车站，这也是"
+    ],
+    "notes": "CMRC 2018 development set: DEV_54, DEV_54_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-54-query-2",
+    "question": "余杭站南侧广场包括哪几个部分？",
+    "expectedAnswer": "地下汽车库、地上广场以及高铁站南北两侧地下通道",
+    "expectedKeywords": [
+      "地下汽车库",
+      "地上广场以及高铁站南北两侧地下通"
+    ],
+    "category": "list_extraction",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-54.txt"
+    ],
+    "targetChunkSubstrings": [
+      "旅客快速上二楼。余杭站南侧广场将包括地下汽车库、地上广场以及高铁站南北两侧地下通道，广场面积约4.81万平方米，地下室"
+    ],
+    "notes": "CMRC 2018 development set: DEV_54, DEV_54_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-54-query-4",
+    "question": "哪几路公交车在余杭站北侧始发？",
+    "expectedAnswer": "高铁余杭站，472路、763路、765路、775路、786路、786区间",
+    "expectedKeywords": [
+      "高铁余杭站",
+      "472路",
+      "763路",
+      "765路",
+      "775路",
+      "786路",
+      "786区间"
+    ],
+    "category": "list_extraction",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-54.txt"
+    ],
+    "targetChunkSubstrings": [
+      "达余杭站。余杭站北侧为公交枢纽站——高铁余杭站，472路、763路、765路、775路、786路、786区间在此始发。另外，位于车站东侧迎宾路上"
+    ],
+    "notes": "CMRC 2018 development set: DEV_54, DEV_54_QUERY_4."
+  },
+  {
+    "id": "cmrc2018-dev-56-query-0",
+    "question": "以仁王是日本什么时代的人？",
+    "expectedAnswer": "平安时代",
+    "expectedKeywords": [
+      "平安时代"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-56.txt"
+    ],
+    "targetChunkSubstrings": [
+      "以仁王\n以仁王（）日本平安时代人物。后白河天皇第三皇子，为闲院流藤"
+    ],
+    "notes": "CMRC 2018 development set: DEV_56, DEV_56_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-56-query-1",
+    "question": "以仁王是谁的儿子？",
+    "expectedAnswer": "后白河天皇",
+    "expectedKeywords": [
+      "后白河天皇"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-56.txt"
+    ],
+    "targetChunkSubstrings": [
+      "以仁王\n以仁王（）日本平安时代人物。后白河天皇第三皇子，为闲院流藤原季成的女儿藤原"
+    ],
+    "notes": "CMRC 2018 development set: DEV_56, DEV_56_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-56-query-2",
+    "question": "以仁王为什么没当上六条天皇的太子？",
+    "expectedAnswer": "由于建春门院的作梗而作罢。",
+    "expectedKeywords": [
+      "由于建春门院的作梗而作罢。"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-56.txt"
+    ],
+    "targetChunkSubstrings": [
+      "皇最初试图将他立为六条天皇的太子，但由于建春门院的作梗而作罢。永万2年（1165年），建春门院和后"
+    ],
+    "notes": "CMRC 2018 development set: DEV_56, DEV_56_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-56-query-3",
+    "question": "以仁王有什么才能？",
+    "expectedAnswer": "擅于创作和歌和吹笛，且能写一手好字。",
+    "expectedKeywords": [
+      "擅于创作和歌和吹笛",
+      "且能写一手好字"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-56.txt"
+    ],
+    "targetChunkSubstrings": [
+      "圆寂后就还俗了。以仁王自幼才学出众，擅于创作和歌和吹笛，且能写一手好字。后白河上皇最初试图将他立为六条天皇的"
+    ],
+    "notes": "CMRC 2018 development set: DEV_56, DEV_56_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-57-query-0",
+    "question": "长鼻王是什么东西的名称？",
+    "expectedAnswer": "一种膨化夹心卷的商标名",
+    "expectedKeywords": [
+      "一种膨化夹心卷的商标名"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-57.txt"
+    ],
+    "targetChunkSubstrings": [
+      "长鼻王\n长鼻王是一种膨化夹心卷的商标名，它由台商合资的嘉兴长鼻王食品有限公"
+    ],
+    "notes": "CMRC 2018 development set: DEV_57, DEV_57_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-57-query-1",
+    "question": "长鼻王是由哪个公司生产的？",
+    "expectedAnswer": "长鼻王食品有限公司",
+    "expectedKeywords": [
+      "长鼻王食品有限公司"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-57.txt"
+    ],
+    "targetChunkSubstrings": [
+      "化夹心卷的商标名，它由台商合资的嘉兴长鼻王食品有限公司生产，台商合资杭州大恩食品有限公司经"
+    ],
+    "notes": "CMRC 2018 development set: DEV_57, DEV_57_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-57-query-2",
+    "question": "长鼻王系列产品有哪几种口味？",
+    "expectedAnswer": "蛋黄（黄色）、柠檬（绿色）、椰子、草莓（粉色）四种口味",
+    "expectedKeywords": [
+      "蛋黄（黄色）",
+      "柠檬（绿色）",
+      "草莓（粉色）四种口味"
+    ],
+    "category": "list_extraction",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-57.txt"
+    ],
+    "targetChunkSubstrings": [
+      "王”指代该产品本身。长鼻王系列产品有蛋黄（黄色）、柠檬（绿色）、椰子、草莓（粉色）四种口味，其中蛋黄口味最受人们的青睐。在杭州"
+    ],
+    "notes": "CMRC 2018 development set: DEV_57, DEV_57_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-57-query-3",
+    "question": "长鼻王的配料表中有哪些东西？",
+    "expectedAnswer": "大米、食用植物油、玉米、白砂糖、蛋黄粉、全脂奶粉、大豆蛋白粉、葡萄糖、酱油粉、食品添加剂（食用香料）",
+    "expectedKeywords": [
+      "食用植物油",
+      "白砂糖",
+      "蛋黄粉",
+      "全脂奶粉",
+      "大豆蛋白粉",
+      "葡萄糖",
+      "酱油粉",
+      "食品添加剂（食用香料）"
+    ],
+    "category": "list_extraction",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-57.txt"
+    ],
+    "targetChunkSubstrings": [
+      "销售的蛋黄口味长鼻王，其配料表如下：大米、食用植物油、玉米、白砂糖、蛋黄粉、全脂奶粉、大豆蛋白粉、葡萄糖、酱油粉、食品添加剂（食用香料）。该产品的外包装写有“台湾口味”广告"
+    ],
+    "notes": "CMRC 2018 development set: DEV_57, DEV_57_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-67-query-0",
+    "question": "水湳洞阴阳海在哪里？",
+    "expectedAnswer": "台湾新北市瑞芳区水湳洞聚落北侧",
+    "expectedKeywords": [
+      "台湾新北市瑞芳区水湳洞聚落北侧"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-67.txt"
+    ],
+    "targetChunkSubstrings": [
+      "阳海\n水湳洞阴阳海，简称阴阳海，位于台湾新北市瑞芳区水湳洞聚落北侧，为台湾东北角滨海地区的一大特殊地理"
+    ],
+    "notes": "CMRC 2018 development set: DEV_67, DEV_67_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-67-query-1",
+    "question": "水湳洞阴阳海因什么而得名？",
+    "expectedAnswer": "海湾中的海水颜色呈黄褐色，与外海方向正常海水的蓝颜色形成鲜明对比",
+    "expectedKeywords": [
+      "海湾中的海水颜色呈黄褐色",
+      "与外海方向正常海水的蓝颜色形成鲜"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-67.txt"
+    ],
+    "targetChunkSubstrings": [
+      "区的一大特殊地理景观。水湳洞阴阳海因海湾中的海水颜色呈黄褐色，与外海方向正常海水的蓝颜色形成鲜明对比，因而得名。台湾的阴阳海地理现象共有"
+    ],
+    "notes": "CMRC 2018 development set: DEV_67, DEV_67_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-67-query-2",
+    "question": "台湾的阴阳海共有哪三处地理现象？",
+    "expectedAnswer": "一为宜兰县头城镇龟山岛龟首处，一为新北市金山区的磺港，另一处即为闻名世界的水湳洞阴阳海。",
+    "expectedKeywords": [
+      "一为宜兰县头城镇龟山岛龟首处",
+      "一为新北市金山区的磺港",
+      "另一处即为闻名世界的水湳洞阴阳海"
+    ],
+    "category": "list_extraction",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-67.txt"
+    ],
+    "targetChunkSubstrings": [
+      "得名。台湾的阴阳海地理现象共有三处：一为宜兰县头城镇龟山岛龟首处，一为新北市金山区的磺港，另一处即为闻名世界的水湳洞阴阳海。由于龟山岛阴阳海地处外海造访不易，金"
+    ],
+    "notes": "CMRC 2018 development set: DEV_67, DEV_67_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-67-query-3",
+    "question": "为什么在台湾仅说阴阳海就是指水湳洞阴阳海？",
+    "expectedAnswer": "龟山岛阴阳海地处外海造访不易，金山磺港阴阳海现象又不明显",
+    "expectedKeywords": [
+      "龟山岛阴阳海地处外海造访不易",
+      "金山磺港阴阳海现象又不明显"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-67.txt"
+    ],
+    "targetChunkSubstrings": [
+      "一处即为闻名世界的水湳洞阴阳海。由于龟山岛阴阳海地处外海造访不易，金山磺港阴阳海现象又不明显，因此在台湾如果仅说是阴阳海，指的多"
+    ],
+    "notes": "CMRC 2018 development set: DEV_67, DEV_67_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-75-query-0",
+    "question": "亨丁顿舞蹈症又叫什么？",
+    "expectedAnswer": "亨廷顿舞蹈症、杭丁顿舞蹈症等",
+    "expectedKeywords": [
+      "亨廷顿舞蹈症",
+      "杭丁顿舞蹈症等"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-75.txt"
+    ],
+    "targetChunkSubstrings": [
+      "亨丁顿舞蹈症（，缩写：HD），又译亨廷顿舞蹈症、杭丁顿舞蹈症等，是一种遗传性神经退行性疾病，起因于"
+    ],
+    "notes": "CMRC 2018 development set: DEV_75, DEV_75_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-75-query-1",
+    "question": "亨丁顿舞蹈症是一种什么类型的疾病？",
+    "expectedAnswer": "遗传性神经退行性疾病",
+    "expectedKeywords": [
+      "遗传性神经退行性疾病"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-75.txt"
+    ],
+    "targetChunkSubstrings": [
+      "亨廷顿舞蹈症、杭丁顿舞蹈症等，是一种遗传性神经退行性疾病，起因于第4对染色体CAG序列异常大"
+    ],
+    "notes": "CMRC 2018 development set: DEV_75, DEV_75_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-75-query-2",
+    "question": "亨丁顿舞蹈症的病因是什么？",
+    "expectedAnswer": "第4对染色体CAG序列异常大量重复",
+    "expectedKeywords": [
+      "第4对染色体CAG序",
+      "AG序列异常大量重复"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-75.txt"
+    ],
+    "targetChunkSubstrings": [
+      "，是一种遗传性神经退行性疾病，起因于第4对染色体CAG序列异常大量重复，病发时会无法控制四肢，就像手舞足蹈"
+    ],
+    "notes": "CMRC 2018 development set: DEV_75, DEV_75_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-75-query-3",
+    "question": "亨丁顿舞蹈症病发时有什么症状？",
+    "expectedAnswer": "无法控制四肢，就像手舞足蹈一样",
+    "expectedKeywords": [
+      "无法控制四肢",
+      "就像手舞足蹈一样"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-75.txt"
+    ],
+    "targetChunkSubstrings": [
+      "色体CAG序列异常大量重复，病发时会无法控制四肢，就像手舞足蹈一样，并伴随著智能减退，最后因吞咽、呼吸"
+    ],
+    "notes": "CMRC 2018 development set: DEV_75, DEV_75_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-88-query-0",
+    "question": "列卡度·华斯迪是哪国人？",
+    "expectedAnswer": "葡萄牙",
+    "expectedKeywords": [
+      "葡萄牙"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-88.txt"
+    ],
+    "targetChunkSubstrings": [
+      "卡度·华斯迪\n列卡度·华斯迪（，），葡萄牙足球运动员，司职前锋，现时效力土超球"
+    ],
+    "notes": "CMRC 2018 development set: DEV_88, DEV_88_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-88-query-1",
+    "question": "列卡度·华斯迪现在效力于哪个球队？",
+    "expectedAnswer": "土超球会阿克希萨尔",
+    "expectedKeywords": [
+      "土超球会阿克希萨尔"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-88.txt"
+    ],
+    "targetChunkSubstrings": [
+      "葡萄牙足球运动员，司职前锋，现时效力土超球会阿克希萨尔。2003年华斯迪免费加盟保顿，期间"
+    ],
+    "notes": "CMRC 2018 development set: DEV_88, DEV_88_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-88-query-2",
+    "question": "2003年，列卡度·华斯迪在保顿期间为什么总是作为后备？",
+    "expectedAnswer": "受到伤患困扰",
+    "expectedKeywords": [
+      "受到伤患困扰"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-88.txt"
+    ],
+    "targetChunkSubstrings": [
+      "。2003年华斯迪免费加盟保顿，期间受到伤患困扰而多为作为后备，于2010年夏季遭球"
+    ],
+    "notes": "CMRC 2018 development set: DEV_88, DEV_88_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-88-query-3",
+    "question": "列卡度·华斯迪在班士利创造了什么记录？",
+    "expectedAnswer": "队史最快入球纪录",
+    "expectedKeywords": [
+      "队史最快入球纪录"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-88.txt"
+    ],
+    "targetChunkSubstrings": [
+      "开赛8.5秒即取得入球，创造了班士利队史最快入球纪录。2012年1月1日，有消息称表现出"
+    ],
+    "notes": "CMRC 2018 development set: DEV_88, DEV_88_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-94-query-0",
+    "question": "叶乔波的籍贯是什么？",
+    "expectedAnswer": "吉林长春",
+    "expectedKeywords": [
+      "吉林长春"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-94.txt"
+    ],
+    "targetChunkSubstrings": [
+      "叶乔波\n叶乔波（），籍贯吉林长春，前中国女子速度滑冰运动员，曾夺得世"
+    ],
+    "notes": "CMRC 2018 development set: DEV_94, DEV_94_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-94-query-1",
+    "question": "叶乔波是什么运动员？",
+    "expectedAnswer": "速度滑冰",
+    "expectedKeywords": [
+      "速度滑冰"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-94.txt"
+    ],
+    "targetChunkSubstrings": [
+      "叶乔波（），籍贯吉林长春，前中国女子速度滑冰运动员，曾夺得世锦赛冠军和三枚奥运会"
+    ],
+    "notes": "CMRC 2018 development set: DEV_94, DEV_94_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-94-query-2",
+    "question": "叶乔波至1993年春季赛事结束，她共获得多少个世界冠军？",
+    "expectedAnswer": "14个",
+    "expectedKeywords": [
+      "14个"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-94.txt"
+    ],
+    "targetChunkSubstrings": [
+      "；至1993年春季赛事结束，她共获得14个世界冠军，其中包括全部女子500米速"
+    ],
+    "notes": "CMRC 2018 development set: DEV_94, DEV_94_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-94-query-3",
+    "question": "叶乔波在1993年第七届全运会上获得了什么项目的冠军？",
+    "expectedAnswer": "女子短距离全能冠军",
+    "expectedKeywords": [
+      "女子短距离全能冠军"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-94.txt"
+    ],
+    "targetChunkSubstrings": [
+      "满贯”战绩；1993年获第七届全运会女子短距离全能冠军；"
+    ],
+    "notes": "CMRC 2018 development set: DEV_94, DEV_94_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-108-query-0",
+    "question": "高畠车站在哪里？",
+    "expectedAnswer": "日本山形县东置赐郡高畠町大字山崎",
+    "expectedKeywords": [
+      "日本山形县东置赐郡高畠町大字山崎"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-108.txt"
+    ],
+    "targetChunkSubstrings": [
+      "高畠车站\n高畠车站（）是一位于日本山形县东置赐郡高畠町大字山崎，由东日本旅客铁道（JR东日本）所经"
+    ],
+    "notes": "CMRC 2018 development set: DEV_108, DEV_108_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-108-query-1",
+    "question": "高畠车站由哪个公司运营？",
+    "expectedAnswer": "东日本旅客铁道（JR东日本）",
+    "expectedKeywords": [
+      "东日本旅客铁道（JR东日本）"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-108.txt"
+    ],
+    "targetChunkSubstrings": [
+      "日本山形县东置赐郡高畠町大字山崎，由东日本旅客铁道（JR东日本）所经营的铁路车站。高畠车站是JR东日"
+    ],
+    "notes": "CMRC 2018 development set: DEV_108, DEV_108_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-108-query-2",
+    "question": "高畠车站为什么可被视为是山形新干线与奥羽本线（又习称为「山形线」）之间的转车站之一？",
+    "expectedAnswer": "由于其同时也是以奥羽本线部分路段升级规格而成的山形新干线之停车站之一",
+    "expectedKeywords": [
+      "由于其同时也是以奥羽",
+      "形新干线之停车站之一"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-108.txt"
+    ],
+    "targetChunkSubstrings": [
+      "属的主要干线奥羽本线沿线的车站之一，由于其同时也是以奥羽本线部分路段升级规格而成的山形新干线之停车站之一，因此也可视为是山形新干线与奥羽本线"
+    ],
+    "notes": "CMRC 2018 development set: DEV_108, DEV_108_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-108-query-3",
+    "question": "高畠车站目前使用的是第几代站房？",
+    "expectedAnswer": "第二代",
+    "expectedKeywords": [
+      "第二代"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-108.txt"
+    ],
+    "targetChunkSubstrings": [
+      "92年时配合山形新干线通车时而启用的第二代站房，位于站区东侧，至于原本位于西侧"
+    ],
+    "notes": "CMRC 2018 development set: DEV_108, DEV_108_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-109-query-0",
+    "question": "岑朗天笔名叫什么？",
+    "expectedAnswer": "朗天、霍惊觉",
+    "expectedKeywords": [
+      "朗天、霍惊觉"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-109.txt"
+    ],
+    "targetChunkSubstrings": [
+      "岑朗天\n岑朗天（），笔名朗天、霍惊觉。香港作家、影评人、文化活动策划、大"
+    ],
+    "notes": "CMRC 2018 development set: DEV_109, DEV_109_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-109-query-1",
+    "question": "岑朗天的职业都有哪些？",
+    "expectedAnswer": "作家、影评人、文化活动策划、大学兼职讲师",
+    "expectedKeywords": [
+      "影评人",
+      "文化活动策划",
+      "大学兼职讲师"
+    ],
+    "category": "list_extraction",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-109.txt"
+    ],
+    "targetChunkSubstrings": [
+      "岑朗天（），笔名朗天、霍惊觉。香港作家、影评人、文化活动策划、大学兼职讲师。香港新亚研究所硕士，师从牟宗三，父"
+    ],
+    "notes": "CMRC 2018 development set: DEV_109, DEV_109_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-109-query-2",
+    "question": "岑朗天哪年加入香港电影评论学会？",
+    "expectedAnswer": "1995年",
+    "expectedKeywords": [
+      "1995年"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-109.txt"
+    ],
+    "targetChunkSubstrings": [
+      "港多家报社从事繙译、编辑、采访工作。1995年加入香港电影评论学会，并于2003-"
+    ],
+    "notes": "CMRC 2018 development set: DEV_109, DEV_109_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-109-query-3",
+    "question": "2004年6月至2011年，岑朗天在什么地方担任嘉宾主持？",
+    "expectedAnswer": "商业电台光明顶",
+    "expectedKeywords": [
+      "商业电台光明顶"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-109.txt"
+    ],
+    "targetChunkSubstrings": [
+      "承）。2004年6月至2011年加入商业电台光明顶，担任嘉宾主持。2004年至2014"
+    ],
+    "notes": "CMRC 2018 development set: DEV_109, DEV_109_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-117-query-0",
+    "question": "鲤鱼门天后庙又可以叫什么名字？",
+    "expectedAnswer": "鲤鱼门天后宫",
+    "expectedKeywords": [
+      "鲤鱼门天后宫"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-117.txt"
+    ],
+    "targetChunkSubstrings": [
+      "鲤鱼门天后庙\n鲤鱼门天后庙，又称鲤鱼门天后宫，是香港一所天后庙，位于九龙油塘鲤鱼"
+    ],
+    "notes": "CMRC 2018 development set: DEV_117, DEV_117_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-117-query-1",
+    "question": "鲤鱼门天后庙在哪里?",
+    "expectedAnswer": "九龙油塘鲤鱼门",
+    "expectedKeywords": [
+      "九龙油塘鲤鱼门"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-117.txt"
+    ],
+    "targetChunkSubstrings": [
+      "鲤鱼门天后宫，是香港一所天后庙，位于九龙油塘鲤鱼门，现被列为香港三级历史建筑。鲤鱼门天"
+    ],
+    "notes": "CMRC 2018 development set: DEV_117, DEV_117_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-117-query-2",
+    "question": "这个鲤鱼门天后庙建于哪一年？",
+    "expectedAnswer": "清朝乾隆十八年（1753年）",
+    "expectedKeywords": [
+      "清朝乾隆十八年（1753年）"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-117.txt"
+    ],
+    "targetChunkSubstrings": [
+      "为香港三级历史建筑。鲤鱼门天后庙建于清朝乾隆十八年（1753年），由当时盘踞鲤鱼门海域的海盗郑连昌建"
+    ],
+    "notes": "CMRC 2018 development set: DEV_117, DEV_117_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-117-query-3",
+    "question": "鲤鱼门天后庙是谁建的？",
+    "expectedAnswer": "郑连昌",
+    "expectedKeywords": [
+      "郑连昌"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-117.txt"
+    ],
+    "targetChunkSubstrings": [
+      "53年），由当时盘踞鲤鱼门海域的海盗郑连昌建成。于1953年重修时发现一碑记刻"
+    ],
+    "notes": "CMRC 2018 development set: DEV_117, DEV_117_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-119-query-0",
+    "question": "涞滩镇隶属于哪个城市？",
+    "expectedAnswer": "重庆市",
+    "expectedKeywords": [
+      "重庆市"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-119.txt"
+    ],
+    "targetChunkSubstrings": [
+      "涞滩镇\n涞滩镇，中国重庆市合川区下属的一个镇，面积70.99平"
+    ],
+    "notes": "CMRC 2018 development set: DEV_119, DEV_119_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-119-query-1",
+    "question": "涞滩镇的面积是多少平方公里？",
+    "expectedAnswer": "70.99平方公里",
+    "expectedKeywords": [
+      "70.99平方公里"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-119.txt"
+    ],
+    "targetChunkSubstrings": [
+      "，中国重庆市合川区下属的一个镇，面积70.99平方公里，下辖19个村委会、3个居委会，总人"
+    ],
+    "notes": "CMRC 2018 development set: DEV_119, DEV_119_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-119-query-2",
+    "question": "涞滩镇的总人口是多少？",
+    "expectedAnswer": "13011人（2000年）",
+    "expectedKeywords": [
+      "13011人（2000年）"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-119.txt"
+    ],
+    "targetChunkSubstrings": [
+      "下辖19个村委会、3个居委会，总人口13011人（2000年）。涞滩镇是中国著名的古镇，始建于北宋"
+    ],
+    "notes": "CMRC 2018 development set: DEV_119, DEV_119_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-119-query-3",
+    "question": "1956年，涞滩镇为什么被列为四川省重点文物保护单位？",
+    "expectedAnswer": "有晚唐石刻，宋代古镇、清代民居及大量完整而又相对集中的文物古迹",
+    "expectedKeywords": [
+      "有晚唐石刻",
+      "宋代古镇",
+      "清代民居及大量完整而又相对集中的"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-119.txt"
+    ],
+    "targetChunkSubstrings": [
+      "老街小巷古朴典雅，早在1956年，因有晚唐石刻，宋代古镇、清代民居及大量完整而又相对集中的文物古迹被公布为四川省重点文物保护单位，19"
+    ],
+    "notes": "CMRC 2018 development set: DEV_119, DEV_119_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-121-query-0",
+    "question": "Stam1na是什么？",
+    "expectedAnswer": "金属乐队",
+    "expectedKeywords": [
+      "金属乐队"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-121.txt"
+    ],
+    "targetChunkSubstrings": [
+      "na是芬兰南卡累利阿区莱米的一支本土金属乐队，其主要音乐风格为前卫金属，同时受鞭"
+    ],
+    "notes": "CMRC 2018 development set: DEV_121, DEV_121_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-121-query-1",
+    "question": "Stam1na的主要音乐风格是什么？",
+    "expectedAnswer": "前卫金属",
+    "expectedKeywords": [
+      "前卫金属"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-121.txt"
+    ],
+    "targetChunkSubstrings": [
+      "的一支本土金属乐队，其主要音乐风格为前卫金属，同时受鞭击金属、死亡金属和另类金属"
+    ],
+    "notes": "CMRC 2018 development set: DEV_121, DEV_121_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-121-query-2",
+    "question": "Stam1na成立于哪年？",
+    "expectedAnswer": "1996年",
+    "expectedKeywords": [
+      "1996年"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-121.txt"
+    ],
+    "targetChunkSubstrings": [
+      "在搜索引擎中更容易被搜到。乐队成立于1996年，安蒂·徐吕宁（Antti Hyyr"
+    ],
+    "notes": "CMRC 2018 development set: DEV_121, DEV_121_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-121-query-3",
+    "question": "Stam1na的主唱是谁？",
+    "expectedAnswer": "安蒂·徐吕宁",
+    "expectedKeywords": [
+      "安蒂·徐吕宁"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-121.txt"
+    ],
+    "targetChunkSubstrings": [
+      "更容易被搜到。乐队成立于1996年，安蒂·徐吕宁（Antti Hyyrynen）担任"
+    ],
+    "notes": "CMRC 2018 development set: DEV_121, DEV_121_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-123-query-0",
+    "question": "氨碱法又可以叫什么？",
+    "expectedAnswer": "索尔维制碱法",
+    "expectedKeywords": [
+      "索尔维制碱法"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-123.txt"
+    ],
+    "targetChunkSubstrings": [
+      "a-soda process；又称“索尔维制碱法”）是1861年比利时工业化学家欧内"
+    ],
+    "notes": "CMRC 2018 development set: DEV_123, DEV_123_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-123-query-1",
+    "question": "氨碱法是由谁发明的？",
+    "expectedAnswer": "欧内斯特·索尔维",
+    "expectedKeywords": [
+      "欧内斯特·索尔维"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-123.txt"
+    ],
+    "targetChunkSubstrings": [
+      "碱法”）是1861年比利时工业化学家欧内斯特·索尔维（，1832-1922）发明的用氨水"
+    ],
+    "notes": "CMRC 2018 development set: DEV_123, DEV_123_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-123-query-2",
+    "question": "氨碱法在什么时候实现现代化生产？",
+    "expectedAnswer": "19世纪60年代",
+    "expectedKeywords": [
+      "19世纪60年代"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-123.txt"
+    ],
+    "targetChunkSubstrings": [
+      "法是工业生产碳酸钠的主要方法。此法于19世纪60年代由索尔维公司实现现代化生产。此法原料"
+    ],
+    "notes": "CMRC 2018 development set: DEV_123, DEV_123_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-123-query-3",
+    "question": "氨碱法是用来生产什么的？",
+    "expectedAnswer": "碳酸钠",
+    "expectedKeywords": [
+      "碳酸钠"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-123.txt"
+    ],
+    "targetChunkSubstrings": [
+      "922）发明的用氨水来使氯化钠转变为碳酸钠的方法。 索尔维反应在一个高塔中完成"
+    ],
+    "notes": "CMRC 2018 development set: DEV_123, DEV_123_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-125-query-0",
+    "question": "乙二醛是有机还是无机化合物？",
+    "expectedAnswer": "有机化合物",
+    "expectedKeywords": [
+      "有机化合物"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-125.txt"
+    ],
+    "targetChunkSubstrings": [
+      "乙二醛\n乙二醛是一个有机化合物，化学式为OCHCHO，由两个醛基-"
+    ],
+    "notes": "CMRC 2018 development set: DEV_125, DEV_125_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-125-query-1",
+    "question": "乙二醛的化学式是什么？",
+    "expectedAnswer": "OCHCHO",
+    "expectedKeywords": [
+      "OCHCHO"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-125.txt"
+    ],
+    "targetChunkSubstrings": [
+      "醛\n乙二醛是一个有机化合物，化学式为OCHCHO，由两个醛基-C相连。它是最简单的二"
+    ],
+    "notes": "CMRC 2018 development set: DEV_125, DEV_125_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-125-query-2",
+    "question": "室温下乙二醛的物理性态是什么样的？",
+    "expectedAnswer": "黄色液体",
+    "expectedKeywords": [
+      "黄色液体"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-125.txt"
+    ],
+    "targetChunkSubstrings": [
+      "-C相连。它是最简单的二醛，室温下为黄色液体。工业上，乙二醛可由乙二醇在银或铜催"
+    ],
+    "notes": "CMRC 2018 development set: DEV_125, DEV_125_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-125-query-3",
+    "question": "工业上乙二醛是怎么制得的？",
+    "expectedAnswer": "由乙二醇在银或铜催化下的气相氧化，或用硝酸溶液氧化乙醛制得。",
+    "expectedKeywords": [
+      "由乙二醇在银或铜催化下的气相氧化",
+      "或用硝酸溶液氧化乙醛制得"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-125.txt"
+    ],
+    "targetChunkSubstrings": [
+      "，室温下为黄色液体。工业上，乙二醛可由乙二醇在银或铜催化下的气相氧化，或用硝酸溶液氧化乙醛制得。实验室中，乙二醛是通过用亚硒酸氧化乙"
+    ],
+    "notes": "CMRC 2018 development set: DEV_125, DEV_125_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-138-query-0",
+    "question": "尼古拉·卡利尼奇是职业什么职业呀？",
+    "expectedAnswer": "职业足球运动员",
+    "expectedKeywords": [
+      "职业足球运动员"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-138.txt"
+    ],
+    "targetChunkSubstrings": [
+      "Kalinić，），是一名克罗地亚职业足球运动员，司职前锋，被国家队主帅比利奇赞美为"
+    ],
+    "notes": "CMRC 2018 development set: DEV_138, DEV_138_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-138-query-1",
+    "question": "尼古拉·卡利尼奇是哪国人？",
+    "expectedAnswer": "克罗地亚",
+    "expectedKeywords": [
+      "克罗地亚"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-138.txt"
+    ],
+    "targetChunkSubstrings": [
+      "kola Kalinić，），是一名克罗地亚职业足球运动员，司职前锋，被国家队主"
+    ],
+    "notes": "CMRC 2018 development set: DEV_138, DEV_138_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-138-query-2",
+    "question": "尼古拉·卡利尼奇被国家队主帅比利奇赞美为什么？",
+    "expectedAnswer": "克罗地亚足球的未来",
+    "expectedKeywords": [
+      "克罗地亚足球的未来"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-138.txt"
+    ],
+    "targetChunkSubstrings": [
+      "司职前锋，被国家队主帅比利奇赞美为“克罗地亚足球的未来”。现被意甲球会佛罗伦萨外借至AC米"
+    ],
+    "notes": "CMRC 2018 development set: DEV_138, DEV_138_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-138-query-3",
+    "question": "尼古拉·卡利尼奇在哪年和英超球会布力般流浪签约？",
+    "expectedAnswer": "2009年",
+    "expectedKeywords": [
+      "2009年"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-138.txt"
+    ],
+    "targetChunkSubstrings": [
+      "8个联赛入球而成为联赛第二位的射手。2009年8月3日哈伊杜克宣称卡利尼奇已与英超"
+    ],
+    "notes": "CMRC 2018 development set: DEV_138, DEV_138_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-146-query-0",
+    "question": "黑褐新箭雀鲷又可以叫什么？",
+    "expectedAnswer": "黑褐副雀鲷、拟黑雀鲷",
+    "expectedKeywords": [
+      "黑褐副雀鲷",
+      "拟黑雀鲷"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-146.txt"
+    ],
+    "targetChunkSubstrings": [
+      "黑褐新箭雀鲷\n黑褐新箭雀鲷，又称黑褐副雀鲷、拟黑雀鲷，俗名为厚壳仔，为辐鳍鱼纲鲈形目隆头"
+    ],
+    "notes": "CMRC 2018 development set: DEV_146, DEV_146_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-146-query-1",
+    "question": "黑褐新箭雀鲷属于什么科目？",
+    "expectedAnswer": "辐鳍鱼纲鲈形目隆头鱼亚目雀鲷科",
+    "expectedKeywords": [
+      "辐鳍鱼纲鲈形目隆头鱼亚目雀鲷科"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-146.txt"
+    ],
+    "targetChunkSubstrings": [
+      "褐副雀鲷、拟黑雀鲷，俗名为厚壳仔，为辐鳍鱼纲鲈形目隆头鱼亚目雀鲷科的其中一种。本鱼分布于印度西太平洋区"
+    ],
+    "notes": "CMRC 2018 development set: DEV_146, DEV_146_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-146-query-2",
+    "question": "黑褐新箭雀鲷生活在水深多少的海域？",
+    "expectedAnswer": "2至23公尺",
+    "expectedKeywords": [
+      "2至23公尺"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-146.txt"
+    ],
+    "targetChunkSubstrings": [
+      "济群岛、万那杜、澳洲北部等海域。水深2至23公尺。本鱼体呈椭圆形而侧扁，幼鱼时体色鲜"
+    ],
+    "notes": "CMRC 2018 development set: DEV_146, DEV_146_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-146-query-3",
+    "question": "黑褐新箭雀鲷的栖息环境是什么样的？",
+    "expectedAnswer": "珊瑚礁密生的礁湖或向海斜坡",
+    "expectedKeywords": [
+      "珊瑚礁密生的礁湖或向海斜坡"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-146.txt"
+    ],
+    "targetChunkSubstrings": [
+      "15枚。体长可达10公分。本鱼栖息在珊瑚礁密生的礁湖或向海斜坡上，大多独自行动，属杂食性，以摄食藻"
+    ],
+    "notes": "CMRC 2018 development set: DEV_146, DEV_146_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-151-query-0",
+    "question": "元朗千色汇在2015年3月之前叫什么？",
+    "expectedAnswer": "千色广场",
+    "expectedKeywords": [
+      "千色广场"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-151.txt"
+    ],
+    "targetChunkSubstrings": [
+      "元朗千色汇（），2015年3月前称千色广场（），是一座位于香港元朗教育路1号的"
+    ],
+    "notes": "CMRC 2018 development set: DEV_151, DEV_151_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-151-query-1",
+    "question": "元朗千色汇位于哪里？",
+    "expectedAnswer": "香港元朗教育路1号",
+    "expectedKeywords": [
+      "香港元朗教育路1号"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-151.txt"
+    ],
+    "targetChunkSubstrings": [
+      "5年3月前称千色广场（），是一座位于香港元朗教育路1号的中型零售购物，于1994年落成。商"
+    ],
+    "notes": "CMRC 2018 development set: DEV_151, DEV_151_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-151-query-2",
+    "question": "元朗千色汇在哪一年落成？",
+    "expectedAnswer": "1994年",
+    "expectedKeywords": [
+      "1994年"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-151.txt"
+    ],
+    "targetChunkSubstrings": [
+      "香港元朗教育路1号的中型零售购物，于1994年落成。商场坐落教育路及大棠路交界，与"
+    ],
+    "notes": "CMRC 2018 development set: DEV_151, DEV_151_QUERY_2."
+  },
+  {
+    "id": "cmrc2018-dev-151-query-3",
+    "question": "元朗千色汇主要有什么用途？",
+    "expectedAnswer": "购物消闲",
+    "expectedKeywords": [
+      "购物消闲"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-151.txt"
+    ],
+    "targetChunkSubstrings": [
+      "多针对年轻人客源的商店，是区内主要的购物消闲地点之一。1948年，侨港东莞同乡会"
+    ],
+    "notes": "CMRC 2018 development set: DEV_151, DEV_151_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-152-query-0",
+    "question": "中国第一汽车集团有限公司简称叫什么？",
+    "expectedAnswer": "“中国一汽”、“一汽”、“第一汽车”",
+    "expectedKeywords": [
+      "“中国一汽”",
+      "“一汽”",
+      "“第一汽车”"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-152.txt"
+    ],
+    "targetChunkSubstrings": [
+      "集团\n中国第一汽车集团有限公司（简称“中国一汽”、“一汽”、“第一汽车”）即原中国第一汽车制造厂，中国的汽车"
+    ],
+    "notes": "CMRC 2018 development set: DEV_152, DEV_152_QUERY_0."
+  },
+  {
+    "id": "cmrc2018-dev-152-query-1",
+    "question": "中国第一汽车集团有限公司坐落于哪里？",
+    "expectedAnswer": "长春市",
+    "expectedKeywords": [
+      "长春市"
+    ],
+    "category": "single_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-152.txt"
+    ],
+    "targetChunkSubstrings": [
+      "厂，工厂坐落于有“汽车城”之称的中国长春市西部，一汽被誉为“中国汽车工业的摇篮"
+    ],
+    "notes": "CMRC 2018 development set: DEV_152, DEV_152_QUERY_1."
+  },
+  {
+    "id": "cmrc2018-dev-152-query-3",
+    "question": "中国第一汽车集团有限公司主营业务按领域划分为哪些部分？",
+    "expectedAnswer": "研发、乘用车、商用车、零部件和衍生经济等体系",
+    "expectedKeywords": [
+      "乘用车",
+      "商用车",
+      "零部件和衍生经济等体系"
+    ],
+    "category": "list_extraction",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-152.txt"
+    ],
+    "targetChunkSubstrings": [
+      "有限公司。主营业务板块按领域划分为：研发、乘用车、商用车、零部件和衍生经济等体系。2014年7月，中央第十三巡视组进"
+    ],
+    "notes": "CMRC 2018 development set: DEV_152, DEV_152_QUERY_3."
+  },
+  {
+    "id": "cmrc2018-dev-152-query-4",
+    "question": "中央第十三巡视组于哪一年进驻中国第一汽车集团有限公司？",
+    "expectedAnswer": "2014年",
+    "expectedKeywords": [
+      "2014年"
+    ],
+    "category": "numeric_fact",
+    "difficulty": "medium",
+    "targetFileNames": [
+      "cmrc2018-dev-152.txt"
+    ],
+    "targetChunkSubstrings": [
+      "车、商用车、零部件和衍生经济等体系。2014年7月，中央第十三巡视组进驻一汽集团。"
+    ],
+    "notes": "CMRC 2018 development set: DEV_152, DEV_152_QUERY_4."
+  }
+]

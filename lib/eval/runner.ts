@@ -18,7 +18,12 @@ import { isOutOfScope } from './dataset';
 import { gradeRecalled } from './relevance';
 import { aggregateMetrics } from './metrics';
 import { hashDataset } from './hash';
-import { judgeFaithfulness, judgeAnswerRelevance } from './judge';
+import {
+  judgeFaithfulness,
+  judgeAnswerRelevance,
+  judgeAnswer,
+  type AnswerJudgementResult,
+} from './judge';
 
 const TOP_K_VALUES = [1, 3, 5];
 const CASE_CONCURRENCY = 3;
@@ -53,6 +58,7 @@ export interface RunCuratedEvalOpts {
 interface JudgeScores {
   faithfulness: number | null;
   answerRelevance: number | null;
+  answerJudgement?: AnswerJudgementResult;
 }
 
 const EMPTY_SCORES: JudgeScores = { faithfulness: null, answerRelevance: null };
@@ -111,12 +117,16 @@ interface PerCaseResult {
   withoutRerank: CaseRunRecord;
 }
 
-async function runCase(c: EvalCase, opts: RunCuratedEvalOpts): Promise<PerCaseResult> {
+export async function runCase(
+  c: EvalCase,
+  opts: RunCuratedEvalOpts,
+  recall: typeof recallChunks = recallChunks,
+): Promise<PerCaseResult> {
   let recalled: Chunk[] = [];
   let recallError = false;
 
   try {
-    recalled = await recallChunks(c.question, {
+    recalled = await recall(c.question, {
       knowledgeBaseId: opts.knowledgeBaseId,
       filter: opts.filter,
       signal: opts.signal,
@@ -147,6 +157,29 @@ async function runCase(c: EvalCase, opts: RunCuratedEvalOpts): Promise<PerCaseRe
     ]);
     scores = { faithfulness, answerRelevance };
   }
+
+  let answerJudgement: AnswerJudgementResult;
+
+  if (!opts.judge) {
+    answerJudgement = { verdict: 'unscored', reason: '未启用评分' };
+  } else if (selected.pipelineError) {
+    answerJudgement = { verdict: 'unscored', reason: '问答流程执行失败，未进行答案评分。' };
+  } else if (!c.expectedAnswer?.trim()) {
+    answerJudgement = { verdict: 'unscored', reason: '题目未提供参考答案，无法进行评分。' };
+  } else {
+    answerJudgement = await judgeAnswer(
+      {
+        question: c.question,
+        expectedAnswer: c.expectedAnswer,
+        answer: selected.answer,
+        chunks: selected.finalChunks,
+        outOfScope,
+      },
+      opts.signal,
+    );
+  }
+
+  scores = { ...scores, answerJudgement };
 
   return {
     withRerank: {
@@ -190,9 +223,9 @@ async function runBranch(
         opts.refusalGate === false
           ? null
           : assessRetrieval(c.question, finalChunks, {
-              minRerankScore: RETRIEVAL.minRerankScore,
-              rerankModel: resolveRerankProvider().model,
-            });
+            minRerankScore: RETRIEVAL.minRerankScore,
+            rerankModel: resolveRerankProvider().model,
+          });
 
       answer = refusalReason
         ? refusalTextFor(c.question)
@@ -279,6 +312,8 @@ function buildCaseResult(
     refused: branch.refusalReason !== null,
     refusalReason: branch.refusalReason,
     maxRerankScore: branch.maxRerankScore,
+    answerVerdict: scores.answerJudgement?.verdict ?? 'unscored',
+    answerReason: scores.answerJudgement?.reason ?? '未选中此分支进行答案评分。',
   };
 }
 

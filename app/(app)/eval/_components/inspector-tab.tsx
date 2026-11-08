@@ -53,6 +53,12 @@ function HitCell({ label, hit, yes, no }: { label: string; hit: boolean; yes: st
 function QueryDetail({ c, evalT }: { c: EvalCaseResult; evalT: EvalTranslationKeys }) {
   const accent = c.passed ? EVAL_POSITIVE : EVAL_NEGATIVE;
   const accentInk = c.passed ? EVAL_POSITIVE_INK : EVAL_NEGATIVE_INK;
+  const answerVerdictLabel =
+    c.answerVerdict === 'pass'
+      ? evalT.pass
+      : c.answerVerdict === 'fail'
+        ? evalT.fail
+        : evalT.notJudged;
   return (
     <div className="flex flex-col gap-4">
       <div className="bg-card border border-border rounded-xl p-4.5">
@@ -68,7 +74,7 @@ function QueryDetail({ c, evalT }: { c: EvalCaseResult; evalT: EvalTranslationKe
             style={{ color: accentInk, border: `1px solid color-mix(in srgb, ${accent} 35%, transparent)`, background: `color-mix(in srgb, ${accent} 9%, transparent)` }}
           >
             <span className="w-1.75 h-1.75 rounded-full" style={{ background: accent }} />
-            {c.passed ? evalT.pass : evalT.fail}
+            {evalT.ruleCheckLabel} · {c.passed ? evalT.pass : evalT.fail}
           </span>
         </div>
         <div className="mt-2 font-mono text-[11px] text-muted-foreground tabular-nums">{(c.latencyMs / 1000).toFixed(1)}s</div>
@@ -86,6 +92,14 @@ function QueryDetail({ c, evalT }: { c: EvalCaseResult; evalT: EvalTranslationKe
         <div className="bg-card border border-border rounded-xl p-4">
           <AnswerPanel label={evalT.expectedAnswerLabel} text={c.expectedAnswer ?? ''} emptyText={evalT.noExpectedAnswer} />
         </div>
+      </div>
+
+      <div className="bg-card border border-border rounded-xl p-4">
+        <AnswerPanel
+          label={`${evalT.answerJudgementLabel} · ${answerVerdictLabel}`}
+          text={c.answerReason?.trim() ?? ''}
+          emptyText={evalT.answerJudgementMissingReason}
+        />
       </div>
 
       <div className="bg-card border border-border rounded-xl p-4.5">
