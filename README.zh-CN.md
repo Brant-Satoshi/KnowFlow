@@ -4,6 +4,8 @@
 
 一个基于 Next.js（App Router）的 RAG 文档问答应用。把文档上传到知识库后，提问得到带行内引用的流式回答，引用可直接定位到来源 chunk。
 
+**在线演示：**<https://ai-rag-app-ashen.vercel.app>，用 `demo@knowflow.local` / `KnowFlowDemo2026!` 登录后，在知识库 Olympus Demo 里可以问“奥林匹斯计划的首席研究员是谁？”演示账号是公用的，数据可能被重置。
+
 技术栈：Next.js 16（React 19）· PostgreSQL + pgvector（Supabase 托管）· OpenRouter（chat + embeddings + Cohere rerank）· Supabase Storage（文件 blob）· Tailwind v4 + Radix UI。
 
 多租户：会话 cookie 认证；每个知识库归属一个 workspace，支持 owner/admin/member 角色、邀请链接，首页带 workspace 切换器。

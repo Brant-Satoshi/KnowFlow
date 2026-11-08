@@ -4,6 +4,8 @@
 
 A Next.js (App Router) RAG chat application. Upload documents into a knowledge base, ask questions, get streamed answers with inline citations back to the source chunks.
 
+**Live demo:** <https://ai-rag-app-ashen.vercel.app> — sign in with `demo@knowflow.local` / `KnowFlowDemo2026!`, open the Olympus Demo knowledge base and ask "Who is the lead researcher of the Olympus Initiative?" The demo account is shared and may be reset.
+
 Stack: Next.js 16 (React 19) · PostgreSQL + pgvector (Supabase-hosted) · OpenRouter (chat + embeddings + Cohere rerank) · Supabase Storage (file blobs) · Tailwind v4 + Radix UI.
 
 Multi-tenant: session-cookie auth, and every knowledge base belongs to a workspace with owner/admin/member roles, invite links, and a workspace switcher on the home page.
