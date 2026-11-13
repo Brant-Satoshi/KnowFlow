@@ -68,6 +68,23 @@ def insert_knowledge_base(
     return str(kb_id)
 
 
+def insert_conversation(conn, knowledge_base_id: str, title: str = "pytest 会话") -> str:
+    conversation_id = conn.execute(
+        "insert into conversations (knowledge_base_id, title) values (%s, %s) returning id",
+        (knowledge_base_id, title),
+    ).fetchone()[0]
+    return str(conversation_id)
+
+
+def insert_message(conn, conversation_id: str, role: str, content: str, seconds_ago: int = 0) -> None:
+    """在会话里插入一条消息。seconds_ago 越大越早：连续插入时 now() 可能相同，先后要自己写明。"""
+    conn.execute(
+        """insert into messages (conversation_id, role, content, created_at)
+           values (%s, %s, %s, now() - %s * interval '1 second')""",
+        (conversation_id, role, content, seconds_ago),
+    )
+
+
 def padded_vector(*head: float) -> list[float]:
     """1536 维的向量：前几维是给定的数，其余补 0。例如 padded_vector(1, 0) 指向第一个坐标轴。
 

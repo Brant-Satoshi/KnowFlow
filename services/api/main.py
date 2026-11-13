@@ -128,6 +128,54 @@ def require_knowledge_base(
     return require_knowledge_base_access(conn, kb_id, user["id"])
 
 
+MAX_HISTORY_MESSAGES = 8  # TS 的 MAX_HISTORY_MESSAGES
+
+
+def require_conversation_access(conn, conversation_id: uuid.UUID, user_id: str) -> dict:
+    """会话存在，并且它所在的知识库属于这个用户加入的工作区，才返回；否则 404。
+
+    和 TS 的 requireConversationAccess 一样：会话表没有“属于谁”这一列，权限跟着知识库走；
+    “不存在”和“不是你的”返回同一个 404。
+    """
+    row = conn.execute(
+        """
+        SELECT conversations.id, conversations.knowledge_base_id
+        FROM conversations
+        JOIN knowledge_bases ON knowledge_bases.id = conversations.knowledge_base_id
+        WHERE conversations.id = %s
+          AND knowledge_bases.workspace_id IN (
+              SELECT workspace_id
+              FROM workspace_members
+              WHERE user_id = %s
+          )
+        """,
+        (conversation_id, user_id),
+    ).fetchone()
+    if row is None:
+        raise ApiError(404, "Conversation not found")
+    return {"id": str(row[0]), "knowledgeBaseId": str(row[1])}
+
+
+def list_recent_messages(
+    conn, conversation_id: uuid.UUID, limit: int = MAX_HISTORY_MESSAGES
+) -> list[dict]:
+    """会话里最近的 limit 条消息，从早到晚，只取 role 和 content（TS 的 listRecentMessages）。
+
+    先按时间倒序取最近的几条，再反过来。调用前要先过 require_conversation_access。
+    """
+    rows = conn.execute(
+        """
+        SELECT role, content
+        FROM messages
+        WHERE conversation_id = %s
+        ORDER BY created_at DESC, id DESC
+        LIMIT %s
+        """,
+        (conversation_id, limit),
+    ).fetchall()
+    return [{"role": role, "content": content} for role, content in reversed(rows)]
+
+
 def vector_search_chunks(conn, query_vector, kb_id, top_k, max_distance):
     vector_text = "[" + ",".join(str(x) for x in query_vector) + "]"
 
