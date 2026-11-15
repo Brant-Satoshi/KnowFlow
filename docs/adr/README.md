@@ -20,3 +20,4 @@
 | [010](./010.hybrid-search-rrf-gated.md) | 混合检索（RRF 融合向量 + 关键词），默认关闭 | 落地可开关的能力 vs eval 在现有数据集上显示零收益，故不默认打开 |
 | [011](./011.refuse-on-empty-retrieval.md) | 检索为空时由代码拒答；rerank 分数下限不采用（默认 0） | 空召回不再可能编造 vs 分数无法区分"可回答性"，下限只会误拒真问题 |
 | [012](./012.global-goldsets-hash-concurrency.md) | 评测集全局归属 + revision 乐观并发（hash 作内容标识） | 并发与可比性各归一字段、零新 guard vs 任何登录用户可改任何集、无版本回溯 |
+| [013](./013.fastapi-service-foundation.md) | 用 FastAPI（`services/api/`）逐模块重写核心后端，按接口行为对照 TS 版；附只有 Python 版才有的 Agent 接口 | 响应格式、状态码、鉴权与 TS 版逐项一致，可直接对拍 vs 开发时多一个进程和一次性安装，暂无连接池 |
