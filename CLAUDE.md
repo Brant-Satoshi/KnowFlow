@@ -83,6 +83,8 @@ HNSW index on `chunks.embedding` for fast cosine search.
 - Reranking: OpenRouter (`OPENROUTER_API_KEY`) — model `cohere/rerank-v3.5`. Disabled by `RERANK_ENABLED=false`.
 - File storage: Supabase Storage (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) — client in `lib/db/supabase.ts`, helpers in `lib/db/storage.ts`, bucket `files`.
 
+**Python service** (`services/api/`, conventions in ADR-013): a FastAPI rewrite of the core backend that runs on its own via `pnpm dev:api` (`127.0.0.1:8000`). Next.js does not call it. It reads the same database and `rag_session` cookie and returns the same `{ requestId, ok, data?, error? }` envelope. Routes: `/api/health`, `/api/auth/me|login|logout`, `GET /api/knowledge-bases/{id}`, `POST /api/rag/search` (vector only, optional `rerank: true`), and the Python-only `POST /api/chat/agent`. The agent endpoint is a non-streaming tool-calling loop (`agent.py`; the model call is in `chat.py`, `deepseek/deepseek-chat-v3.1`): the model writes the search queries, and the knowledge base is bound server-side. `tool_choice` is `required` until a search has run, and the 4th and last model call is `none`. There is a 30s hard deadline. If every search is empty, the program refuses (`refusal: "empty"`). History is the conversation's latest 8 messages and is read-only. `data` is `{answer, citations, refusal, completed, stopReason, steps}`, and an unfinished run is 200 with `completed: false`. Tests: pytest in `services/api/`; DB tests need a localhost `DATABASE_URL`.
+
 ## Key Patterns
 
 **API response shape** — all endpoints must return via `lib/api/response.ts`:

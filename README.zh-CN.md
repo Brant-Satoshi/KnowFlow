@@ -35,6 +35,8 @@ services/api/.venv/bin/python -m pip install -r services/api/requirements.txt
 
 Python 服务目前独立运行，Next.js 仍用 `pnpm dev` 启动。检索需要可用的数据库和下方的 OpenRouter 配置。
 
+`POST /api/chat/agent` 只有 Python 服务有。它不走“先检索、再回答”的固定流程，而是由模型（经 OpenRouter 调用 `deepseek/deepseek-chat-v3.1`）决定用什么词检索、检索几次。服务端在请求指定的知识库里执行每次检索（向量召回、重排、取前 5 个），最后一次性返回完整回答，不是流式。请求体是 `{ "message", "knowledgeBaseId", "conversationId"? }`，请求要带 `rag_session` cookie。带了会话时，读取它最近 8 条消息作为历史，这一轮的问答不写回会话。`data` 里有 `answer`、`citations`、`refusal`、`completed`、`stopReason` 和 `steps`（每次模型调用、每次工具调用各一条记录）。没答完也返回 200，`completed` 为 `false`。循环规则见 [ADR-013](docs/adr/013.fastapi-service-foundation.md)：模型必须先检索再回答，30 秒内最多调用 4 次模型，每次检索都为空时由程序拒答。
+
 ### MCP（Claude Desktop，stdio）
 
 `services/api/mcp_server.py` 将 Python `/api/rag/search` 暴露为只读工具 `knowflow_search`，沿用 API 的会话和知识库权限检查。工具参数为 `query`、`knowledgeBaseId`，以及可选的 `topK`（默认 5，范围 1–20）、`maxDistance`（默认 0.6，范围 0–1）、`rerank`（默认 false）。目前只支持向量检索；不支持 keyword、hybrid、fileId 或 filter。

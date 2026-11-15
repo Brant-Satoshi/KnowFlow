@@ -35,6 +35,8 @@ Then run `pnpm dev:api` from the repository root. It loads `.env.local` (exporte
 
 The Python service currently runs independently; start Next.js with `pnpm dev`. Retrieval requires a working database and the OpenRouter configuration below.
 
+One endpoint exists only in the Python service: `POST /api/chat/agent`. Instead of the fixed retrieve-then-answer pipeline, the model (`deepseek/deepseek-chat-v3.1` via OpenRouter) decides what to search for and how many times. The server runs each search in the requested knowledge base (vector recall, rerank, top 5) and returns the whole answer at once, without streaming. Send `{ "message", "knowledgeBaseId", "conversationId"? }` with the `rag_session` cookie. A conversation supplies its latest 8 messages as history, and nothing is written back. `data` holds `answer`, `citations`, `refusal`, `completed`, `stopReason`, and `steps` (one record per model or tool call). An unfinished run still returns 200, with `completed: false`. The loop rules are in [ADR-013](docs/adr/013.fastapi-service-foundation.md): the model must search before answering, the loop allows at most 4 model calls within 30 seconds, and the server refuses when every search is empty.
+
 ### MCP (Claude Desktop, stdio)
 
 `services/api/mcp_server.py` exposes the Python `/api/rag/search` endpoint as the read-only `knowflow_search` tool, retaining the API's session and knowledge-base access checks. Parameters are `query`, `knowledgeBaseId`, and optional `topK` (default 5, range 1–20), `maxDistance` (default 0.6, range 0–1), and `rerank` (default false). Only vector search is supported; keyword, hybrid, fileId, and filter are unavailable.
