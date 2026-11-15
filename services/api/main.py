@@ -12,7 +12,9 @@ from starlette.datastructures import MutableHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
 
+import agent
 from auth import verify_password
+import chat
 import embeddings
 import rerank
 
@@ -233,6 +235,21 @@ def get_rerank(request: Request):
     return run
 
 
+def get_chat():
+    """依赖：返回"调用一次模型"的函数，和 get_embed_query 一样不在这里调用。
+
+    路由是同步函数、跑在线程池里，模型调用是异步的，所以和重排一样切回事件循环执行。
+    可用的工具在这里绑定：循环只决定这一次的 tool_choice 和还剩多少时间。
+    """
+
+    def run(messages: list[dict], tool_choice: str, timeout: float) -> dict:
+        return anyio.from_thread.run(
+            chat.chat_with_tools, messages, agent.TOOLS, tool_choice, timeout
+        )
+
+    return run
+
+
 DEFAULT_TOP_K = 5  # TS 的 RETRIEVAL.finalTopK
 DEFAULT_MAX_DISTANCE = 0.6  # TS 的 RETRIEVAL.maxDistance
 RECALL_TOP_K = 20  # TS 的 RETRIEVAL.recallTopK
@@ -296,6 +313,37 @@ def parse_search_request(body) -> dict:
         "max_distance": max_distance,
         "rerank": use_rerank,
     }
+
+
+def parse_agent_request(body) -> dict:
+    """校验 /api/chat/agent 的请求体。字段名和错误信息沿用 TS 的 /api/chat/stream。
+
+    和 TS 不同的两处：knowledgeBaseId 必填（这里不靠会话反查知识库），conversationId 可以不传（不传就没有历史）。
+    """
+    if not isinstance(body, dict):
+        body = {}
+    message = body.get("message")
+    knowledge_base_id = body.get("knowledgeBaseId")
+    conversation_id = body.get("conversationId")
+
+    if not isinstance(message, str) or not message.strip():
+        raise ApiError(400, "Message is required")
+    if knowledge_base_id is None:
+        raise ApiError(400, "knowledgeBaseId is required")
+    if not isinstance(knowledge_base_id, str):
+        raise ApiError(400, "knowledgeBaseId must be a string")
+    try:
+        kb_id = uuid.UUID(knowledge_base_id)
+    except ValueError:
+        raise ApiError(400, "Invalid knowledgeBaseId")
+    conv_id = None
+    if conversation_id is not None:
+        try:
+            conv_id = uuid.UUID(conversation_id)
+        except (TypeError, ValueError, AttributeError):
+            raise ApiError(400, "Invalid conversationId")
+
+    return {"message": message, "knowledge_base_id": kb_id, "conversation_id": conv_id}
 
 
 def to_search_chunk(row) -> dict:
@@ -535,6 +583,44 @@ def create_app() -> FastAPI:
             max_distance=params["max_distance"],
         )
         return success(request, {"chunks": [to_search_chunk(row) for row in rows]})
+
+    @app.post("/api/chat/agent")
+    def chat_agent(
+        request: Request,
+        body=Body(),
+        user=Depends(require_user),
+        embed=Depends(get_embed_query),
+        rerank_fn=Depends(get_rerank),
+        call_model=Depends(get_chat),
+        conn=Depends(get_db),
+    ):
+        """工具调用循环的非流式接口：返回回答、引用、每一步的记录。只读，不把这一轮问答写回会话。"""
+        params = parse_agent_request(body)
+        kb_id = params["knowledge_base_id"]
+        # 权限检查都通过，才调用模型和 embedding
+        require_knowledge_base_access(conn, kb_id=kb_id, user_id=user["id"])
+        history = []
+        if params["conversation_id"] is not None:
+            conversation = require_conversation_access(conn, params["conversation_id"], user["id"])
+            if conversation["knowledgeBaseId"] != str(kb_id):
+                raise ApiError(400, "Conversation does not belong to this knowledge base")
+            history = list_recent_messages(conn, params["conversation_id"])
+
+        def search_chunks(query: str) -> list[dict]:
+            # 查哪个知识库在这里定死：kb_id 来自已登录用户的请求、过了访问检查。模型只能给 query
+            search_params = {
+                "query": query,
+                "knowledge_base_id": kb_id,
+                "top_k": DEFAULT_TOP_K,
+                "max_distance": DEFAULT_MAX_DISTANCE,
+                "rerank": True,
+            }
+            return retrieve(request.state.request_id, conn, search_params, embed, rerank_fn)["chunks"]
+
+        result = agent.run_agent(
+            request.state.request_id, params["message"], history, call_model, search_chunks
+        )
+        return success(request, result)
 
     return app
 
