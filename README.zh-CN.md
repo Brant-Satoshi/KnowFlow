@@ -22,6 +22,19 @@ pnpm dev                            # http://localhost:3000
 
 类型检查走 `pnpm build`（没有单独的 `tsc` 脚本）。
 
+### Python API（可选）
+
+首次使用时，在仓库根目录创建 Python 虚拟环境并安装依赖：
+
+```bash
+python3 -m venv services/api/.venv
+services/api/.venv/bin/python -m pip install -r services/api/requirements.txt
+```
+
+之后只需要在仓库根目录运行 `pnpm dev:api`：自动读取 `.env.local`（已导出的环境变量优先），使用该虚拟环境在 `http://127.0.0.1:8000` 启动 FastAPI，并监听 Python 代码修改。健康检查地址是 `/api/health`，按 `Ctrl+C` 停止。端口被占用时可用 `pnpm dev:api --port 8001`。
+
+Python 服务目前独立运行，Next.js 仍用 `pnpm dev` 启动。检索需要可用的数据库和下方的 OpenRouter 配置。
+
 ### 必填环境变量
 
 | 变量 | 用途 |
@@ -61,6 +74,7 @@ make seed        # 固定 demo 账号 + 奥林匹斯双语知识库 + 内置评�
 | 命令 | 说明 |
 | --- | --- |
 | `pnpm dev` | Next dev server，`localhost:3000` |
+| `pnpm dev:api` | Python FastAPI，`127.0.0.1:8000`；自动加载 `.env.local` 并热重载 |
 | `pnpm build` | 生产构建（也充当类型检查） |
 | `pnpm start` | 跑构建产物 |
 | `pnpm lint` | ESLint |

@@ -22,6 +22,19 @@ pnpm dev                            # http://localhost:3000
 
 `pnpm build` is the canonical type-check (no separate `tsc` step is wired up).
 
+### Python API (optional)
+
+For first-time setup, create the Python virtual environment and install its dependencies from the repository root:
+
+```bash
+python3 -m venv services/api/.venv
+services/api/.venv/bin/python -m pip install -r services/api/requirements.txt
+```
+
+Then run `pnpm dev:api` from the repository root. It loads `.env.local` (exported environment variables take precedence), starts FastAPI at `http://127.0.0.1:8000` using that virtual environment, and reloads when Python code changes. Check `/api/health`; press `Ctrl+C` to stop. If the port is occupied, use `pnpm dev:api --port 8001`.
+
+The Python service currently runs independently; start Next.js with `pnpm dev`. Retrieval requires a working database and the OpenRouter configuration below.
+
 ### Required environment variables
 
 | Var | Purpose |
@@ -61,6 +74,7 @@ If you're pointing at Supabase / a remote Postgres, run `make migrate-supabase` 
 | Command | Description |
 | --- | --- |
 | `pnpm dev` | Next dev server on `localhost:3000` |
+| `pnpm dev:api` | Python FastAPI on `127.0.0.1:8000`, with `.env.local` loading and automatic reload |
 | `pnpm build` | Production build (also serves as type-check) |
 | `pnpm start` | Run the built app |
 | `pnpm lint` | ESLint |
