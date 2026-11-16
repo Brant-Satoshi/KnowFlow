@@ -39,12 +39,12 @@ One endpoint exists only in the Python service: `POST /api/chat/agent`. Instead 
 
 ### MCP (Claude Desktop, stdio)
 
-`services/api/mcp_server.py` exposes the Python `/api/rag/search` endpoint as the read-only `knowflow_search` tool, retaining the API's session and knowledge-base access checks. Parameters are `query`, `knowledgeBaseId`, and optional `topK` (default 5, range 1–20), `maxDistance` (default 0.6, range 0–1), and `rerank` (default false). Only vector search is supported; keyword, hybrid, fileId, and filter are unavailable.
+`services/api/mcp_server.py` exposes the Python `/api/rag/search` endpoint as the read-only `knowflow_search` tool, retaining the API's session and knowledge-base access checks. Parameters are `query` and optional `topK` (default 5, range 1–20), `maxDistance` (default 0.6, range 0–1), and `rerank` (default false). The knowledge base is not a parameter: it comes from `KNOWFLOW_KNOWLEDGE_BASE_ID` in the client configuration, so the model cannot choose it, just as the agent endpoint binds it from the request. Only vector search is supported; keyword, hybrid, fileId, and filter are unavailable.
 
 1. Install the optional dependencies in the existing environment: `services/api/.venv/bin/python -m pip install -r services/api/requirements-mcp.txt`.
 2. Run `pnpm dev:api` and keep that terminal running.
 3. Log in to KnowFlow using the same database as the Python API. In browser developer tools, find `rag_session` under Application / Storage → Cookies and copy its value. Keep it in local configuration only, never commit credentials, and replace it after session expiry or logout.
-4. In Claude Desktop, open Settings → Developer → Edit Config and merge the `knowflow` entry below into the existing `mcpServers`. On macOS, the configuration file is `~/Library/Application Support/Claude/claude_desktop_config.json`. Replace both repository paths with your absolute paths and fill in the session value.
+4. In Claude Desktop, open Settings → Developer → Edit Config and merge the `knowflow` entry below into the existing `mcpServers`. On macOS, the configuration file is `~/Library/Application Support/Claude/claude_desktop_config.json`. Replace both repository paths with your absolute paths, fill in the session value, and set the knowledge-base UUID (from the KnowFlow `/knowledge-bases/<UUID>/chat` URL). Each entry searches one knowledge base; to use several, add one entry per knowledge base under different names.
 
 ```json
 {
@@ -54,14 +54,15 @@ One endpoint exists only in the Python service: `POST /api/chat/agent`. Instead 
       "args": ["/absolute/path/to/knowflow/services/api/mcp_server.py"],
       "env": {
         "KNOWFLOW_API_URL": "http://127.0.0.1:8000",
-        "KNOWFLOW_SESSION_TOKEN": "<rag_session value>"
+        "KNOWFLOW_SESSION_TOKEN": "<rag_session value>",
+        "KNOWFLOW_KNOWLEDGE_BASE_ID": "<knowledge-base UUID>"
       }
     }
   }
 }
 ```
 
-Fully quit and reopen Claude Desktop; it starts the MCP subprocess over stdio automatically, without a separate manual launch or MCP port. Then ask: "Use knowflow_search to find login documentation in knowledge base `<knowledge-base UUID>` and cite your sources." Get the UUID from the KnowFlow `/knowledge-bases/<UUID>/chat` URL. The API address and session come only from client environment configuration, never tool arguments. Tool discovery works without a session; calls then explain how to configure it.
+Fully quit and reopen Claude Desktop; it starts the MCP subprocess over stdio automatically, without a separate manual launch or MCP port. Then ask: "Use knowflow_search to find login documentation and cite your sources." The API address, session, and knowledge base come only from client environment configuration, never tool arguments. Tool discovery works without a session; calls then explain how to configure it.
 
 Successful results preserve `{ requestId, ok, data }`, with structured output and a text fallback. Empty chunks are a successful result; 401, 404, timeouts, and other failures become MCP tool errors. Claude generates the answer from the returned passages. Reserve stdout for MCP messages and send logs to stderr. Do not name the entry point `mcp.py`, which would shadow the SDK package.
 

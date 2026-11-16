@@ -16,7 +16,8 @@ import mcp_server
 
 KB_ID = "00000000-0000-4000-8000-000000000001"
 REQUEST_ID = "00000000-0000-4000-8000-000000000002"
-ARGS = {"query": "登录如何实现？", "knowledgeBaseId": KB_ID}
+OTHER_KB_ID = "00000000-0000-4000-8000-000000000003"
+ARGS = {"query": "登录如何实现？"}
 
 
 @pytest.fixture
@@ -28,6 +29,7 @@ def anyio_backend():
 def config(monkeypatch):
     monkeypatch.setenv("KNOWFLOW_API_URL", "https://knowflow.test/")
     monkeypatch.setenv("KNOWFLOW_SESSION_TOKEN", "test-session-token")
+    monkeypatch.setenv("KNOWFLOW_KNOWLEDGE_BASE_ID", KB_ID)
 
 
 @pytest.fixture
@@ -68,10 +70,10 @@ async def test_discovery_and_schema(client):
     assert [tool.name for tool in result.tools] == ["knowflow_search"]
     tool = result.tools[0]
     assert tool.annotations.read_only_hint is True
-    assert set(tool.input_schema["required"]) == {"query", "knowledgeBaseId"}
+    assert set(tool.input_schema["required"]) == {"query"}
     properties = tool.input_schema["properties"]
     assert properties["topK"]["maximum"] == 20
-    assert properties["knowledgeBaseId"]["format"] == "uuid"
+    assert "knowledgeBaseId" not in properties  # The model never chooses the knowledge base.
     assert "KNOWFLOW_SESSION_TOKEN" not in properties
 
 
@@ -93,7 +95,9 @@ async def test_forwarding_and_rerank_results(client, upstream):
     assert request.method == "POST"
     assert str(request.url) == "https://knowflow.test/api/rag/search"
     assert request.headers["cookie"] == "rag_session=test-session-token"
-    assert json.loads(request.content) == {**ARGS, "topK": 3, "maxDistance": 0.6, "rerank": True}
+    assert json.loads(request.content) == {
+        **ARGS, "knowledgeBaseId": KB_ID, "topK": 3, "maxDistance": 0.6, "rerank": True,
+    }
     assert "test-session-token" not in str(result)
 
 
@@ -106,7 +110,7 @@ async def test_empty_results_are_success(client, upstream):
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("patch", [
-    {"query": "  "}, {"query": 12}, {"knowledgeBaseId": "bad-id"},
+    {"query": "  "}, {"query": 12},
     {"topK": 0}, {"topK": 21}, {"topK": True}, {"topK": 1.5},
     {"maxDistance": -1}, {"maxDistance": 1.1}, {"rerank": "true"},
 ])
@@ -148,6 +152,26 @@ async def test_network_and_invalid_responses(client, upstream, response):
     text = error_text(await client.call_tool("knowflow_search", ARGS))
     assert "private" not in text
     assert len(upstream["calls"]) == 1  # No redirects or automatic retries.
+
+
+@pytest.mark.anyio
+async def test_model_supplied_knowledge_base_is_ignored(client, upstream):
+    result = await client.call_tool("knowflow_search", {**ARGS, "knowledgeBaseId": OTHER_KB_ID})
+    assert not result.is_error
+    request, = upstream["calls"]
+    assert json.loads(request.content)["knowledgeBaseId"] == KB_ID
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("value", [None, "", "  ", "not-a-uuid"])
+async def test_missing_or_invalid_knowledge_base_is_actionable(client, upstream, monkeypatch, value):
+    if value is None:
+        monkeypatch.delenv("KNOWFLOW_KNOWLEDGE_BASE_ID")
+    else:
+        monkeypatch.setenv("KNOWFLOW_KNOWLEDGE_BASE_ID", value)
+    text = error_text(await client.call_tool("knowflow_search", ARGS))
+    assert "KNOWFLOW_KNOWLEDGE_BASE_ID" in text
+    assert upstream["calls"] == []
 
 
 @pytest.mark.anyio

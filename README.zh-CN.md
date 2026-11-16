@@ -39,12 +39,12 @@ Python 服务目前独立运行，Next.js 仍用 `pnpm dev` 启动。检索需�
 
 ### MCP（Claude Desktop，stdio）
 
-`services/api/mcp_server.py` 将 Python `/api/rag/search` 暴露为只读工具 `knowflow_search`，沿用 API 的会话和知识库权限检查。工具参数为 `query`、`knowledgeBaseId`，以及可选的 `topK`（默认 5，范围 1–20）、`maxDistance`（默认 0.6，范围 0–1）、`rerank`（默认 false）。目前只支持向量检索；不支持 keyword、hybrid、fileId 或 filter。
+`services/api/mcp_server.py` 将 Python `/api/rag/search` 暴露为只读工具 `knowflow_search`，沿用 API 的会话和知识库权限检查。工具参数为 `query`，以及可选的 `topK`（默认 5，范围 1–20）、`maxDistance`（默认 0.6，范围 0–1）、`rerank`（默认 false）。知识库不是工具参数，而是来自客户端配置里的 `KNOWFLOW_KNOWLEDGE_BASE_ID`，模型无法选择；这和 Agent 接口从请求里绑定知识库是同一条规则。目前只支持向量检索；不支持 keyword、hybrid、fileId 或 filter。
 
 1. 在现有虚拟环境中安装可选依赖：`services/api/.venv/bin/python -m pip install -r services/api/requirements-mcp.txt`。
 2. 运行 `pnpm dev:api`，并保持终端运行。
 3. 登录与 Python API 使用同一数据库的 KnowFlow，在浏览器开发者工具的 Application / Storage → Cookies 中找到 `rag_session`，复制它的值。只在本地配置中填写，不提交凭证；会话过期或登出后需重新配置。
-4. 在 Claude Desktop 的 Settings → Developer → Edit Config 中，将下面的 `knowflow` 条目合并到已有的 `mcpServers`。macOS 配置文件位于 `~/Library/Application Support/Claude/claude_desktop_config.json`。将示例中的两处仓库路径替换成你的绝对路径，并填写会话值。
+4. 在 Claude Desktop 的 Settings → Developer → Edit Config 中，将下面的 `knowflow` 条目合并到已有的 `mcpServers`。macOS 配置文件位于 `~/Library/Application Support/Claude/claude_desktop_config.json`。将示例中的两处仓库路径替换成你的绝对路径，填写会话值，并填写知识库 UUID（可从 KnowFlow 的 `/knowledge-bases/<UUID>/chat` 地址取得）。一个条目只检索一个知识库；要用多个，就按知识库各加一个不同名字的条目。
 
 ```json
 {
@@ -54,14 +54,15 @@ Python 服务目前独立运行，Next.js 仍用 `pnpm dev` 启动。检索需�
       "args": ["/absolute/path/to/knowflow/services/api/mcp_server.py"],
       "env": {
         "KNOWFLOW_API_URL": "http://127.0.0.1:8000",
-        "KNOWFLOW_SESSION_TOKEN": "<rag_session value>"
+        "KNOWFLOW_SESSION_TOKEN": "<rag_session value>",
+        "KNOWFLOW_KNOWLEDGE_BASE_ID": "<知识库 UUID>"
       }
     }
   }
 }
 ```
 
-完全退出并重新打开 Claude Desktop，它会通过 stdio 自动启动 MCP 子进程；不需要手动启动 MCP 或为它分配端口。然后发送：“请用 knowflow_search 检索知识库 `<知识库 UUID>` 中关于登录的内容，并引用来源。”知识库 UUID 可从 KnowFlow 的 `/knowledge-bases/<UUID>/chat` 地址取得。接口地址和会话只来自客户端的环境配置，不是工具参数；未配置会话时仍可发现工具，但调用会提示配置凭证。
+完全退出并重新打开 Claude Desktop，它会通过 stdio 自动启动 MCP 子进程；不需要手动启动 MCP 或为它分配端口。然后发送：“请用 knowflow_search 检索关于登录的内容，并引用来源。”接口地址、会话和知识库只来自客户端的环境配置，不是工具参数；未配置会话时仍可发现工具，但调用会提示配置凭证。
 
 成功结果保留 `{ requestId, ok, data }`，提供结构化结果和文本回退；空片段是成功结果，401、404、超时等使用 MCP 工具错误。MCP 不生成答案，交给 Claude 根据片段回答。stdout 专供 MCP 协议，日志写 stderr；不要将入口命名为 `mcp.py`，否则会遮住 SDK 包。
 
