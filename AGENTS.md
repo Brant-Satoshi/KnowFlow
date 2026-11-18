@@ -9,6 +9,7 @@ Next.js App Router RAG/chat application using PostgreSQL + pgvector.
 - KB-scoped access must use `lib/authz/access.ts` guards, including access through files, conversations, and eval runs. Cross-tenant resources return 404.
 - Chat and eval share retrieval in `lib/rag/retrieve.ts`. Vector recall is the default; enabling hybrid by default requires a same-corpus `pnpm eval:hybrid-ab` comparison (see [ADR-010](docs/adr/010.hybrid-search-rrf-gated.md)).
 - SQL migrations are handwritten; schema changes follow [add-db-table](.agents/skills/add-db-table/SKILL.md).
+- `services/api/` is a FastAPI rewrite that runs on its own with `pnpm dev:api`; Next.js does not call it (conventions in [ADR-013](docs/adr/013.fastapi-service-foundation.md)). Its `POST /api/chat/agent` is a Python-only, non-streaming tool-calling endpoint: the model writes the search queries, and the knowledge base is bound server-side.
 
 ## UI conventions
 

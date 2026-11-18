@@ -24,6 +24,52 @@ pnpm dev                            # http://localhost:3000
 
 `pnpm build` is the canonical type-check (no separate `tsc` step is wired up).
 
+### Python API (optional)
+
+For first-time setup, create the Python virtual environment and install its dependencies from the repository root:
+
+```bash
+python3 -m venv services/api/.venv
+services/api/.venv/bin/python -m pip install -r services/api/requirements.txt
+```
+
+Then run `pnpm dev:api` from the repository root. It loads `.env.local` (exported environment variables take precedence), starts FastAPI at `http://127.0.0.1:8000` using that virtual environment, and reloads when Python code changes. Check `/api/health`; press `Ctrl+C` to stop. If the port is occupied, use `pnpm dev:api --port 8001`.
+
+The Python service currently runs independently; start Next.js with `pnpm dev`. Retrieval requires a working database and the OpenRouter configuration below.
+
+One endpoint exists only in the Python service: `POST /api/chat/agent`. Instead of the fixed retrieve-then-answer pipeline, the model (`deepseek/deepseek-chat-v3.1` via OpenRouter) decides what to search for and how many times. The server runs each search in the requested knowledge base (vector recall, rerank, top 5) and returns the whole answer at once, without streaming. Send `{ "message", "knowledgeBaseId", "conversationId"? }` with the `rag_session` cookie. A conversation supplies its latest 8 messages as history, and nothing is written back. `data` holds `answer`, `citations`, `refusal`, `completed`, `stopReason`, and `steps` (one record per model or tool call). An unfinished run still returns 200, with `completed: false`. The loop rules are in [ADR-013](docs/adr/013.fastapi-service-foundation.md): the model must search before answering, the loop allows at most 4 model calls within 30 seconds, and the server refuses when every search is empty.
+
+### MCP (Claude Desktop, stdio)
+
+`services/api/mcp_server.py` exposes the Python `/api/rag/search` endpoint as the read-only `knowflow_search` tool, retaining the API's session and knowledge-base access checks. Parameters are `query` and optional `topK` (default 5, range 1–20), `maxDistance` (default 0.6, range 0–1), and `rerank` (default false). The knowledge base is not a parameter: it comes from `KNOWFLOW_KNOWLEDGE_BASE_ID` in the client configuration, so the model cannot choose it, just as the agent endpoint binds it from the request. Only vector search is supported; keyword, hybrid, fileId, and filter are unavailable.
+
+1. Install the optional dependencies in the existing environment: `services/api/.venv/bin/python -m pip install -r services/api/requirements-mcp.txt`.
+2. Run `pnpm dev:api` and keep that terminal running.
+3. Log in to KnowFlow using the same database as the Python API. In browser developer tools, find `rag_session` under Application / Storage → Cookies and copy its value. Keep it in local configuration only, never commit credentials, and replace it after session expiry or logout.
+4. In Claude Desktop, open Settings → Developer → Edit Config and merge the `knowflow` entry below into the existing `mcpServers`. On macOS, the configuration file is `~/Library/Application Support/Claude/claude_desktop_config.json`. Replace both repository paths with your absolute paths, fill in the session value, and set the knowledge-base UUID (from the KnowFlow `/knowledge-bases/<UUID>/chat` URL). Each entry searches one knowledge base; to use several, add one entry per knowledge base under different names.
+
+```json
+{
+  "mcpServers": {
+    "knowflow": {
+      "command": "/absolute/path/to/knowflow/services/api/.venv/bin/python",
+      "args": ["/absolute/path/to/knowflow/services/api/mcp_server.py"],
+      "env": {
+        "KNOWFLOW_API_URL": "http://127.0.0.1:8000",
+        "KNOWFLOW_SESSION_TOKEN": "<rag_session value>",
+        "KNOWFLOW_KNOWLEDGE_BASE_ID": "<knowledge-base UUID>"
+      }
+    }
+  }
+}
+```
+
+Fully quit and reopen Claude Desktop; it starts the MCP subprocess over stdio automatically, without a separate manual launch or MCP port. Then ask: "Use knowflow_search to find login documentation and cite your sources." The API address, session, and knowledge base come only from client environment configuration, never tool arguments. Tool discovery works without a session; calls then explain how to configure it.
+
+Successful results preserve `{ requestId, ok, data }`, with structured output and a text fallback. Empty chunks are a successful result; 401, 404, timeouts, and other failures become MCP tool errors. Claude generates the answer from the returned passages. Reserve stdout for MCP messages and send logs to stderr. Do not name the entry point `mcp.py`, which would shadow the SDK package.
+
+Verify with `services/api/.venv/bin/python -m pytest services/api/test_mcp_server.py -q`. Tests use fake HTTP responses and a real stdio subprocess, without database or model access; they skip when the optional SDK is absent. See the [official MCP client setup guide](https://modelcontextprotocol.io/docs/develop/connect-local-servers).
+
 ### Required environment variables
 
 | Var | Purpose |
@@ -63,6 +109,7 @@ If you're pointing at Supabase / a remote Postgres, run `make migrate-supabase` 
 | Command | Description |
 | --- | --- |
 | `pnpm dev` | Next dev server on `localhost:3000` |
+| `pnpm dev:api` | Python FastAPI on `127.0.0.1:8000`, with `.env.local` loading and automatic reload |
 | `pnpm build` | Production build (also serves as type-check) |
 | `pnpm start` | Run the built app |
 | `pnpm lint` | ESLint |
