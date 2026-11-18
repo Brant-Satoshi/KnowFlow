@@ -41,7 +41,7 @@ Python 服务目前独立运行，Next.js 仍用 `pnpm dev` 启动。检索需�
 
 ### MCP（Claude Desktop，stdio）
 
-`services/api/mcp_server.py` 将 Python `/api/rag/search` 暴露为只读工具 `knowflow_search`，沿用 API 的会话和知识库权限检查。工具参数为 `query`，以及可选的 `topK`（默认 5，范围 1–20）、`maxDistance`（默认 0.6，范围 0–1）、`rerank`（默认 false）。知识库不是工具参数，而是来自客户端配置里的 `KNOWFLOW_KNOWLEDGE_BASE_ID`，模型无法选择；这和 Agent 接口从请求里绑定知识库是同一条规则。目前只支持向量检索；不支持 keyword、hybrid、fileId 或 filter。
+`services/api/mcp_server.py` 将 Python `/api/rag/search` 暴露为只读工具 `knowflow_search`，沿用 API 的会话和知识库权限检查。工具参数为 `query`，以及可选的 `topK`（默认 5，范围 1–20）、`maxDistance`（默认 1.0，范围 0–1）、`rerank`（默认 false）。知识库不是工具参数，而是来自客户端配置里的 `KNOWFLOW_KNOWLEDGE_BASE_ID`，模型无法选择；这和 Agent 接口从请求里绑定知识库是同一条规则。目前只支持向量检索；不支持 keyword、hybrid、fileId 或 filter。
 
 1. 在现有虚拟环境中安装可选依赖：`services/api/.venv/bin/python -m pip install -r services/api/requirements-mcp.txt`。
 2. 运行 `pnpm dev:api`，并保持终端运行。

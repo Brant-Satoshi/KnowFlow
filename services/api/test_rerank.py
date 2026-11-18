@@ -333,7 +333,7 @@ def test_cancel_is_not_a_fallback(conn, tenants):
 
 
 def test_empty_recall_refuses_without_calling_rerank(conn, tenants):
-    insert_angles(conn, tenants["kb_alice"], [90])  # 距离约 1，被阈值挡掉
+    insert_angles(conn, tenants["kb_alice"], [120])  # 距离 1.5，被阈值挡掉
     run, calls = fake_rerank([])
     client = rerank_client(conn, tenants["alice"], run)
 

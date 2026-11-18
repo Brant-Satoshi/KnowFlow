@@ -41,7 +41,7 @@ One endpoint exists only in the Python service: `POST /api/chat/agent`. Instead 
 
 ### MCP (Claude Desktop, stdio)
 
-`services/api/mcp_server.py` exposes the Python `/api/rag/search` endpoint as the read-only `knowflow_search` tool, retaining the API's session and knowledge-base access checks. Parameters are `query` and optional `topK` (default 5, range 1–20), `maxDistance` (default 0.6, range 0–1), and `rerank` (default false). The knowledge base is not a parameter: it comes from `KNOWFLOW_KNOWLEDGE_BASE_ID` in the client configuration, so the model cannot choose it, just as the agent endpoint binds it from the request. Only vector search is supported; keyword, hybrid, fileId, and filter are unavailable.
+`services/api/mcp_server.py` exposes the Python `/api/rag/search` endpoint as the read-only `knowflow_search` tool, retaining the API's session and knowledge-base access checks. Parameters are `query` and optional `topK` (default 5, range 1–20), `maxDistance` (default 1.0, range 0–1), and `rerank` (default false). The knowledge base is not a parameter: it comes from `KNOWFLOW_KNOWLEDGE_BASE_ID` in the client configuration, so the model cannot choose it, just as the agent endpoint binds it from the request. Only vector search is supported; keyword, hybrid, fileId, and filter are unavailable.
 
 1. Install the optional dependencies in the existing environment: `services/api/.venv/bin/python -m pip install -r services/api/requirements-mcp.txt`.
 2. Run `pnpm dev:api` and keep that terminal running.

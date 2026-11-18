@@ -251,7 +251,7 @@ def get_chat():
 
 
 DEFAULT_TOP_K = 5  # TS 的 RETRIEVAL.finalTopK
-DEFAULT_MAX_DISTANCE = 0.6  # TS 的 RETRIEVAL.maxDistance
+DEFAULT_MAX_DISTANCE = 1.0  # TS 的 RETRIEVAL.maxDistance
 RECALL_TOP_K = 20  # TS 的 RETRIEVAL.recallTopK
 RERANK_TOP_N = 8  # TS 的 RETRIEVAL.rerankTopN
 

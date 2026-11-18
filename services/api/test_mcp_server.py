@@ -96,7 +96,7 @@ async def test_forwarding_and_rerank_results(client, upstream):
     assert str(request.url) == "https://knowflow.test/api/rag/search"
     assert request.headers["cookie"] == "rag_session=test-session-token"
     assert json.loads(request.content) == {
-        **ARGS, "knowledgeBaseId": KB_ID, "topK": 3, "maxDistance": 0.6, "rerank": True,
+        **ARGS, "knowledgeBaseId": KB_ID, "topK": 3, "maxDistance": 1.0, "rerank": True,
     }
     assert "test-session-token" not in str(result)
 
