@@ -35,6 +35,8 @@ services/api/.venv/bin/python -m pip install -r services/api/requirements.txt
 
 之后只需要在仓库根目录运行 `pnpm dev:api`：自动读取 `.env.local`（已导出的环境变量优先），使用该虚拟环境在 `http://127.0.0.1:8000` 启动 FastAPI，并监听 Python 代码修改。健康检查地址是 `/api/health`，按 `Ctrl+C` 停止。端口被占用时可用 `pnpm dev:api --port 8001`。
 
+也可以改用 Docker 跑同一个服务：在仓库根目录运行 `make api-docker`，它会用 `services/api/Dockerfile` 构建镜像，并在 `http://localhost:8000` 启动容器；按 `Ctrl+C` 停止，容器随之删除。密钥在启动时从 `.env.local` 读取，不会打进镜像。容器里的 `localhost` 指容器自己，所以 `DATABASE_URL` 里的 `localhost` 或 `127.0.0.1` 会被换成 `host.docker.internal`；Supabase 这类远程地址原样传入。Docker 按字面读取 `.env.local`，值的外面不能加引号。容器不会随代码修改自动重载，改完代码要重新运行这条命令。端口被占用时可用 `make api-docker API_PORT=8001`。
+
 Python 服务目前独立运行，Next.js 仍用 `pnpm dev` 启动。检索需要可用的数据库和下方的 OpenRouter 配置。
 
 `POST /api/chat/agent` 只有 Python 服务有。它不走“先检索、再回答”的固定流程，而是由模型（经 OpenRouter 调用 `deepseek/deepseek-chat-v3.1`）决定用什么词检索、检索几次。服务端在请求指定的知识库里执行每次检索（向量召回、重排、取前 5 个），最后一次性返回完整回答，不是流式。请求体是 `{ "message", "knowledgeBaseId", "conversationId"? }`，请求要带 `rag_session` cookie。带了会话时，读取它最近 8 条消息作为历史，这一轮的问答不写回会话。`data` 里有 `answer`、`citations`、`refusal`、`completed`、`stopReason` 和 `steps`（每次模型调用、每次工具调用各一条记录）。没答完也返回 200，`completed` 为 `false`。循环规则见 [ADR-013](docs/adr/013.fastapi-service-foundation.md)：模型必须先检索再回答，30 秒内最多调用 4 次模型，每次检索都为空时由程序拒答。
