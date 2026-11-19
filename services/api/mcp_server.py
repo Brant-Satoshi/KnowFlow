@@ -58,7 +58,7 @@ def _configuration() -> tuple[str, str, UUID]:
 async def knowflow_search(
     query: Annotated[str, Field(strict=True, min_length=1, description="检索词；返回原文证据供回答使用")],
     topK: Annotated[int, Field(strict=True, ge=1, le=20)] = 5,
-    maxDistance: Annotated[float, Field(strict=True, ge=0, le=1)] = 0.6,
+    maxDistance: Annotated[float, Field(strict=True, ge=0, le=1)] = 1.0,
     rerank: StrictBool = False,
 ) -> dict[str, Any]:
     """在配置指定的 KnowFlow 知识库里做向量检索，返回原文、来源和距离，可选重排。

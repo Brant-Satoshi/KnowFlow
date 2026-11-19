@@ -35,7 +35,7 @@ validated to be exactly 1536 dimensions, matching the `chunks.embedding vector(1
 ## Stage 2 — Vector search (recall)
 
 ```
-searchChunks(queryEmbedding, topK=20, maxDistance=0.6, knowledgeBaseId, filter?)
+searchChunks(queryEmbedding, topK=20, maxDistance=1.0, knowledgeBaseId, filter?)
 →  Chunk[]  (≤ 20 results)
 ```
 
@@ -48,7 +48,7 @@ SELECT ..., c.embedding <=> $1::vector AS distance
 FROM chunks c
 JOIN files f ON c.file_id = f.id::uuid
 WHERE c.embedding IS NOT NULL
-  AND c.embedding <=> $1::vector < 0.6        -- hard distance cutoff
+  AND c.embedding <=> $1::vector < $2         -- RETRIEVAL.maxDistance = 1.0, no cutoff in practice
   AND f.knowledge_base_id = $3::uuid
   -- optional RetrievalFilter clauses (ANDed):
   --   c.file_id = ANY($n::uuid[])                              (fileIds)
@@ -229,7 +229,7 @@ User message
 | Decision | Rationale |
 |---|---|
 | Recall 20, rerank to 8, prompt with 5 | Broad recall increases coverage; reranker improves precision; small final window keeps prompt cost low and avoids context dilution |
-| Hard distance cutoff 0.6 | Prevents semantically unrelated chunks from entering the pipeline even if they are the "closest" available |
+| No distance cutoff in practice (`maxDistance` 1.0, was 0.6) | Distance doesn't encode answerability: a subject-less answerable question ("Who is the lead researcher?" 0.701) sits farther than an off-topic one ("今天天气怎么样？" 0.655), so 0.6 refused 32% (zh) / 53% (en) of answerable questions. Off-topic questions now reach the LLM, and the QA prompt refuses them (20/20 negatives in the sweep) |
 | Rerank fallback to recall order | Reranker is a quality enhancement, not a hard dependency — requests complete even if OpenRouter is down |
 | Cosine distance via pgvector HNSW | Approximate nearest-neighbour at scale; HNSW trades a small accuracy loss for sub-millisecond search on large vector sets |
 | SSE `progress` events | Lets the UI surface which stage is running without polling; useful for debugging latency in each stage |
