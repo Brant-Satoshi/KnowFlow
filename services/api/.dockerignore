@@ -1,0 +1,16 @@
+# 本机的虚拟环境：装的是 macOS 版的包，容器里用不了，而且很大；依赖由 Dockerfile 里的 pip install 装
+.venv/
+__pycache__/
+.pytest_cache/
+
+# 测试只在本机跑，不进运行用的镜像
+test_*.py
+conftest.py
+testdata.py
+
+# MCP Server 由 Claude Desktop 在本机作为子进程启动，不跑在容器里
+mcp_server.py
+requirements-mcp.txt
+
+Dockerfile
+.dockerignore
