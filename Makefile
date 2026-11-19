@@ -1,4 +1,4 @@
-.PHONY: db-reset db-init migrate migrate-supabase seed logs
+.PHONY: db-reset db-init migrate migrate-supabase seed logs api-docker
 
 CONTAINER=knowflow-postgres
 DB=knowflow
@@ -95,3 +95,18 @@ logs:
 
 db-shell:
 	docker exec -it $(CONTAINER) psql -U $(USER) -d $(DB)
+
+# Build services/api/Dockerfile and run the Python API in a container on
+# localhost:$(API_PORT) (override when 8000 is taken: make api-docker API_PORT=8001).
+# Secrets come from .env.local at run time and are never baked into the image.
+# Inside the container "localhost" is the container itself, so a localhost
+# DATABASE_URL is rewritten to host.docker.internal (the host machine); a remote
+# URL such as Supabase passes through unchanged. The run line is silenced (@) so
+# the database password is not echoed.
+API_PORT ?= 8000
+API_DATABASE_URL = $(subst @127.0.0.1:,@host.docker.internal:,$(subst @localhost:,@host.docker.internal:,$(DATABASE_URL)))
+
+api-docker:
+	@test -n "$(DATABASE_URL)" || { echo "DATABASE_URL is not set (looked in env and .env.local)"; exit 1; }
+	docker build -t knowflow-api services/api
+	@docker run --rm --name knowflow-api -p $(API_PORT):8000 --env-file .env.local -e DATABASE_URL="$(API_DATABASE_URL)" knowflow-api
