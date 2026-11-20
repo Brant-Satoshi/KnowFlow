@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "savedOn": "2026-10-02",
+  "source": "user_reported_individual_runs",
+  "requestedModelId": null,
+  "note": "输入按对话中的逐条练习整理；recordedResult 保留用户贴出的判定与理由。各次运行时间和模型未记录。属于开发样例，不是独立测试集；保存日期不是各次模型调用时间。",
+  "cases": [
+    {
+      "id": "phase2-fabricated-budget",
+      "label": "无答案题编造金额",
+      "input": {
+        "question": "第二阶段的预算是多少信用点？",
+        "expectedAnswer": "文档未说明。",
+        "answer": "第二阶段预算是 4.2 亿信用点。",
+        "outOfScope": true,
+        "chunks": [
+          {
+            "id": "demo-chunk",
+            "fileId": "demo-file",
+            "idx": 0,
+            "text": "初始资金为 4.2 亿信用点。后续预算需在第一阶段评审后确认。",
+            "meta": {}
+          }
+        ]
+      },
+      "expectedVerdict": "fail",
+      "recordedResult": {
+        "verdict": "fail",
+        "reason": "outOfScope为true时，回答应明确说明资料未提供所问信息，但实际回答却断言第二阶段预算为4.2亿信用点，这与资料不符（资料仅提及初始资金，未说明第二阶段预算），属于编造答案。"
+      }
+    },
+    {
+      "id": "phase2-correct-abstention",
+      "label": "无答案题恰当说明资料不足",
+      "input": {
+        "question": "第二阶段的预算是多少信用点？",
+        "expectedAnswer": "文档未说明。",
+        "answer": "文档未说明第二阶段的预算金额，后续预算需在第一阶段评审后确认。",
+        "outOfScope": true,
+        "chunks": [
+          {
+            "id": "demo-chunk",
+            "fileId": "demo-file",
+            "idx": 0,
+            "text": "初始资金为 4.2 亿信用点。后续预算需在第一阶段评审后确认。",
+            "meta": {}
+          }
+        ]
+      },
+      "expectedVerdict": "pass",
+      "recordedResult": {
+        "verdict": "pass",
+        "reason": "回答明确说明文档未说明第二阶段的预算金额，并提供了资料支持的背景信息（后续预算需在第一阶段评审后确认），没有编造或猜测缺失答案，符合outOfScope为true时的要求。"
+      }
+    },
+    {
+      "id": "phase2-abstention-with-guess",
+      "label": "先拒答随后猜测",
+      "input": {
+        "question": "第二阶段的预算是多少信用点？",
+        "expectedAnswer": "文档未说明。",
+        "answer": "文档未说明第二阶段预算，但我估计应该是 4.2 亿信用点。",
+        "outOfScope": true,
+        "chunks": [
+          {
+            "id": "demo-chunk",
+            "fileId": "demo-file",
+            "idx": 0,
+            "text": "初始资金为 4.2 亿信用点。后续预算需在第一阶段评审后确认。",
+            "meta": {}
+          }
+        ]
+      },
+      "expectedVerdict": "fail",
+      "recordedResult": {
+        "verdict": "fail",
+        "reason": "回答虽然提到文档未说明第二阶段预算，但随后猜测出答案（4.2亿信用点），这超出了文档支持范围，违反了 outOfScope 情况下的评判规则。"
+      }
+    },
+    {
+      "id": "funding-false-refusal",
+      "label": "有答案题误拒答",
+      "input": {
+        "question": "奥林匹斯计划获得了多少初始资金，来自谁？",
+        "expectedAnswer": "初始资金为 4.2 亿信用点，由火星联合体提供。",
+        "answer": "文档未说明。",
+        "outOfScope": false,
+        "chunks": [
+          {
+            "id": "demo-chunk",
+            "fileId": "demo-file",
+            "idx": 0,
+            "text": "奥林匹斯计划的初始资金为 4.2 亿信用点，由火星联合体提供。",
+            "meta": {}
+          }
+        ]
+      },
+      "expectedVerdict": "fail",
+      "recordedResult": {
+        "verdict": "fail",
+        "reason": "实际回答声称文档未说明，但chunks中明确提供了初始资金为4.2亿信用点，由火星联合体提供，因此回答有答案却拒答，遗漏必要信息。"
+      }
+    },
+    {
+      "id": "funding-correct-paraphrase",
+      "label": "有答案题正确作答",
+      "input": {
+        "question": "奥林匹斯计划获得了多少初始资金，来自谁？",
+        "expectedAnswer": "初始资金为 4.2 亿信用点，由火星联合体提供。",
+        "answer": "火星联合体为该计划提供了 4.2 亿信用点的初始资金。",
+        "outOfScope": false,
+        "chunks": [
+          {
+            "id": "demo-chunk",
+            "fileId": "demo-file",
+            "idx": 0,
+            "text": "奥林匹斯计划的初始资金为 4.2 亿信用点，由火星联合体提供。",
+            "meta": {}
+          }
+        ]
+      },
+      "expectedVerdict": "pass",
+      "recordedResult": {
+        "verdict": "pass",
+        "reason": "回答准确覆盖了初始资金金额（4.2亿信用点）和来源（火星联合体），与参考答案和资料一致，措辞不同但含义相同，无事实错误或遗漏。"
+      }
+    }
+  ]
+}

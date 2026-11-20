@@ -11,27 +11,27 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { knowledgeBases } from "./core";
-import type { RetrievalFilter } from "@/lib/types";
+import type { EvalAnswerVerdict, RetrievalFilter } from "@/lib/types";
 
 export const evalDatasets = pgTable(
-    "eval_datasets",
-    {
-        id: uuid("id").primaryKey().defaultRandom(),
-        name: text("name").notNull(),
-        description: text("description"),
+  "eval_datasets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    description: text("description"),
 
-        datasetHash: text("dataset_hash").notNull(),
-        caseCount: integer("case_count").notNull(),
-        // Optimistic-concurrency token, bumped on every dataset write
-        // (dataset_hash stays a pure case-content identity).
-        revision: integer("revision").notNull().default(0),
+    datasetHash: text("dataset_hash").notNull(),
+    caseCount: integer("case_count").notNull(),
+    // Optimistic-concurrency token, bumped on every dataset write
+    // (dataset_hash stays a pure case-content identity).
+    revision: integer("revision").notNull().default(0),
 
-        createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-    },
-    (table) => [
-        uniqueIndex("eval_datasets_name_unique").on(table.name),
-    ]
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("eval_datasets_name_unique").on(table.name),
+  ]
 )
 
 export const evalCases = pgTable(
@@ -69,7 +69,7 @@ export const evalRuns = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     knowledgeBaseId: uuid("knowledge_base_id").notNull()
-     .references(() => knowledgeBases.id, { onDelete: "cascade" }),
+      .references(() => knowledgeBases.id, { onDelete: "cascade" }),
     datasetId: uuid("dataset_id")
       .references(() => evalDatasets.id, { onDelete: "set null" }),
 
@@ -100,7 +100,7 @@ export const evalRuns = pgTable(
 
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-    (table) => [
+  (table) => [
     index("eval_runs_kb_idx").on(table.knowledgeBaseId, table.createdAt),
     index("eval_runs_hash_idx").on(
       table.knowledgeBaseId,
@@ -143,8 +143,10 @@ export const evalRunItems = pgTable(
 
     faithfulness: doublePrecision("faithfulness"),
     answerRelevance: doublePrecision("answer_relevance"),
+    answerVerdict: text("answer_verdict").$type<EvalAnswerVerdict>(),
+    answerReason: text("answer_reason"),
   },
   (table) => [
-     index("eval_run_items_run_idx").on(table.runId, table.idx),
+    index("eval_run_items_run_idx").on(table.runId, table.idx),
   ],
 );
