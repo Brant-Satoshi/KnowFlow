@@ -33,7 +33,7 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
-        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1 as of 2026-11-16; later v1 fails with is_error after 1 turn
+        uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
@@ -42,3 +42,14 @@ jobs:
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
+      # The action hides Claude's output on public repos. On failure, print only
+      # the final result's error fields (never the transcript) so the cause is visible.
+      - name: Show Claude error
+        if: failure() && steps.claude-review.outcome == 'failure'
+        env:
+          EXEC_FILE: ${{ steps.claude-review.outputs.execution_file }}
+        run: |
+          f="${EXEC_FILE:-$RUNNER_TEMP/claude-execution-output.json}"
+          jq -c '(if type == "array" then .[] else . end)
+            | select(.type == "result")
+            | {result, api_error, api_error_status, api_error_type, terminal_reason}' "$f" || true
