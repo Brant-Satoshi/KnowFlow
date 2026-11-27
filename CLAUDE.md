@@ -117,3 +117,9 @@ All user-visible strings must use the translation system — no hardcoded Englis
 - Do not add new npm dependencies without asking
 - Every change must be runnable without additional setup
 - Do not change database schema or API response shape unless explicitly requested
+
+## Agent skills
+
+### Domain docs
+
+Single-context: root `GLOSSARY.md` (created lazily) + `docs/adr/`. See `docs/agents/domain.md`.
