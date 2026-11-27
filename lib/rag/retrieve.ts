@@ -10,7 +10,19 @@ import type { Chunk, RetrievalFilter } from '@/lib/types';
 // chat, or its scores measure a pipeline that never runs.
 export const RETRIEVAL = {
   recallTopK: 20,
-  maxDistance: 0.6,
+  // Cosine-distance cutoff for the vector leg. Deliberately 1.0 — in practice
+  // off: text-embedding-3-small distances to an unrelated question top out
+  // around 0.94. Distance does not encode answerability: an answerable question
+  // without its subject ("首席研究员是谁？" 0.707, "What's the capital?" 0.815)
+  // sits farther than an off-topic one ("今天天气怎么样？" 0.655), so no cutoff
+  // refuses the off-topic question without also refusing the answerable one.
+  // The old 0.6 refused 32% (zh) / 53% (en) of answerable questions; at 1.0
+  // none, with the QA prompt still refusing 20/20 negatives. Recall is bounded
+  // by recallTopK; deciding "the answer isn't here" is the prompt's job
+  // (ADR-011). Before lowering this, measure on subject-less answerable
+  // questions: nearly every built-in goldset question names its subject, so
+  // those sets barely show the regression.
+  maxDistance: 1.0,
   rerankTopN: 8,
   finalTopK: 5,
   // Refusal floor: refuse when the reranker's best score falls below this

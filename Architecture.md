@@ -257,7 +257,7 @@ interface RetrievedChunk {
 
 ```
 1. embedText(query)                                         ← lib/rag/embeddings.ts
-2. searchChunks(emb, topK=20, maxDistance=0.6, kbId,        ← cosine distance, HNSW
+2. searchChunks(emb, topK=20, maxDistance=1.0, kbId,        ← cosine distance, HNSW
                 filter?)                                      强制按 KB 过滤；可叠加
                                                               RetrievalFilter（fileIds/
                                                               fileTypes/titleQuery）
@@ -285,7 +285,7 @@ interface RetrievedChunk {
 
 **设计要点**
 
-* `topK=20` + `maxDistance=0.6` 是召回上限/阈值；rerank 把"精度"还回来。
+* `topK=20` 是召回上限；`maxDistance=1.0` 实际不卡距离（距离不代表可回答性：缺主语的可答问题比无关问题离得更远）；rerank 把"精度"还回来。
 * **拒答优先于编造**：prompt 显式要求"找不到就说找不到"，rerank 后证据不足时也走拒答分支。
 * `history` 取最近 8 条且**在持久化新 user 消息之前**取（避免把当前消息当历史发回去）。
 * `requestId` 客户端可传入并复用为 assistant 消息 id —— 流式中断后能精确定位到那条消息做 regenerate。
@@ -327,7 +327,7 @@ run 与逐 case 结果持久化到 `eval_runs` / `eval_run_items`（含所用 fi
 
 ### 6.3 召回阈值与 topK
 
-* `topK=20 / maxDistance=0.6 / rerank topN=8 / final 5` —— 经验值。
+* `topK=20 / maxDistance=1.0 / rerank topN=8 / final 5` —— maxDistance 由 0.6 放宽到 1.0 有实测依据（见 `lib/rag/retrieve.ts` 注释），其余是经验值。
 * 太严：召回为空 → 拒答率虚高；太松：噪声进 prompt → 引用错位/幻觉。
 * 调参靠 `/eval`，不靠人肉看几条结果。
 
@@ -386,7 +386,7 @@ run 与逐 case 结果持久化到 `eval_runs` / `eval_run_items`（含所用 fi
 
 ### 8.1 检索失败（无相关 chunk）
 
-* `searchChunks` 受 `maxDistance=0.6` 卡控（叠加 RetrievalFilter 时更严），可能返回空数组。
+* `searchChunks` 的 `maxDistance=1.0` 实际不卡距离，只有 KB 为空或 RetrievalFilter 筛空时才返回空数组。
 * 空数组照样进 `rerankChunks` → 直接返回原（空）数组 → `buildPrompt` 把"Context: "留空 → LLM 按 system 指令输出"I couldn't find relevant information in the knowledge base."
 * 客户端看到 `meta.retrievedChunks=[]` 即可触发"无引用"提示。
 
@@ -442,7 +442,7 @@ run 与逐 case 结果持久化到 `eval_runs` / `eval_run_items`（含所用 fi
 
 ### 待硬编码改为可调（TODO）
 
-* `topK=20` / `maxDistance=0.6` / rerank `topN=8` / final 5 —— 现在散在 `route.ts`，应抽到一个 `lib/rag/config.ts`。
+* `topK=20` / `maxDistance=1.0` / rerank `topN=8` / final 5 —— 现在散在 `route.ts`，应抽到一个 `lib/rag/config.ts`。
 * `chunkSize` / `overlap` —— 在 `lib/rag/chunks.ts` 里。
 * `MAX_HISTORY_MESSAGES = 8`。
 

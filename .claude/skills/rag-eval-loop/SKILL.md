@@ -9,7 +9,7 @@ Retrieval changes are easy to make and hard to judge by eye. This repo has a bui
 
 ## Where things live
 
-- Retrieval stages: `lib/rag/retrieve.ts` — `recallChunks` (embed query → pgvector top-20, cosine distance < 0.6, optional `RetrievalFilter`) then `selectFinalChunks` (Cohere rerank topN 8 → top-5). **Shared by chat and the eval runner** — change it once here, both paths move.
+- Retrieval stages: `lib/rag/retrieve.ts` — `recallChunks` (embed query → pgvector top-20, `maxDistance` 1.0 = no cutoff in practice, optional `RetrievalFilter`) then `selectFinalChunks` (Cohere rerank topN 8 → top-5). **Shared by chat and the eval runner** — change it once here, both paths move.
 - All tunable params: the exported `RETRIEVAL` config in `lib/rag/retrieve.ts`. Change numbers there, not inline.
 - Prompt assembly: `buildPrompt` in `lib/llm/chat.ts`.
 - Chunking/embedding: `lib/rag/chunks.ts`, `lib/rag/embeddings.ts`; re-embedding script: `scripts/reembed.ts` (needed if you change embedding text construction — contextual embeddings live in `embedding_text`).

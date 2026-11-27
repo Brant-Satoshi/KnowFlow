@@ -34,7 +34,7 @@ def search_client(conn, user: dict, embed):
     return client
 
 
-# 1. 顺序和阈值：只返回距离 < 0.6 的片段，按距离从小到大排，_distance 和手算的一致
+# 1. 顺序和阈值：只返回距离 < 1.0 的片段，按距离从小到大排，_distance 和手算的一致
 def test_order_from_alice_kb(conn, tenants):
     embed, _ = fake_embed(padded_vector(1, 0))
     client = search_client(conn, tenants["alice"], embed)
@@ -42,16 +42,16 @@ def test_order_from_alice_kb(conn, tenants):
     file_id = insert_file(conn, tenants["kb_alice"], "alice_file")
     # 插入顺序故意和期望顺序不同：实现漏了 ORDER BY、按插入顺序返回时，这个测试通不过
     chunk_60 = insert_chunk(conn, file_id, 0, at_angle(60))
-    insert_chunk(conn, file_id, 1, at_angle(90))  # 距离约为 1，应该被阈值挡掉
+    insert_chunk(conn, file_id, 1, at_angle(120))  # 距离 1.5，应该被阈值挡掉
     chunk_0 = insert_chunk(conn, file_id, 2, at_angle(0))
     chunk_45 = insert_chunk(conn, file_id, 3, at_angle(45))
-    # 单位向量的余弦距离 = 1 - 第一维：0.41 -> 0.59，0.39 -> 0.61。
-    # 只用 60° / 90°，阈值误写成 0.8 也能通过；这两个片段把阈值夹在 0.6 附近。
-    # 不用恰好 0.6 的片段，避免 vector 单精度存储把边界推向任意一侧。
-    chunk_059 = insert_chunk(
-        conn, file_id, 4, padded_vector(0.41, math.sqrt(1 - 0.41**2))
+    # 单位向量的余弦距离 = 1 - 第一维：0.01 -> 0.99，-0.01 -> 1.01。
+    # 只用 60° / 120°，阈值误写成 0.8 也能通过；这两个片段把阈值夹在 1.0 附近。
+    # 不用恰好 1.0 的片段（例如 90°），避免 vector 单精度存储把边界推向任意一侧。
+    chunk_099 = insert_chunk(
+        conn, file_id, 4, padded_vector(0.01, math.sqrt(1 - 0.01**2))
     )
-    insert_chunk(conn, file_id, 5, padded_vector(0.39, math.sqrt(1 - 0.39**2)))
+    insert_chunk(conn, file_id, 5, padded_vector(-0.01, math.sqrt(1 - 0.01**2)))
 
     response = client.post(
         "/api/rag/search", json={"query": "问题", "knowledgeBaseId": tenants["kb_alice"]}
@@ -59,9 +59,9 @@ def test_order_from_alice_kb(conn, tenants):
     assert response.status_code == 200
     chunks = response.json()["data"]["chunks"]
 
-    assert [chunk["id"] for chunk in chunks] == [chunk_0, chunk_45, chunk_60, chunk_059]
+    assert [chunk["id"] for chunk in chunks] == [chunk_0, chunk_45, chunk_60, chunk_099]
     # 手算：1-cos(0°)=0，1-cos(45°)=1-√2/2，1-cos(60°)=0.5。
-    expected_distances = [0.0, 1 - math.sqrt(2) / 2, 0.5, 0.59]
+    expected_distances = [0.0, 1 - math.sqrt(2) / 2, 0.5, 0.99]
     for chunk, expected in zip(chunks, expected_distances, strict=True):
         # vector 列每个分量按单精度存，算出来的距离有约 1e-7 的误差；期望值是 0 时只能用绝对误差
         assert chunk["meta"]["_distance"] == pytest.approx(expected, abs=1e-6)
@@ -199,7 +199,7 @@ def test_top_k_whole_number_float_is_accepted(conn, tenants):
     assert [chunk["id"] for chunk in chunks] == [chunk_ids[d] for d in (0, 10, 20, 30, 40)]
 
 
-# maxDistance 替换默认阈值 0.6：60° 的距离是 0.5，默认会返回，传 0.4 时要被挡掉
+# maxDistance 替换默认阈值 1.0：60° 的距离是 0.5，默认会返回，传 0.4 时要被挡掉
 def test_max_distance_overrides_default_threshold(conn, tenants):
     embed, _ = fake_embed(padded_vector(1, 0))
     client = search_client(conn, tenants["alice"], embed)

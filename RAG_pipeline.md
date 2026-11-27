@@ -246,7 +246,7 @@ LIMIT $4
 | 参数 | 当前值 |
 | --- | --- |
 | `topK` | `20` |
-| `maxDistance` | `0.6` |
+| `maxDistance` | `1.0`（实际不卡距离，见 `RETRIEVAL` 注释） |
 | `knowledgeBaseId` | 当前 conversation 所属 KB |
 | `filter` | 可选 `RetrievalFilter`（`fileIds` / `fileTypes` / `titleQuery`），编译为额外 `WHERE` 条件，维度间 AND、维度内 OR |
 
@@ -499,7 +499,7 @@ POST /api/rag/search
 | `fileId` | 与 `knowledgeBaseId` 二选一必填，只检索单个文件 |
 | `mode` | 可选，`vector`（默认）/ `keyword` / `hybrid`；`keyword` 走 pg_trgm `word_similarity` 对 `embedding_text` 做三元组匹配，不调用 embedding，得分写入 `meta._keywordSim`；`hybrid` 用 RRF 融合向量腿和关键词腿（`lib/rag/fusion.ts`，得分写入 `meta._rrfScore`） |
 | `topK` | 默认 `5`，范围 `1..20` |
-| `maxDistance` | 默认 `0.6`，范围 `0..1`，`vector` 与 `hybrid` 模式校验和使用（作用于向量腿） |
+| `maxDistance` | 默认 `1.0`（`RETRIEVAL.maxDistance`），范围 `0..1`，`vector` 与 `hybrid` 模式校验和使用（作用于向量腿） |
 | `filter` | 可选 `RetrievalFilter`：`{ fileIds?, fileTypes?, titleQuery? }`，维度间 AND、维度内 OR，两种 mode 都生效 |
 
 注意：接口要求登录，且经 `lib/authz/access.ts` 校验 KB / 文件归属；`fileId` 与 `filter.fileIds` 同时给出时取交集（可能为空，不算错误）。
@@ -546,7 +546,7 @@ pnpm eval:hybrid-ab -- --knowledge-base-id=<uuid> --dataset-id=<uuid> --rerank=o
 | overlap | `lib/rag/chunks.ts` | `50` | 提高跨 chunk 命中，但增加存储和召回重复 |
 | embedding dimensions | `lib/rag/embeddings.ts` / `lib/models.ts` | `1536` | 必须匹配 DB schema |
 | chat recall topK | `lib/rag/retrieve.ts` (`RETRIEVAL`) | `20` | 候选覆盖率 |
-| chat maxDistance | `lib/rag/retrieve.ts` (`RETRIEVAL`) | `0.6` | 过滤弱相关 chunk |
+| chat maxDistance | `lib/rag/retrieve.ts` (`RETRIEVAL`) | `1.0` | 实际不卡；0.6 曾误拒 32%（中）/ 53%（英）的可答问题 |
 | rerank topN | `lib/rag/retrieve.ts` (`RETRIEVAL`) | `8` | rerank 后候选窗口 |
 | final chunks | `lib/rag/retrieve.ts` (`RETRIEVAL`) | `5` | prompt 成本和证据噪声 |
 | history messages | `app/api/chat/stream/route.ts` | `8` | 多轮上下文长度 |
